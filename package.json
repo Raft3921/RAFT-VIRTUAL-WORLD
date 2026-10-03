@@ -1,0 +1,11 @@
+{
+  "name": "raft-virtual-world",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lan": "node server/lan.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}

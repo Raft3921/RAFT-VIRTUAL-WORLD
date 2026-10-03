@@ -25,11 +25,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
-      - name: Configure room sync endpoint
-        env:
-          SYNC_ENDPOINT: wss://raft-studio-room-sync.minecraft-studio.workers.dev/room
-        run: |
-          node --input-type=module -e "import fs from 'node:fs'; fs.writeFileSync('dist/sync-config.js', 'export const SYNC_ENDPOINT = ' + JSON.stringify(process.env.SYNC_ENDPOINT || '') + ';\\n')"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

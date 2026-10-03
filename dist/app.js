@@ -17,7 +17,7 @@ let touch = matchMedia('(pointer:coarse)').matches;
 let cameraMode='follow',yaw=0,pitch=-.14,lobbyYaw=.35;
 let distance=5.5,fov=55,smoothing=.14,flySpeed=4,moveSpeed=2.8,gesture='none',showCast=false;
 let renderer,environment,requestId,lastTime=0,time=0,metricsAt=0,fpsFrames=0,fps=60;
-let activeQuality=touch?'medium':'high',qualityChoice='auto',slowSeconds=0,cleanTimer=0,pendingClean=0,uploadTarget=null;
+let activeQuality=touch?'low':'high',qualityChoice='auto',slowSeconds=0,cleanTimer=0,pendingClean=0,uploadTarget=null;
 const PUNCH={maxCharge:10,maxRange:1000,tapRange:8,reach:2.25,radius:1.2,gravity:18,angle:24*Math.PI/180};
 const canvas=$('scene'),scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(55,1,.05,2600);
 camera.rotation.order='YXZ';camera.position.set(1.75,1.9,5.3);
@@ -251,6 +251,11 @@ function applyShare(){
 }
  $('shareLink').onclick=async()=>{scheduleShare();try{const url=new URL(location.href);url.searchParams.delete('room');Object.entries(currentShare()).forEach(([key,value])=>url.searchParams.set(key,value));await navigator.clipboard.writeText(url.toString());notify(roomCode?'同じルームに参加するリンクをコピーしました':'撮影パラメーター付きリンクをコピーしました')}catch{notify('リンクをコピーできませんでした')}};
 async function start(){try{
+  const probe=document.createElement('canvas');
+  if(!probe.getContext('webgl2')){
+    if(!probe.getContext('webgl'))throw new Error('この端末ではWebGLを利用できません。iOSとSafariを更新してください。');
+    activeQuality='low';qualityChoice='low';$('quality').value='low';notify('WebGL2非対応のため軽量画質で起動します',5000);
+  }
   renderer=new THREE.WebGLRenderer({canvas,antialias:!touch,powerPreference:'high-performance'});renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   environment=createEnvironment(scene,renderer,{mobile:touch});environment.setSettings({wind:.45,grassDensity:.8,sunHeight:50,exposure:1});quality(activeQuality);
   let loadedCount=0;const skinFailures=[];
@@ -260,6 +265,6 @@ async function start(){try{
   const readyIndex=await Promise.race([preferredReady,firstReady,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Skin loading timed out')),10000))]);
   if(!actors[selected])selected=readyIndex;if(!actors[selected])throw Error('スキンを読み込めませんでした。');applyShare();placeActors();updateSelection();updateVisibility();setCameraMode(shareSource().get('cam')||'follow');requestId=requestAnimationFrame(tick);
   Promise.all(skinLoads).then(()=>{skinFailures.forEach(({index,error})=>{$('characters').children[index].disabled=true;console.error('skin load failed',skinDefs[index][0],error)});updateSelection();updateVisibility();if(skinFailures.length)notify('一部のスキンを読み込めませんでした。再登録できます。')});
-}catch(error){console.error(error);$('loadError').hidden=false;$('loadError').textContent='3Dスタジオを開始できませんでした。ブラウザのWebGL設定を確認して再読み込みしてください。'}}
+}catch(error){console.error(error);$('loadError').hidden=false;$('loadError').textContent=`3Dスタジオを開始できませんでした。${error.message||'SafariのWebGL設定を確認してください。'}`}}
 canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();cancelAnimationFrame(requestId);clearInput();notify('描画が中断されました。復帰を待っています。',8000)});canvas.addEventListener('webglcontextrestored',()=>location.reload());
 start();

@@ -28,4 +28,6 @@ npm install
 npm run lan
 ```
 
+On macOS, you can also double-click `start-lan.command` to install dependencies if needed and start the server in Terminal.
+
 Open the printed `http://<LAN-IP>:4173/` address on each device on the same Wi-Fi/LAN. Keep the host running and allow inbound TCP port 4173 through its firewall. LAN clients connect directly to the host instead of relaying movement through Cloudflare. Internet visitors continue using the published Pages URL.

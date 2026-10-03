@@ -189,15 +189,19 @@ function makeGrass(tier, uniforms) {
                           dot(instanceMatrix[2].xz, wrap) / dot(instanceMatrix[2].xyz, instanceMatrix[2].xyz));
     `);
     shader.fragmentShader = 'varying float vBladeHeight;\n' + shader.fragmentShader;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_begin>', `
+      #include <normal_fragment_begin>
+      normal = normalize(mix(normal, vec3(0.0, 1.0, 0.0), .92));
+    `);
     shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
       #include <color_fragment>
-      vec3 rootColor = vec3(.23, .36, .12);
-      vec3 tipColor = vec3(.36, .51, .19);
+      vec3 rootColor = vec3(.13, .35, .05);
+      vec3 tipColor = vec3(.19, .43, .08);
       vec3 bladeColor = mix(rootColor, tipColor, smoothstep(0.0, 1.0, vBladeHeight));
-      diffuseColor.rgb = gl_FrontFacing ? bladeColor : bladeColor * .62;
+      diffuseColor.rgb = bladeColor;
     `);
   };
-  material.customProgramCacheKey = () => 'studio-meadow-grass-clumps-v3';
+  material.customProgramCacheKey = () => 'studio-meadow-grass-clumps-v4';
   const grass = new THREE.InstancedMesh(geometry, material, tier.clumps);
   const transform = new THREE.Object3D(), color = new THREE.Color();
   const baseColor = new THREE.Color('#ffffff');

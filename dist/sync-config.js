@@ -1,1 +1,1 @@
-export const SYNC_ENDPOINT = '';
+export const SYNC_ENDPOINT = 'wss://raft-studio-room-sync.minecraft-studio.workers.dev/room';

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://developers.cloudflare.com/schemas/wrangler/config-schema.json",
+  "name": "raft-studio-room-sync",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-03",
+  "durable_objects": {
+    "bindings": [
+      { "name": "ROOMS", "class_name": "Room" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Room"] }
+  ],
+  "vars": {
+    "ALLOWED_ORIGINS": "http://localhost:4173,http://127.0.0.1:4173,https://raft3921.github.io"
+  }
+}

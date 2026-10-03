@@ -1,0 +1,11 @@
+.room-controls{margin:12px 0;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.room-controls label{display:block;margin-bottom:6px;color:var(--muted);font-size:13px}
+.room-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:8px}
+.room-actions input{width:100%;min-width:0;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#071b18;color:var(--ink);text-transform:uppercase}
+.room-actions input::placeholder{color:#a9b8ae}
+#roomStatus{min-height:1.5em;margin:8px 0 0;color:var(--muted);font-size:12px}
+.jump{right:max(22px,env(safe-area-inset-right));bottom:max(38px,env(safe-area-inset-bottom));width:76px;height:76px;min-height:76px;padding:0;font-size:28px;touch-action:none;-webkit-tap-highlight-color:transparent}
+.jump::after{content:'2×';position:absolute;top:-4px;right:-4px;display:grid;place-items:center;width:24px;height:24px;border:1px solid #ffffff70;border-radius:50%;background:#143a31;color:#eff5ef;font-size:11px;line-height:1}
+.flight-controls{position:fixed;z-index:5;right:max(30px,env(safe-area-inset-right));bottom:max(126px,calc(env(safe-area-inset-bottom) + 98px));flex-direction:column;gap:8px;touch-action:none}
+.flight-controls.touch-only{display:flex}
+.flight-controls button{width:60px;height:60px;min-height:60px;padding:0;border-radius:50%;background:#102722df;font-size:24px;-webkit-tap-highlight-color:transparent}

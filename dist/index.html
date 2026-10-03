@@ -1,50 +1,81 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>RAFT Multiverse Studio</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%2324d6ff' d='M2 9 16 2l14 7v14l-14 7-14-7z'/%3E%3Cpath fill='%23091c36' d='M10 12h12v10H10z'/%3E%3C/svg%3E" />
-  <style>
-    :root{--ink:#f4fbff;--muted:#b9d4e6;--glass:rgba(8,41,66,.78);--line:rgba(176,238,255,.35);--cyan:#8cecff;--pink:#ff9ecd}*{box-sizing:border-box}body{margin:0;overflow:hidden;background:#42bdf4;color:var(--ink);font:16px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif}canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none}.top{position:fixed;z-index:3;top:0;left:0;right:0;display:flex;align-items:center;gap:12px;padding:14px max(16px,env(safe-area-inset-right)) 12px max(16px,env(safe-area-inset-left));background:linear-gradient(#073e69d9,transparent)}h1{font-size:1rem;margin:0;letter-spacing:.1em}.badge{font-size:.72rem;color:#06233a;background:var(--cyan);padding:3px 8px;border-radius:99px;font-weight:800}.spacer{flex:1}button,.select{border:1px solid var(--line);background:#0b4c73;color:var(--ink);border-radius:10px;min-height:42px;padding:0 12px;font:inherit;cursor:pointer}button.primary{background:var(--cyan);color:#06243b;font-weight:800}.panel{position:fixed;z-index:3;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(16px);border-radius:16px;box-shadow:0 18px 44px #00213d55}.members{top:74px;left:16px;width:250px;padding:12px}.members h2,.controls h2{font-size:.78rem;letter-spacing:.1em;color:var(--muted);margin:0 0 8px}.member{display:flex;align-items:center;gap:9px;padding:7px;border-radius:10px}.member.active{background:#176c89}.member img{image-rendering:pixelated;width:34px;height:34px;object-fit:cover;object-position:50% 0;background:#223}.member small{display:block;color:var(--muted)}.controls{right:16px;bottom:16px;width:286px;padding:14px}.controls label{font-size:.78rem;color:var(--muted);display:block;margin:9px 0 4px}.controls .row{display:flex;gap:8px}.controls .row>*{flex:1;min-width:0}.stick{position:fixed;z-index:4;bottom:24px;width:122px;height:122px;border-radius:50%;border:2px solid #d4f7ff99;background:#07507866;touch-action:none}.stick.right{right:22px}.stick.left{left:22px}.knob{position:absolute;left:32px;top:32px;width:54px;height:54px;border-radius:50%;background:#b6f3ff8c;border:1px solid white;box-shadow:0 5px 12px #00253f}.hint{position:fixed;z-index:2;bottom:22px;left:160px;max-width:300px;color:#16475d;font-size:.78rem}.toast{position:fixed;z-index:5;top:70px;left:50%;transform:translateX(-50%);background:#075078;border:1px solid var(--cyan);padding:9px 14px;border-radius:12px;display:none}.modal{position:fixed;inset:0;z-index:6;background:#020a16bb;display:none;place-items:center;padding:18px}.modal.show{display:grid}.modal .box{width:min(420px,100%);padding:20px}.modal h2{margin:0 0 8px}.modal p{color:var(--muted)}.modal input{width:100%;padding:12px;background:#071c34;color:white;border:1px solid var(--line);border-radius:9px;font:inherit}
-  @media(max-aspect-ratio:1/1){.members{width:calc(100% - 32px);top:63px;display:block;overflow:auto;padding:7px;white-space:nowrap}.members h2{display:none}.members #memberList{display:flex;gap:4px}.member{min-width:64px;display:block;text-align:center;padding:4px;font-size:.7rem}.member small{display:none}.member img{width:42px;height:42px}.controls{bottom:12px;right:12px;width:calc(100% - 24px);padding:10px}.controls label{margin:5px 0 2px}.move{left:15px;bottom:190px;transform:scale(.86);transform-origin:bottom left}.hint{display:none}.top{padding:10px}.top button{min-height:36px;padding:0 8px;font-size:.78rem}}
-  .members,.controls{display:none}.top{background:linear-gradient(#073e69b8,transparent);pointer-events:none}.top button{pointer-events:auto}.top h1{font-size:.82rem}.stick{bottom:max(18px,env(safe-area-inset-bottom));width:106px;height:106px;border-color:#e9fbff55;background:#07507844}.stick.right{right:18px}.stick.left{left:18px}.knob{left:27px;top:27px;width:48px;height:48px}.master{display:none;position:fixed;z-index:8;top:58px;right:14px;width:min(330px,calc(100% - 28px));padding:16px}.master.show{display:block}.master h2{font-size:.88rem;margin:0 0 12px}.master label{display:block;color:var(--muted);font-size:.75rem;margin:10px 0 4px}.master .row{display:flex;gap:8px}.master .row>*{flex:1;min-width:0}.master .note{font-size:.72rem;color:var(--muted);margin:12px 0 0}.master select,.master input{width:100%;min-height:40px}.hint{bottom:8px;left:50%;transform:translateX(-50%);color:#eafaff;text-shadow:0 1px 3px #073e69;white-space:nowrap}.modal{display:none!important}
-  </style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#122c2b"><meta name="description" content="Minecraft Javaスキンで歩ける、草原の撮影スタジオ。">
+<title>RAFT Studio · Meadow</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23122c2b'/%3E%3Cpath d='M8 24V8h10l6 6-6 5 6 5h-7l-5-5v5zm4-10h6l-2-2h-4z' fill='%23c9eaae'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="studio.css">
+<link rel="stylesheet" href="room.css">
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
 </head>
-<body>
-  <canvas id="scene"></canvas><div class="toast" id="toast"></div>
-  <header class="top"><h1>RAFT <span>STUDIO</span></h1><span class="spacer"></span><button id="masterBtn">F1 MASTER</button></header>
-  <aside class="panel members"><h2>MEMBERS · 最大8人</h2><div id="memberList"></div></aside>
-  <section class="panel controls"><h2>PLAYER SETTINGS</h2><label>操作するメンバー</label><select class="select" id="playerSelect"></select><div class="row"><button id="skinBtn">スキンを変更</button><input id="skinInput" type="file" accept="image/png" hidden><button id="pose">ポーズ</button></div><label>ワールド</label><div class="row"><select class="select" id="world"><option value="stage">Neon Stage</option><option value="sunset">Sunset Room</option><option value="void">Void Studio</option></select><button id="reset">位置を戻す</button></div></section>
-  <div class="stick left" id="moveStick" aria-label="移動ジョイスティック"><i class="knob"></i></div><div class="stick right" id="lookStick" aria-label="視点ジョイスティック"><i class="knob"></i></div><p class="hint">左：移動　右：視点　　F1：マスター</p>
-  <section class="panel master" id="master"><h2>MASTER MODE</h2><label>カメラモード</label><select class="select" id="cameraMode"><option value="follow">プレイヤー追従</option><option value="wide">ワイド撮影</option><option value="free">フリーカメラ</option></select><label>操作するメンバー</label><select class="select" id="masterPlayer"></select><label>ワールド</label><select class="select" id="masterWorld"><option value="stage">草原・快晴</option><option value="sunset">夕暮れ草原</option><option value="void">夜の草原</option></select><label>カメラ距離 <output id="distanceValue">7</output></label><input id="distance" type="range" min="3" max="16" value="7"><div class="row"><button id="masterReset">全員の位置を戻す</button><button id="masterClose" class="primary">閉じる</button></div><p class="note">F1で開閉。通常は撮影と操作だけです。</p></section>
-  <div class="modal" id="roomModal"><div class="panel box"><h2>撮影ルーム</h2><p>同じルームコードを使って、メンバー全員が同じスタジオに入るための入口です。</p><label>ルームコード</label><input id="roomCode" value="RAFT-2026" maxlength="24"><div class="row" style="margin-top:14px"><button id="copy">招待リンクをコピー</button><button class="primary" id="closeRoom">入室する</button></div><p style="font-size:.78rem">現在はこの公開版の3D操作・スキン保持まで実装済みです。異なる端末間の位置同期は、次の更新で専用のリアルタイム接続を有効化します。</p></div></div>
-  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js"}}</script>
-  <script type="module">
-  import * as THREE from 'three';
-  const SKINS=[['week','week.png'],['moron','moron.png'],['やんさん','やんさん.png'],['raft','raft.png'],['muto','muto.png'],['mai','maiのコピー.png'],['1000001207','1000001207.png']];
-  const canvas=document.querySelector('#scene'), renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;
-  const scene=new THREE.Scene(), camera=new THREE.PerspectiveCamera(55,1,.1,100);camera.position.set(8,5,9);const clock=new THREE.Clock();let yaw=-.55,pitch=-.24,follow=true,selected=0,pose=0;const members=[];
-  scene.background=new THREE.Color('#48bef4');scene.fog=new THREE.Fog('#48bef4',25,56);scene.add(new THREE.HemisphereLight('#d9f7ff','#478b2f',2.8));const key=new THREE.DirectionalLight('#fff9d4',3);key.position.set(10,18,8);key.castShadow=true;scene.add(key);
-  const floor=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.MeshStandardMaterial({color:'#4f9b37',roughness:1}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
-  const bladeGeo=new THREE.PlaneGeometry(.055,.52);bladeGeo.translate(0,.26,0);const bladeMat=new THREE.MeshLambertMaterial({color:'#367d28',side:THREE.DoubleSide});const grass=new THREE.InstancedMesh(bladeGeo,bladeMat,900),bladeData=[];const dummy=new THREE.Object3D();for(let i=0;i<900;i++){const a=i*2.399963,rad=2+Math.sqrt(i)*1.08,x=Math.cos(a)*rad,z=Math.sin(a)*rad;bladeData.push({x,z,a,phase:i*.37,scale:.65+(i%7)*.07});dummy.position.set(x,0,z);dummy.rotation.set(0,a,0);dummy.scale.setScalar(bladeData[i].scale);dummy.updateMatrix();grass.setMatrixAt(i,dummy.matrix)}grass.instanceMatrix.needsUpdate=true;scene.add(grass);
-  const rings=[];
-  function crop(img,x,y,w,h){const c=document.createElement('canvas');c.width=w;c.height=h;const q=c.getContext('2d');q.imageSmoothingEnabled=false;q.drawImage(img,x,y,w,h,0,0,w,h);const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;t.generateMipmaps=false;t.colorSpace=THREE.SRGBColorSpace;return t}
-  function part(img,box,uv,scale=1){const mats=uv.map(a=>new THREE.MeshStandardMaterial({map:crop(img,...a),transparent:true,alphaTest:.05,roughness:.9}));const m=new THREE.Mesh(new THREE.BoxGeometry(...box.map(v=>v*scale)),mats);m.castShadow=true;return m}
-  function avatar(name,file,i){const g=new THREE.Group();g.userData={name,file,walk:Math.random()*6};const img=new Image();img.onload=()=>{const s=1/8;/* px coordinates: right,left,top,bottom,front,back */
-    const h=part(img,[8,8,8],[[16,8,8,8],[0,8,8,8],[8,0,8,8],[16,0,8,8],[8,8,8,8],[24,8,8,8]],s);h.position.y=3.5;g.add(h);
-    const hat=part(img,[8.5,8.5,8.5],[[48,8,8,8],[32,8,8,8],[40,0,8,8],[48,0,8,8],[40,8,8,8],[56,8,8,8]],s);hat.position.copy(h.position);g.add(hat);
-    const body=part(img,[8,12,4],[[28,20,4,12],[16,20,4,12],[20,16,8,4],[28,16,8,4],[20,20,8,12],[32,20,8,12]],s);body.position.y=2.25;g.add(body);
-    const jacket=part(img,[8.25,12.25,4.25],[[28,36,4,12],[16,36,4,12],[20,32,8,4],[28,32,8,4],[20,36,8,12],[32,36,8,12]],s);jacket.position.copy(body.position);g.add(jacket);
-    const rightLeg=[[8,20,4,12],[0,20,4,12],[4,16,4,4],[8,16,4,4],[4,20,4,12],[12,20,4,12]],leftLeg=[[24,52,4,12],[16,52,4,12],[20,48,4,4],[24,48,4,4],[20,52,4,12],[28,52,4,12]];const leg1=part(img,[4,12,4],rightLeg,s);leg1.position.set(-.25,.75,0);const leg2=part(img,[4,12,4],leftLeg,s);leg2.position.set(.25,.75,0);const lo1=part(img,[4.22,12.22,4.22],[[8,36,4,12],[0,36,4,12],[4,32,4,4],[8,32,4,4],[4,36,4,12],[12,36,4,12]],s);lo1.position.copy(leg1.position);const lo2=part(img,[4.22,12.22,4.22],[[8,52,4,12],[0,52,4,12],[4,48,4,4],[8,48,4,4],[4,52,4,12],[12,52,4,12]],s);lo2.position.copy(leg2.position);g.add(leg1,leg2,lo1,lo2);g.userData.legs=[leg1,leg2,lo1,lo2];
-    const rightArm=[[47,20,3,12],[40,20,3,12],[44,16,3,4],[47,16,3,4],[44,20,3,12],[51,20,3,12]],leftArm=[[39,52,3,12],[32,52,3,12],[36,48,3,4],[39,48,3,4],[36,52,3,12],[43,52,3,12]];const a1=part(img,[3,12,4],rightArm,s);a1.position.set(-.69,2.25,0);const a2=part(img,[3,12,4],leftArm,s);a2.position.set(.69,2.25,0);const ao1=part(img,[3.22,12.22,4.22],[[47,36,3,12],[40,36,3,12],[44,32,3,4],[47,32,3,4],[44,36,3,12],[51,36,3,12]],s);ao1.position.copy(a1.position);const ao2=part(img,[3.22,12.22,4.22],[[55,52,3,12],[48,52,3,12],[52,48,3,4],[55,48,3,4],[52,52,3,12],[59,52,3,12]],s);ao2.position.copy(a2.position);g.add(a1,a2,ao1,ao2);g.userData.arms=[a1,a2,ao1,ao2];};
-    g.position.set((i%4-1.5)*2.2,0,(Math.floor(i/4)-.5)*2.5);scene.add(g);members.push(g);if(file)img.src=file;return g}
-  SKINS.forEach(([n,f],i)=>avatar(n,'skins/'+f,i));const savedSkin=localStorage.getItem('raftSkin');avatar('ゲスト',savedSkin||'',7);
-  const list=document.querySelector('#memberList'),sel=document.querySelector('#playerSelect');function renderMembers(){list.innerHTML='';sel.innerHTML='';SKINS.concat([['ゲスト','']]).forEach(([n,f],i)=>{const d=document.createElement('button');d.className='member '+(i===selected?'active':'');d.innerHTML=`${f?`<img src="skins/${f}">`:'<img>'}<span>${n}<small>${i===selected?'操作中':'スタンバイ'}</small></span>`;d.onclick=()=>{selected=i;renderMembers()};list.append(d);sel.add(new Option(n,i,i===selected,i===selected))})}renderMembers();sel.onchange=e=>{selected=+e.target.value;renderMembers()};
-  function toast(t){const e=document.querySelector('#toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',2000)}
-  document.querySelector('#skinBtn').onclick=()=>document.querySelector('#skinInput').click();document.querySelector('#skinInput').onchange=e=>{const f=e.target.files[0];if(!f)return;if(!/^image\/png$/.test(f.type)){toast('PNGのJavaスキンを選択してください');return}const r=new FileReader();r.onload=()=>{localStorage.setItem('raftSkin',r.result);toast('スキンをこの端末に保存しました');setTimeout(()=>location.reload(),650)};r.readAsDataURL(f)};
-  document.querySelector('#pose').onclick=()=>{pose=(pose+1)%3;toast(['ニュートラル','ピース','アクション'][pose])};document.querySelector('#reset').onclick=()=>{const p=members[selected];if(p)p.position.set((selected%4-1.5)*2.2,0,(Math.floor(selected/4)-.5)*2.5)};
-  const master=document.querySelector('#master'),masterPlayer=document.querySelector('#masterPlayer');SKINS.concat([['ゲスト','']]).forEach(([n],i)=>masterPlayer.add(new Option(n,i)));function toggleMaster(){master.classList.toggle('show')}document.querySelector('#masterBtn').onclick=toggleMaster;document.querySelector('#masterClose').onclick=toggleMaster;addEventListener('keydown',e=>{if(e.key==='F1'){e.preventDefault();toggleMaster()}});masterPlayer.onchange=e=>{selected=+e.target.value;sel.value=selected;renderMembers()};document.querySelector('#cameraMode').onchange=e=>{cameraMode=e.target.value;follow=cameraMode!=='free'};document.querySelector('#distance').oninput=e=>{cameraDistance=+e.target.value;document.querySelector('#distanceValue').textContent=cameraDistance};document.querySelector('#masterWorld').onchange=e=>{const p={stage:['#48bef4','#4f9b37'],sunset:['#ff9d69','#7a9b3b'],void:['#10244a','#274e42']}[e.target.value];scene.background.set(p[0]);scene.fog.color.set(p[0]);floor.material.color.set(p[1])};document.querySelector('#masterReset').onclick=()=>{resetAll();toast('全員の位置を戻しました')};
-  const moving={forward:false,back:false,left:false,right:false};function stick(id,look){const el=document.querySelector(id),k=el.querySelector('.knob');let on=false;const set=e=>{const r=el.getBoundingClientRect(),x=Math.max(-1,Math.min(1,(e.clientX-r.left-r.width/2)/(r.width*.28))),y=Math.max(-1,Math.min(1,(e.clientY-r.top-r.height/2)/(r.height*.28)));k.style.transform=`translate(${x*34}px,${y*34}px)`;if(look){yaw-=x*.055;pitch=Math.max(-1.05,Math.min(.28,pitch-y*.04))}else{moving.forward=y<-.18;moving.back=y>.18;moving.left=x<-.18;moving.right=x>.18}};el.onpointerdown=e=>{on=true;el.setPointerCapture(e.pointerId);set(e)};el.onpointermove=e=>on&&set(e);const end=()=>{on=false;k.style.transform='';if(!look)Object.keys(moving).forEach(x=>moving[x]=false)};el.onpointerup=end;el.onpointercancel=end}stick('#moveStick',false);stick('#lookStick',true);let drag=false,lx=0,ly=0;canvas.addEventListener('pointerdown',e=>{drag=true;lx=e.clientX;ly=e.clientY;canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(!drag)return;yaw-=(e.clientX-lx)*.008;pitch=Math.max(-1.1,Math.min(.35,pitch-(e.clientY-ly)*.006));lx=e.clientX;ly=e.clientY});canvas.addEventListener('pointerup',()=>drag=false);
-  let cameraDistance=7,cameraMode='follow';function resetAll(){members.forEach((p,i)=>p.position.set((i%4-1.5)*2.2,0,(Math.floor(i/4)-.5)*2.5))}function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05),p=members[selected];if(p){const dir=new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw)),side=new THREE.Vector3(dir.z,0,-dir.x),active=Object.values(moving).some(Boolean);if(moving.forward)p.position.addScaledVector(dir,-dt*3.2);if(moving.back)p.position.addScaledVector(dir,dt*3.2);if(moving.left)p.position.addScaledVector(side,-dt*3.2);if(moving.right)p.position.addScaledVector(side,dt*3.2);p.userData.walk+=dt*(active?10:3);const swing=active?Math.sin(p.userData.walk)*.72:Math.sin(p.userData.walk)*.035;p.userData.legs?.forEach((x,i)=>x.rotation.x=swing*(i%2?1:-1));p.userData.arms?.forEach((x,i)=>x.rotation.x=pose===1?(i%2?-.9:.9):pose===2?(i%2?-.5:1.4):-swing*(i%2?1:-1));p.rotation.y=THREE.MathUtils.lerp(p.rotation.y,Math.atan2(dir.x,dir.z),.12);if(cameraMode!=='free'){const target=cameraMode==='wide'?new THREE.Vector3(0,1.5,0):p.position.clone().add(new THREE.Vector3(0,1.9,0)),d=cameraMode==='wide'?13:cameraDistance,off=new THREE.Vector3(Math.sin(yaw)*d,d*.42,Math.cos(yaw)*d);off.applyAxisAngle(new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw)),pitch);camera.position.lerp(target.add(off),.11);camera.lookAt(cameraMode==='wide'?0:p.position.x,cameraMode==='wide'?1.5:1.65,cameraMode==='wide'?0:p.position.z)}}for(let i=0;i<900;i++){const b=bladeData[i],wind=Math.sin(clock.elapsedTime*1.8+b.phase)*.2;dummy.position.set(b.x,0,b.z);dummy.rotation.set(0,b.a+wind,wind);dummy.scale.setScalar(b.scale);dummy.updateMatrix();grass.setMatrixAt(i,dummy.matrix)}grass.instanceMatrix.needsUpdate=true;renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.render(scene,camera)}loop();
-  </script>
-</body></html>
+<body data-screen="lobby">
+<canvas id="scene" aria-label="3D草原スタジオ" tabindex="0"></canvas>
+<section id="lobby" class="lobby">
+<header class="brand"><span class="brand-mark">R</span><span>RAFT <b>STUDIO</b><small>MEADOW SESSION</small></span></header>
+<div class="lobby-panel">
+<p class="eyebrow">DRESSING ROOM</p><h1>今日は、誰で撮ろう。</h1>
+<p class="intro">キャラクターを選んで、草原へ。</p>
+<div id="characters" class="characters" role="group" aria-label="キャラクターを選択"></div>
+<div class="selected-meta"><strong id="selectedName">読み込み中</strong><span>JAVA SKIN / SLIM</span></div>
+<button id="enter" class="primary" disabled>スタジオに入る</button>
+<div class="lobby-actions"><button id="upload" class="text-button">PNGスキンを登録</button><button id="restoreSkin" class="text-button" hidden>元のスキンに戻す</button></div>
+<input id="skinFile" type="file" accept="image/png" hidden>
+<p class="local-note">スキンと選択はこの端末に保存。リンクを送るとカメラや草原、パンチ設定を共有できます。</p>
+</div>
+<div class="lobby-caption"><span>01 / MEADOW</span><p>青い空。風の通る草原。</p><small>ドラッグでモデルを回転</small></div>
+<p id="loadError" class="error" hidden></p>
+</section>
+<div id="hud" hidden>
+<button id="menuBtn" class="hud-button" aria-label="メニューを開く" title="メニュー (Esc)">☰</button>
+<div id="moveStick" class="joystick touch-only" role="group" aria-label="移動ジョイスティック"><span class="stick-ring"></span><i id="stickKnob"></i></div>
+<button id="jumpBtn" class="jump touch-only" aria-label="ジャンプ。連続2回タップで空中歩行" title="ジャンプ / 連続2回タップで空中歩行">↑</button>
+<div id="flightControls" class="flight-controls touch-only" hidden><button id="flightUp" aria-label="上昇" title="上昇">↑</button><button id="flightDown" aria-label="下降" title="下降">↓</button></div>
+<button id="punchBtn" class="punch touch-only" aria-label="パンチ">グー</button>
+<div id="chargeHud" hidden><div class="charge-track"><i id="chargeFill"></i><span class="charge-ticks"></span></div><span id="chargeLabel">溜め 0</span></div>
+</div>
+<section id="menu" class="pause-panel surface" role="dialog" aria-label="スタジオメニュー" hidden>
+<div class="panel-title"><span class="eyebrow">SESSION</span><button id="resume" class="icon-button" aria-label="メニューを閉じる">×</button></div>
+<h2 id="sessionName">Meadow</h2><button id="changeCharacter">キャラクターを変更</button><button id="openMaster" class="desktop-only">マスターモード <kbd>F1</kbd></button><button id="cleanView">撮影表示 · UIを隠す <kbd>H</kbd></button>
+<p id="controlHelp" class="help"></p>
+<section class="room-controls" aria-label="オンラインルーム">
+<label>オンライン · 共通ルーム（最大8人）</label>
+<div class="room-actions"><button id="roomLeave">オンラインから退出</button></div>
+<p id="roomStatus" role="status" aria-live="polite">未接続</p>
+</section>
+<button id="shareLink">ルーム・設定の招待リンクをコピー</button><p class="local-note">同じURLを開くと同じ部屋に参加します。設定値はURLで共有されます。</p>
+</section>
+<aside id="master" class="master surface" aria-label="マスターモード" hidden>
+<div class="panel-title"><div><span class="eyebrow">DIRECTOR</span><h2>マスターモード</h2></div><button id="closeMaster" class="icon-button" aria-label="マスターモードを閉じる">×</button></div>
+<nav class="tabs" aria-label="マスター設定"><button data-tab="camera" aria-selected="true">カメラ</button><button data-tab="scene" aria-selected="false">草原</button><button data-tab="actor" aria-selected="false">プレイヤー</button></nav>
+<div data-panel="camera" class="tab-panel">
+<label for="cameraMode">カメラモード</label><select id="cameraMode"><option value="follow">追従 · 三人称</option><option value="first">一人称</option><option value="orbit">定点オービット</option><option value="free">自由撮影カメラ</option></select>
+<p id="cameraHelp" class="help"></p>
+<label for="distance">距離 <output id="distanceOut">5.5 m</output></label><input id="distance" type="range" min="2" max="18" step=".1" value="5.5">
+<label for="fov">画角 <output id="fovOut">55°</output></label><input id="fov" type="range" min="25" max="90" value="55">
+<label for="smoothing">追従の滑らかさ <output id="smoothingOut">0.14 s</output></label><input id="smoothing" type="range" min="0" max=".4" step=".01" value=".14">
+<label for="flySpeed">カメラ移動速度 <output id="flySpeedOut">4 m/s</output></label><input id="flySpeed" type="range" min="1" max="12" step=".5" value="4">
+<div class="button-pair"><button id="cameraReset">正面から見る</button><button id="cleanMaster" class="primary">撮影表示</button></div>
+<p class="help">F1で設定へ戻る · HでUI表示切替</p>
+</div>
+<div data-panel="scene" class="tab-panel" hidden>
+<label for="wind">風の強さ <output id="windOut">0.45</output></label><input id="wind" type="range" min="0" max="1.5" step=".05" value=".45">
+<label for="grassDensity">草の密度 <output id="grassDensityOut">80%</output></label><input id="grassDensity" type="range" min=".15" max="1" step=".05" value=".8">
+<label for="sunHeight">太陽の高さ <output id="sunHeightOut">50°</output></label><input id="sunHeight" type="range" min="15" max="80" value="50">
+<label for="exposure">明るさ <output id="exposureOut">1.0</output></label><input id="exposure" type="range" min=".6" max="1.5" step=".05" value="1">
+<label for="quality">描画品質</label><select id="quality"><option value="auto">自動</option><option value="low">軽量</option><option value="medium">標準</option><option value="high">高画質</option></select>
+<p id="performance" class="help"></p>
+</div>
+<div data-panel="actor" class="tab-panel" hidden>
+<label for="actorSelect">操作するキャラクター</label><select id="actorSelect"></select>
+<label for="gesture">ポーズ</label><select id="gesture"><option value="idle">自然体</option><option value="wave">手を振る</option><option value="cheer">両手を上げる</option></select>
+<label for="moveSpeed">歩く速さ <output id="moveSpeedOut">2.8 m/s</output></label><input id="moveSpeed" type="range" min="1" max="4.5" step=".1" value="2.8">
+<label class="check-label"><input id="showCast" type="checkbox">他のスキンも整列表示</label>
+<button id="resetPosition">プレイヤーの位置を戻す</button><button id="masterCharacter">キャラクター選択に戻る</button>
+<p class="help">整列表示のメンバーは溜めパンチの的になります。URLの punch=秒,距離 で威力も共有できます。</p>
+</div>
+</aside>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

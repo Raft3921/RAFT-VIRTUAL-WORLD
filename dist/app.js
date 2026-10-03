@@ -253,9 +253,13 @@ function applyShare(){
 async function start(){try{
   renderer=new THREE.WebGLRenderer({canvas,antialias:!touch,powerPreference:'high-performance'});renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   environment=createEnvironment(scene,renderer,{mobile:touch});environment.setSettings({wind:.45,grassDensity:.8,sunHeight:50,exposure:1});quality(activeQuality);
-  const loaded=await Promise.allSettled(skinDefs.map(async([name,file],i)=>{const url=custom[i]||(file?'skins/'+file:null);if(!url)return;await replaceSkin(i,url)}));const failures=loaded.flatMap((r,i)=>r.status==='rejected'?[i]:[]);failures.forEach(i=>{$('characters').children[i].disabled=true;console.error('skin load failed',skinDefs[i][0],loaded[i].reason)});
-  if(!actors[selected])selected=actors.findIndex(Boolean);if(selected<0)throw Error('スキンを読み込めませんでした。再読み込みしてください。');applyShare();placeActors();updateSelection();updateVisibility();setCameraMode(shareSource().get('cam')||'follow');requestId=requestAnimationFrame(tick);
-  if(failures.length)notify('一部のスキンを読み込めませんでした。再登録できます。');
+  let loadedCount=0;const skinFailures=[];
+  const skinLoads=skinDefs.map(async([name,file],i)=>{const url=custom[i]||(file?'skins/'+file:null);if(!url)return;await replaceSkin(i,url)}).map((load,i)=>load.catch(error=>{skinFailures.push({index:i,error})}).finally(()=>{loadedCount++;if(!actors[selected])$('selectedName').textContent=`スキン読込 ${loadedCount}/${skinDefs.length}`}));
+  const firstReady=Promise.any(skinLoads.map((load,index)=>load.then(()=>actors[index]?index:Promise.reject(new Error('No avatar')))));
+  const preferredReady=skinLoads[selected].then(()=>actors[selected]?selected:new Promise(()=>{}),()=>new Promise(()=>{}));
+  const readyIndex=await Promise.race([preferredReady,firstReady,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Skin loading timed out')),10000))]);
+  if(!actors[selected])selected=readyIndex;if(!actors[selected])throw Error('スキンを読み込めませんでした。');applyShare();placeActors();updateSelection();updateVisibility();setCameraMode(shareSource().get('cam')||'follow');requestId=requestAnimationFrame(tick);
+  Promise.all(skinLoads).then(()=>{skinFailures.forEach(({index,error})=>{$('characters').children[index].disabled=true;console.error('skin load failed',skinDefs[index][0],error)});updateSelection();updateVisibility();if(skinFailures.length)notify('一部のスキンを読み込めませんでした。再登録できます。')});
 }catch(error){console.error(error);$('loadError').hidden=false;$('loadError').textContent='3Dスタジオを開始できませんでした。ブラウザのWebGL設定を確認して再読み込みしてください。'}}
 canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();cancelAnimationFrame(requestId);clearInput();notify('描画が中断されました。復帰を待っています。',8000)});canvas.addEventListener('webglcontextrestored',()=>location.reload());
 start();

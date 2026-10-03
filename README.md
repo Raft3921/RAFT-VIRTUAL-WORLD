@@ -6,9 +6,7 @@ Minecraft Java skins in a shared 3D studio. The static client is served from `di
 
 1. In the GitHub repository, open **Settings > Pages** and select **GitHub Actions** as the build and deployment source.
 2. Push to `main`. `.github/workflows/pages.yml` publishes `dist/`.
-3. Add a repository variable named `SYNC_ENDPOINT` with the deployed Worker URL ending in `/room`, for example `wss://raft-studio-room-sync.<account>.workers.dev/room`.
-
-The Pages workflow writes that value into `dist/sync-config.js` during deployment. The endpoint is public and belongs in a repository variable, not a secret.
+3. The Pages workflow writes the deployed Worker URL into `dist/sync-config.js` automatically.
 
 ## Deploy room sync
 

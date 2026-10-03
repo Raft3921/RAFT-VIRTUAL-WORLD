@@ -130,9 +130,8 @@ sockets.on('connection', (socket, request) => {
       const impulse = message.velocity;
       if (typeof message.target !== 'string' || !impulse || ![impulse.x, impulse.y, impulse.z].every(Number.isFinite)
         || Math.hypot(impulse.x, impulse.y, impulse.z) > 200) return;
-      for (const [targetSocket, target] of players) {
-        if (target.player.id === message.target) send(targetSocket, { type: 'punch', target: message.target, velocity: impulse });
-      }
+      if (![...players.values()].some(target => target.player.id === message.target)) return;
+      broadcast({ type: 'punch', target: message.target, velocity: impulse });
       return;
     }
     if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;

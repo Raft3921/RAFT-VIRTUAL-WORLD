@@ -4,6 +4,11 @@
 .room-actions input{width:100%;min-width:0;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#071b18;color:var(--ink);text-transform:uppercase}
 .room-actions input::placeholder{color:#a9b8ae}
 #roomStatus{min-height:1.5em;margin:8px 0 0;color:var(--muted);font-size:12px}
+#chargeHud:not([hidden]){position:fixed;z-index:8;top:max(18px,env(safe-area-inset-top));left:50%;display:grid;gap:7px;width:min(78vw,380px);transform:translateX(-50%);color:#fff;font-size:14px;text-align:center;text-shadow:0 1px 5px #101b13b3;pointer-events:none}
+.charge-track{position:relative;height:18px;overflow:hidden;border:1px solid #ffffffa8;border-radius:99px;background:#102015b8;box-shadow:0 2px 14px #101b1370}
+#chargeFill{display:block;width:0;height:100%;border-radius:inherit;background:var(--charge-color,#9ce889);box-shadow:0 0 15px var(--charge-color,#9ce889);transition:width .12s linear,background-color .2s}
+.charge-ticks{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(10% - 1px),#ffffff9c calc(10% - 1px),#ffffff9c 10%);opacity:.75}
+#chargeLabel{font-weight:700;text-shadow:0 1px 5px #172217,0 0 12px #000}
 .jump{right:max(22px,env(safe-area-inset-right));bottom:max(38px,env(safe-area-inset-bottom));width:76px;height:76px;min-height:76px;padding:0;font-size:28px;touch-action:none;-webkit-tap-highlight-color:transparent}
 .jump::after{content:'2×';position:absolute;top:-4px;right:-4px;display:grid;place-items:center;width:24px;height:24px;border:1px solid #ffffff70;border-radius:50%;background:#143a31;color:#eff5ef;font-size:11px;line-height:1}
 .flight-controls{position:fixed;z-index:5;right:max(30px,env(safe-area-inset-right));bottom:max(126px,calc(env(safe-area-inset-bottom) + 98px));flex-direction:column;gap:8px;touch-action:none}

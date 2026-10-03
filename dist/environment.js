@@ -150,7 +150,7 @@ function grassClumpGeometry(segments) {
 function makeGrass(tier, uniforms) {
   const geometry = grassClumpGeometry(tier.segments);
   const material = new THREE.MeshLambertMaterial({
-    color: '#7db85a', emissive: '#6fa84c', emissiveIntensity: .42, side: THREE.DoubleSide,
+    color: '#5f8b3e', emissive: '#000000', emissiveIntensity: 0, side: THREE.DoubleSide,
   });
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -191,10 +191,10 @@ function makeGrass(tier, uniforms) {
     shader.fragmentShader = 'varying float vBladeHeight;\n' + shader.fragmentShader;
     shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
       #include <color_fragment>
-      vec3 rootColor = vec3(.48, .66, .28);
-      vec3 tipColor = vec3(.78, .92, .46);
+      vec3 rootColor = vec3(.23, .36, .12);
+      vec3 tipColor = vec3(.36, .51, .19);
       vec3 bladeColor = mix(rootColor, tipColor, smoothstep(0.0, 1.0, vBladeHeight));
-      diffuseColor.rgb = gl_FrontFacing ? bladeColor : bladeColor * .72;
+      diffuseColor.rgb = gl_FrontFacing ? bladeColor : bladeColor * .62;
     `);
   };
   material.customProgramCacheKey = () => 'studio-meadow-grass-clumps-v3';

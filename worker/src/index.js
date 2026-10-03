@@ -92,11 +92,8 @@ export class Room extends DurableObject {
       const velocity = message.velocity;
       if (typeof message.target !== 'string' || !velocity || ![velocity.x, velocity.y, velocity.z].every(Number.isFinite)
         || Math.hypot(velocity.x, velocity.y, velocity.z) > 200) return;
-      for (const [targetSocket, target] of this.players) {
-        if (target.player.id !== message.target) continue;
-        try { targetSocket.send(json({ type: 'punch', target: message.target, velocity })); } catch { this.remove(targetSocket); }
-        return;
-      }
+      if (![...this.players.values()].some(target => target.player.id === message.target)) return;
+      this.broadcast({ type: 'punch', target: message.target, velocity });
       return;
     }
     if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;

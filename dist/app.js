@@ -8,7 +8,7 @@ const clamp = THREE.MathUtils.clamp;
 const angleDelta = (a,b) => Math.atan2(Math.sin(b-a),Math.cos(b-a));
 const safeRead = key => {try{return localStorage.getItem(key)}catch{return null}};
 const safeSave = (key,value) => {try{localStorage.setItem(key,value);return true}catch{return false}};
-const skinDefs = [['ウィーク','week.png'],['もろん','moron.png'],['やんさん','やんさん.png'],['ラフト','raft.png'],['ムート','muto.png'],['まい','maiのコピー.png'],['たぬつな','1000001207.png'],['カスタム',null]];
+const skinDefs = [['ウィーク','week.png'],['もろん','moron.png'],['やんさん','やんさん.png'],['ラフト','raft.png'],['ムート','muto.png'],['まい','maiのコピー.png'],['たぬつな','1000001207.png'],['カスタム',null]];
 const castOrder=[3,5,6,2,4,1,0,7];
 let custom = {};try{custom=JSON.parse(safeRead('raft-studio-skins-v2')||'{}')}catch{}
 if(!custom[7] && safeRead('raftSkin'))custom[7]=safeRead('raftSkin');

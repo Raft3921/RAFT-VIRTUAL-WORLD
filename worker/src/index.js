@@ -15,6 +15,9 @@ function cleanState(state, skin) {
     x, y, z, yaw,
     headYaw: Number.isFinite(state.headYaw) ? Math.max(-1, Math.min(state.headYaw, 1)) : 0,
     headPitch: Number.isFinite(state.headPitch) ? Math.max(-.7, Math.min(state.headPitch, .7)) : 0,
+    vx: Number.isFinite(state.vx) ? Math.max(-200, Math.min(state.vx, 200)) : 0,
+    vy: Number.isFinite(state.vy) ? Math.max(-200, Math.min(state.vy, 200)) : 0,
+    vz: Number.isFinite(state.vz) ? Math.max(-200, Math.min(state.vz, 200)) : 0,
     skin: Number.isInteger(skin) && skin >= 0 && skin < 7 ? skin : 3,
     gesture: ['none', 'wave', 'cheer', 'pose'].includes(state.gesture) ? state.gesture : 'none',
     speed: Number.isFinite(state.speed) ? Math.max(0, Math.min(state.speed, 20)) : 0,
@@ -96,7 +99,7 @@ export class Room extends DurableObject {
       }
       return;
     }
-    if (message.type !== 'state' || Date.now() - entry.lastStateAt < 40) return;
+    if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;
 
     const requestedSkin = Number(message.state?.skin);
     const skin = Number.isInteger(requestedSkin) && requestedSkin >= 0 && requestedSkin < 7 ? requestedSkin : entry.player.skin;

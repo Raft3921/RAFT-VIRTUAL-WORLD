@@ -1,6 +1,7 @@
 import { ARENA,insideArena } from './world-layout.js';
 import { ATTACKS } from './combat-motion.js';
-export const SYNC_VERSION='2026-10-07-combat-3';
+import { CharacterStore,characterIndex } from './character-store.js';
+export const SYNC_VERSION='2026-10-07-characters-4';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||Math.abs(s.x)>1300||Math.abs(s.z)>1300||s.y<0||s.y>512)return null;
@@ -25,15 +26,26 @@ export function applyPlayerState(player,state){
     state.vx=state.vy=state.vz=state.speed=state.verticalSpeed=0;
     if(player.hitPhase==='impact'){state.ragdoll=true;state.hitPhase='impact';}
   }
-  state.hitSerial=serial;Object.assign(player,state);
+  state.hitSerial=serial;state.crownEnabled=player.crownEnabled;Object.assign(player,state);
 }
 export class GameRules{
-  constructor(players,broadcast,scores={},save=()=>{},settings={},saveSettings=()=>{}){
+  constructor(players,broadcast,scores={},save=()=>{},settings={},saveSettings=()=>{},characters={},saveCharacters=()=>{}){
     this.players=players;this.broadcast=broadcast;this.scores=scores;this.save=save;this.ready=new Map();this.duel=null;this.cooldowns=new Map();this.backdrop='GB';
     settings=settings&&typeof settings==='object'?settings:{};
     const goal=Number(settings.goalDamage);this.settings={...settings,goalDamage:Number.isInteger(goal)&&goal>=1&&goal<=100?goal:11};this.saveSettings=saveSettings;this.settingsQueue=Promise.resolve();
+    this.characters=new CharacterStore(characters,scores,saveCharacters,(skin,record)=>this.broadcastCharacter(skin,record),()=>this.broadcast({type:'character-save-error',message:'キャラクターの状態をサーバーに保存できませんでした。'}));
   }
   entries(){return [...this.players.values()];}
+  character(skin,profile,enabled=false){return this.characters.get(skin,profile,enabled);}
+  broadcastCharacter(skin,record=this.characters.get(skin)){
+    for(const entry of this.entries())if(entry.player.skin===skin)Object.assign(entry.player,record);
+    this.broadcast({type:'character-state',skin,character:record});
+  }
+  selectCharacter(entry,value){
+    const skin=characterIndex(value),p=entry.player;if(skin===null)return false;
+    if(p.skin!==skin&&(this.duel?.ids.includes(p.id)||p.ragdoll)){this.broadcast({type:'character-select-rejected',id:p.id,skin:p.skin});return false;}
+    p.skin=skin;Object.assign(p,this.character(skin,p.profile));this.broadcastCharacter(skin);this.broadcast({type:'state',player:p});return true;
+  }
   inside(p){return insideArena(p);}
   snapshot(){return {type:'world',version:SYNC_VERSION,backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel};}
   updateSettings(value){
@@ -60,6 +72,9 @@ export class GameRules{
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
+    if(m.type==='character-select'){this.selectCharacter(entry,m.skin);return this.characters.pending;}
+    if(m.type==='crown-toggle'&&typeof m.enabled==='boolean')return this.characters.change(p.skin,{crownEnabled:m.enabled});
+    if(m.type==='checkpoint')return this.characters.checkpoint(p.skin,m.id);
     if(m.type==='duel-settings')return this.updateSettings(m.goalDamage);
     if(m.type==='backdrop'&&['GB','RB','BB'].includes(m.value)){
       // Background controls are available on any world menu, shared by the room.
@@ -92,9 +107,9 @@ export class GameRules{
     this.duel.damage[q.id]+=level;
     this.broadcast({type:'duel-damage',...this.duel});
     if(this.duel.damage[q.id]<this.duel.goalDamage)return;
-    p.score=clamp((p.score||0)+1,-10000,10000);q.score=clamp((q.score||0)-1,-10000,10000);
-    this.scores[p.profile]=p.score;this.scores[q.profile]=q.score;this.save(this.scores);
+    const saved=this.characters.result(p.skin,q.skin);
     this.broadcast({type:'duel-result',winner:p.id,loser:q.id,scores:{[p.id]:p.score,[q.id]:q.score}});
     this.duel=null;this.ready.clear();
+    return saved;
   }
 }

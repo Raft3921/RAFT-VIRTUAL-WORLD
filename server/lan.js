@@ -30,7 +30,8 @@ function broadcast(message, except = null) {
 
 let scores={};try{scores=JSON.parse(readFileSync('.room-scores.json','utf8'));}catch{}
 let settings={};try{settings=JSON.parse(readFileSync('.room-settings.json','utf8'));}catch{}
-const rules=new GameRules(players,broadcast,scores,s=>writeFileSync('.room-scores.json',JSON.stringify(s)),settings,s=>{writeFileSync('.room-settings.json.tmp',JSON.stringify(s));renameSync('.room-settings.json.tmp','.room-settings.json');});
+let characters={};try{characters=JSON.parse(readFileSync('.room-characters.json','utf8'));}catch{}
+const rules=new GameRules(players,broadcast,scores,s=>writeFileSync('.room-scores.json',JSON.stringify(s)),settings,s=>{writeFileSync('.room-settings.json.tmp',JSON.stringify(s));renameSync('.room-settings.json.tmp','.room-settings.json');},characters,s=>{writeFileSync('.room-characters.json.tmp',JSON.stringify(s));renameSync('.room-characters.json.tmp','.room-characters.json');});
 
 function remove(socket) {
   const entry = players.get(socket);
@@ -95,7 +96,7 @@ sockets.on('connection', (socket, request) => {
   const spawn = players.size;
   const angle = spawn * 2.399;
   const profile=/^[a-f0-9-]{36}$/.test(url.searchParams.get('profile')||'')?url.searchParams.get('profile'):crypto.randomUUID();
-  const player = {profile,score:scores[profile]||0,crownEnabled:false,seated:false,
+  const player = {profile,...rules.character(skin,profile,url.searchParams.get('crown')==='1'),seated:false,
     id: crypto.randomUUID(), skin,
     x: Math.sin(angle) * 3, y: 0, z: Math.cos(angle) * 3,
     yaw: Math.atan2(-Math.sin(angle), -Math.cos(angle)),
@@ -103,7 +104,7 @@ sockets.on('connection', (socket, request) => {
     gesture: 'none', speed: 0, grounded: true, verticalSpeed: 0, flight: false, ragdoll: false,
   };
   players.set(socket, { player, lastStateAt: 0 });
-  send(socket, { type: 'joined', version:SYNC_VERSION, self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
+  send(socket, { type: 'joined', version:SYNC_VERSION, characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
   broadcast({ type: 'player-joined', player }, socket);
   send(socket,rules.snapshot());
 
@@ -117,6 +118,7 @@ sockets.on('connection', (socket, request) => {
     const requestedSkin = Number(message.state?.skin);
     const state = cleanState(message.state, requestedSkin);
     if (!state) return;
+    if(state.skin!==entry.player.skin&&!rules.selectCharacter(entry,state.skin))state.skin=entry.player.skin;
     applyPlayerState(entry.player,state);
     rules.state(entry);
     entry.lastStateAt = Date.now();

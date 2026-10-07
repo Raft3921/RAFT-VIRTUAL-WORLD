@@ -8,6 +8,7 @@ import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { SYNC_VERSION } from './game-rules.js';
+import { cleanCharacter } from './character-store.js';
 
 const $ = id => document.getElementById(id);
 const clamp = THREE.MathUtils.clamp;
@@ -17,7 +18,10 @@ const safeSave = (key,value) => {try{localStorage.setItem(key,value);return true
 const skinDefs = [['ウィーク','week.png'],['もろん','moron.png'],['やんさん','やんさん.png'],['ラフト','raft.png'],['ムート','muto.png'],['まい','maiのコピー.png'],['たぬつな','1000001207.png']];
 const castOrder=[3,5,6,2,4,1,0];
 const initialCharacter=Number(shareSource().get('c')??safeRead('raft-studio-character')??3);
-let selected=clamp(Number.isFinite(initialCharacter)?initialCharacter:3,0,6), inStudio=false, clean=false;
+let selected=Math.floor(clamp(Number.isFinite(initialCharacter)?initialCharacter:3,0,6)), inStudio=false, clean=false;
+let characterCache={};try{const saved=JSON.parse(safeRead('raft-character-state')||'{}');for(let skin=0;skin<7;skin++)if(saved?.[skin])characterCache[skin]=cleanCharacter(saved[skin]);}catch{}
+if(!characterCache[selected])characterCache[selected]=cleanCharacter({crownEnabled:safeRead('raft-crown')==='true'});
+let pendingCrown={};try{const pending=JSON.parse(safeRead('raft-character-crown-pending')||'{}');for(let skin=0;skin<7;skin++)if(typeof pending?.[skin]==='boolean')pendingCrown[skin]=pending[skin];}catch{}
 let touch = matchMedia('(pointer:coarse)').matches;
 let cameraMode='follow',yaw=0,pitch=-.14,lobbyYaw=.35;
 let distance=5.5,fov=55,smoothing=.14,flySpeed=4,moveSpeed=2.8,gesture='none',showCast=false;
@@ -60,10 +64,19 @@ function freezeImpact(duration,strength){
   localImpact={time:0,duration,strength,vertical:verticalSpeed,velocity:velocity.clone()};
   velocity.set(0,0,0);verticalSpeed=0;lastRoomStateAt=0;
 }
-let crownEnabled=safeRead('raft-crown')==='true',crownScore=0,athleticCheckpoint=null,athleticActive=false,seated=false,duelActive=false,duelDamage=0;
+let crownEnabled=characterCache[selected].crownEnabled,crownScore=characterCache[selected].score,athleticCheckpoint=null,athleticActive=false,seated=false,duelActive=false,duelDamage=0;
+let courseAwaitingSave=false;
 let standingOn=null,seat=null,seatCooldown=0,knockbackInArena=false,duelIds=[],openBoard=null,athleticPeak=0;
 let goalDamage=11,matchGoalDamage=11;
 const profile=safeRead('raft-world-profile')||(crypto.randomUUID?.()||'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const n=Math.floor(Math.random()*16);return (c==='x'?n:(n&3)|8).toString(16);}));safeSave('raft-world-profile',profile);
+function cachedCharacter(skin=selected){return characterCache[skin]||cleanCharacter();}
+function cacheCharacter(skin,value){const record=cleanCharacter(value);record.checkpoint=Math.max(record.checkpoint,cachedCharacter(skin).checkpoint);characterCache[skin]=record;safeSave('raft-character-state',JSON.stringify(characterCache));actors[skin]?.setAppearance(record.score,record.crownEnabled);if(skin===selected){crownScore=record.score;crownEnabled=record.crownEnabled;updateCrown();}}
+function saveCheckpoint(id){cacheCharacter(selected,{...cachedCharacter(),checkpoint:id});if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'checkpoint',id:cachedCharacter().checkpoint}));}
+function receiveCharacter(skin,value){
+  const wanted=pendingCrown[skin];if(wanted!==undefined&&value.crownEnabled===wanted){delete pendingCrown[skin];safeSave('raft-character-crown-pending',JSON.stringify(pendingCrown));}
+  cacheCharacter(skin,{...value,crownEnabled:wanted!==undefined?wanted:value.crownEnabled});
+  if(skin===selected&&roomSelfId){if(cachedCharacter().checkpoint>(value.checkpoint||1))saveCheckpoint(cachedCharacter().checkpoint);if(wanted!==undefined&&value.crownEnabled!==wanted&&roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify({type:'crown-toggle',enabled:wanted}));}
+}
 const physicsVelocity=new THREE.Vector3();
 const keys=new Set(),stick={x:0,y:0},stickCenter={x:0,y:0},pointerStart={x:0,y:0};
 const punchRaycaster=new THREE.Raycaster(),punchNdc=new THREE.Vector2();
@@ -158,32 +171,41 @@ function openMenu(){setClean(false);unlocked();$('worldMenu').hidden=true;$('mas
 function openMaster(){if(!inStudio)return;$('worldMenu').hidden=true;const wasOpen=!$('master').hidden;setClean(false);unlocked();$('menu').hidden=true;$('master').hidden=wasOpen;if(!wasOpen)$('cameraMode').focus();else canvas.focus()}
 function setCameraMode(mode){if(!['follow','first','orbit','free'].includes(mode))return;const p=actors[selected]?.root;if(mode==='orbit'&&p)orbitTarget.copy(p.position).add(new THREE.Vector3(0,1.15,0));if(mode==='free'){freePosition.copy(camera.position);camera.getWorldDirection(direction);yaw=Math.atan2(direction.x,direction.z);pitch=Math.asin(clamp(direction.y,-1,1))}cameraMode=mode;$('cameraMode').value=mode;$('cameraHelp').textContent=cameraDescriptions[mode];$('distance').disabled=mode==='first'||mode==='free';clearInput();updateJumpButton();updateVisibility()}
 function updateVisibility(){actors.forEach((a,i)=>{if(a)a.root.visible=(i===selected&&(!inStudio||cameraMode!=='first'))||(inStudio&&showCast&&i!==selected)})}
-function setSelected(index){if(!actors[index]){$('actorSelect').value=String(selected);return}selected=index;velocity.set(0,0,0);verticalSpeed=0;grounded=true;bodies[index].vel.set(0,0,0);bodies[index].grounded=true;bodies[index].travelRemaining=0;actors[index].root.position.y=0;safeSave('raft-studio-character',String(index));if(inStudio){setCameraMode('follow');focus.copy(actors[index].root.position).add(new THREE.Vector3(0,1.25,0));yaw=actors[index].root.rotation.y;pitch=-.14}updateCrown();updateSelection();updateVisibility();scheduleShare()}
+function setSelected(index){
+  if(!actors[index]){$('actorSelect').value=String(selected);return;}if(index===selected)return;
+  if(duelActive||localRagdoll||localImpact){$('actorSelect').value=String(selected);notify('試合・被弾中はキャラクターを変更できません');return;}
+  if(athleticCheckpoint)saveCheckpoint(athleticCheckpoint.id);athleticActive=false;athleticCheckpoint=null;athleticPeak=0;courseAwaitingSave=false;standingOn=null;seated=false;seat=null;
+  selected=index;velocity.set(0,0,0);verticalSpeed=0;grounded=true;bodies[index].vel.set(0,0,0);bodies[index].grounded=true;bodies[index].travelRemaining=0;actors[index].root.position.y=0;safeSave('raft-studio-character',String(index));
+  crownScore=cachedCharacter().score;crownEnabled=cachedCharacter().crownEnabled;
+  if(inStudio){setCameraMode('follow');focus.copy(actors[index].root.position).add(new THREE.Vector3(0,1.25,0));yaw=actors[index].root.rotation.y;pitch=-.14;}
+  if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'character-select',skin:index}));
+  updateCrown();updateSelection();updateVisibility();scheduleShare();
+}
 function updateSelection(){$('selectedName').textContent=skinDefs[selected][0];$('sessionName').textContent=skinDefs[selected][0]+' · Meadow';$('enter').disabled=!actors[selected];$('actorSelect').value=String(selected);document.querySelectorAll('.character').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.index===selected)))}
-function updateCrown(){actors[selected]?.setAppearance(crownScore,crownEnabled);$('crownToggle').textContent='王冠・ハゲ表現：'+(crownEnabled?'ON':'OFF');}
+function updateCrown(){actors[selected]?.setAppearance(crownScore,crownEnabled);$('crownToggle').textContent=skinDefs[selected][0]+' · 王冠・ハゲ表現：'+(crownEnabled?'ON':'OFF');}
 function updateDuelSettings(){$('duelGoal').value=String(goalDamage);$('duelSettingsStatus').textContent=`現在：${goalDamage}ダメージ · サーバー保存 · 次の試合から反映`;}
 function receiveDuel(duel,announce=false){duelIds=duel.ids;duelActive=duelIds.includes(roomSelfId);matchGoalDamage=duel.goalDamage||goalDamage;duelDamage=duel.damage?.[roomSelfId]||0;if(duelActive){airWalk=false;updateJumpButton();}if(announce)notify('タイマン開始！',3500);$('duelHud').hidden=false;$('duelHud').textContent=duelActive?`被ダメージ ${duelDamage} / ${matchGoalDamage} · 試合中はバリア封鎖`:`タイマン観戦中 · ${matchGoalDamage}ダメージで決着`;}
 function openWorldMenu(board=null){setClean(false);unlocked();openBoard=board;$('menu').hidden=true;$('master').hidden=true;$('worldMenu').hidden=false;$('stopAthletic').disabled=!athleticActive;updateDuelSettings();$('worldStatus').textContent=athleticActive?'CHECK '+(athleticCheckpoint?.id||1)+' / 100 · ジャンプ力1.5倍':`闘技場：2人が1秒以内にパンチで開始 · ${goalDamage}ダメージで勝利`;}
 function closeWorldMenu(){$('worldMenu').hidden=true;canvas.focus();}
 function respawnCourse(){
   const cp=athleticCheckpoint||world.athletic.checkpoints[0];
-  actors[selected].root.position.set(cp.x,cp.y,cp.z);verticalSpeed=0;velocity.set(0,0,0);localImpulse.set(0,0,0);localRagdoll=false;grounded=true;seated=false;seat=null;standingOn=null;athleticPeak=cp.y;focus.copy(actors[selected].root.position).y+=1.25;notify('CHECK '+cp.id+' から再開');
+  actors[selected].root.position.set(cp.x,cp.y,cp.z);verticalSpeed=0;velocity.set(0,0,0);localImpulse.set(0,0,0);localImpact=null;localHit=null;localRagdoll=false;grounded=true;seated=false;seat=null;standingOn=null;athleticPeak=cp.y;focus.copy(actors[selected].root.position).y+=1.25;notify('CHECK '+cp.id+' から再開');
 }
-function stopCourse(){if(!athleticActive||duelActive)return;athleticActive=false;athleticCheckpoint=null;athleticPeak=0;seated=false;seat=null;airWalk=false;localImpact=null;localHit=null;localRagdoll=false;localImpulse.set(0,0,0);verticalSpeed=0;velocity.set(0,0,0);actors[selected].root.position.set(world.athletic.exit.x,.16,world.athletic.exit.z);grounded=true;setCameraMode('follow');closeWorldMenu();updateJumpButton();notify('アスレチックを終了しました');}
+function stopCourse(){if(!athleticActive||duelActive)return;if(athleticCheckpoint)saveCheckpoint(athleticCheckpoint.id);courseAwaitingSave=false;athleticActive=false;athleticCheckpoint=null;athleticPeak=0;seated=false;seat=null;airWalk=false;localImpact=null;localHit=null;localRagdoll=false;localImpulse.set(0,0,0);verticalSpeed=0;velocity.set(0,0,0);actors[selected].root.position.set(world.athletic.exit.x,.16,world.athletic.exit.z);grounded=true;setCameraMode('follow');closeWorldMenu();updateJumpButton();notify('アスレチックを終了 · CHECK '+cachedCharacter().checkpoint+' を保存');}
 
-function placeActors(){athleticActive=false;athleticCheckpoint=null;seated=false;seat=null;standingOn=null;localImpact=null;localRagdoll=false;localHit=null;restoreHitCamera=null;localImpulse.set(0,0,0);actors.forEach((a,i)=>{if(a){if(i===selected){a.root.position.set(0,0,0);a.root.rotation.set(0,0,0)}else{const angle=i*2.399+.4,radius=3.4+(i%3)*.85;a.root.position.set(Math.sin(angle)*radius,0,Math.cos(angle)*radius+1.2);a.root.rotation.set(0,Math.atan2(-a.root.position.x,-a.root.position.z),0)}}if(a&&world)a.root.position.y=world.floorAt(a.root.position,.5).y;bodies[i].vel.set(0,0,0);bodies[i].grounded=true;bodies[i].ragdoll=false;bodies[i].hit=null;bodies[i].travelRemaining=0});velocity.set(0,0,0);verticalSpeed=0;grounded=true;airWalk=false;lastJumpTapAt=-Infinity;updateJumpButton();cancelCharge();punchSwing=0;pendingAttack=null;queuedAttack=null;comboIndex=0;attackRushing=false;chainRemaining=0;targetLock=null}
+function placeActors(){courseAwaitingSave=false;athleticActive=false;athleticCheckpoint=null;seated=false;seat=null;standingOn=null;localImpact=null;localRagdoll=false;localHit=null;restoreHitCamera=null;localImpulse.set(0,0,0);actors.forEach((a,i)=>{if(a){if(i===selected){a.root.position.set(0,0,0);a.root.rotation.set(0,0,0)}else{const angle=i*2.399+.4,radius=3.4+(i%3)*.85;a.root.position.set(Math.sin(angle)*radius,0,Math.cos(angle)*radius+1.2);a.root.rotation.set(0,Math.atan2(-a.root.position.x,-a.root.position.z),0)}}if(a&&world)a.root.position.y=world.floorAt(a.root.position,.5).y;bodies[i].vel.set(0,0,0);bodies[i].grounded=true;bodies[i].ragdoll=false;bodies[i].hit=null;bodies[i].travelRemaining=0});velocity.set(0,0,0);verticalSpeed=0;grounded=true;airWalk=false;lastJumpTapAt=-Infinity;updateJumpButton();cancelCharge();punchSwing=0;pendingAttack=null;queuedAttack=null;comboIndex=0;attackRushing=false;chainRemaining=0;targetLock=null}
 function enterStudio(){if(!actors[selected])return;const query=shareSource();inStudio=true;showCast=false;$('showCast').checked=false;document.body.dataset.screen='studio';$('lobby').hidden=true;$('hud').hidden=false;placeActors();focus.set(0,1.25,0);const sharedYaw=Number(query.get('yaw')),sharedPitch=Number(query.get('pitch'));yaw=query.has('yaw')&&Number.isFinite(sharedYaw)?angleDelta(0,sharedYaw):0;pitch=query.has('pitch')&&Number.isFinite(sharedPitch)?clamp(sharedPitch,-1.15,1.1):-.14;setCameraMode(query.get('cam')||'follow');updateVisibility();canvas.focus();notify(touch?'左スティックで移動。パンチを長押しで溜め':'ドラッグで視点 / 右下の✊を長押しで溜めパンチ',3500);connectRoom();scheduleShare()}
 function returnLobby(){leaveRoom();unlocked();setClean(false);inStudio=false;document.body.dataset.screen='lobby';$('hud').hidden=true;$('lobby').hidden=false;$('menu').hidden=$('master').hidden=$('worldMenu').hidden=true;gesture='none';$('gesture').value='idle';placeActors();updateSelection();updateVisibility();$('enter').focus()}
 function makeFace(url,el){const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=c.height=32;c.className='face';c.setAttribute('aria-hidden','true');const q=c.getContext('2d');q.imageSmoothingEnabled=false;const s=img.width/64;q.drawImage(img,8*s,8*s,8*s,8*s,0,0,32,32);q.drawImage(img,40*s,8*s,8*s,8*s,0,0,32,32);el.replaceChildren(c)};img.src=url}
 const faces=[],characterButtons=[];
 castOrder.forEach(i=>{const [name,file]=skinDefs[i],b=document.createElement('button');b.className='character';b.dataset.index=i;b.setAttribute('aria-label',name+' を選択');b.setAttribute('aria-pressed',String(i===selected));const holder=document.createElement('span');holder.className='face';holder.textContent='＋';faces[i]=holder;characterButtons[i]=b;const label=document.createElement('span');label.textContent=name;b.append(holder,label);b.onclick=()=>setSelected(i);$('characters').append(b);$('actorSelect').add(new Option(name,String(i)));if(file)makeFace('skins/'+file,holder)});
 const secret=document.createElement('button');secret.className='character secret-character';secret.disabled=true;secret.textContent='🔒 近日公開';secret.setAttribute('aria-label','シークレット・近日公開');$('characters').append(secret);
-async function replaceSkin(i,url){const actor=await createAvatar(url);const old=actors[i];if(old){actor.root.position.copy(old.root.position);actor.root.rotation.copy(old.root.rotation);scene.remove(old.root);old.dispose()}actors[i]=actor;scene.add(actor.root);makeFace(url,faces[i]);updateSelection();updateVisibility()}
+async function replaceSkin(i,url){const actor=await createAvatar(url);const old=actors[i];if(old){actor.root.position.copy(old.root.position);actor.root.rotation.copy(old.root.rotation);scene.remove(old.root);old.dispose()}actors[i]=actor;const appearance=cachedCharacter(i);actor.setAppearance(appearance.score,appearance.crownEnabled);scene.add(actor.root);makeFace(url,faces[i]);updateSelection();updateVisibility()}
 $('enter').onclick=enterStudio;$('resume').onclick=()=>{$('menu').hidden=true;clearInput();canvas.focus()};$('changeCharacter').onclick=$('masterCharacter').onclick=returnLobby;
 $('openMaster').onclick=openMaster;$('closeMaster').onclick=()=>{$('master').hidden=true;clearInput();canvas.focus()};$('cleanView').onclick=$('cleanMaster').onclick=enterClean;
 $('studioBoard').onclick=()=>openWorldMenu();$('closeWorldMenu').onclick=closeWorldMenu;
 document.querySelectorAll('[data-bg]').forEach(button=>button.onclick=()=>{const value=button.dataset.bg;world.setBackdrop(value);if(roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify({type:'backdrop',value}));notify(value+' 背景に切替');});
-$('crownToggle').onclick=()=>{crownEnabled=!crownEnabled;safeSave('raft-crown',String(crownEnabled));updateCrown();};
+$('crownToggle').onclick=()=>{cacheCharacter(selected,{...cachedCharacter(),crownEnabled:!crownEnabled});pendingCrown[selected]=crownEnabled;safeSave('raft-character-crown-pending',JSON.stringify(pendingCrown));if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'crown-toggle',enabled:crownEnabled}));};
 $('saveDuelGoal').onclick=()=>{const value=Number($('duelGoal').value);if(!Number.isInteger(value)||value<1||value>100){notify('合計ダメージは1〜100の整数にしてください');return;}if(roomSocket?.readyState!==WebSocket.OPEN||!roomSelfId){notify('設定を保存するにはサーバーに接続してください');return;}$('saveDuelGoal').disabled=true;$('duelSettingsStatus').textContent='サーバーに保存中…';roomSocket.send(JSON.stringify({type:'duel-settings',goalDamage:value}));};
 $('stopAthletic').onclick=stopCourse;
 $('boardSession').onclick=()=>{closeWorldMenu();openMenu();};
@@ -240,6 +262,9 @@ function updateRemotePlayer(player){
 function handleRoomMessage(socket,event){
   let message;try{message=JSON.parse(event.data)}catch{return}
   if(message.type==='world'){world?.setBackdrop(message.backdrop);if(Number.isInteger(message.goalDamage)){goalDamage=message.goalDamage;updateDuelSettings();}if(message.duel)receiveDuel(message.duel);return;}
+  if(message.type==='character-state'){const skin=Number(message.skin);if(Number.isInteger(skin)&&skin>=0&&skin<7){receiveCharacter(skin,message.character);for(const remote of remoteActors.values())if(remote.skin===skin){remote.crownEnabled=message.character.crownEnabled;remote.actor.setAppearance(message.character.score,remote.crownEnabled);}}return;}
+  if(message.type==='character-save-error'){notify(message.message,8000);return;}
+  if(message.type==='character-select-rejected'&&message.id===roomSelfId){selected=message.skin;crownScore=cachedCharacter().score;crownEnabled=cachedCharacter().crownEnabled;updateSelection();updateVisibility();updateCrown();notify('試合・被弾中はキャラクターを変更できません');return;}
   if(message.type==='settings-saved'){goalDamage=message.goalDamage;updateDuelSettings();$('saveDuelGoal').disabled=false;notify(`次の試合：${goalDamage}ダメージ · サーバーに保存しました`);return;}
   if(message.type==='settings-error'){$('saveDuelGoal').disabled=false;$('duelSettingsStatus').textContent=message.message;notify(message.message);return;}
   if(message.type==='duel-ready'){if(message.id===roomSelfId)notify('準備OK · 相手も1秒以内にパンチ');return;}
@@ -267,8 +292,11 @@ function handleRoomMessage(socket,event){
     }return;
   }
   if(message.type==='joined'){
-    if(message.version!==SYNC_VERSION){roomFailure='同期サーバーの更新が必要';notify('同期サーバーが旧版です。サーバーを再起動して、このページを再読み込みしてください。',12000);roomSocket?.close(1000,'update server');updateRoomStatus('同期サーバーの更新が必要');return;}
-    roomSelfId=message.self.id;localHitSerial=message.self.hitSerial||0;crownScore=message.self.score||0;updateCrown();const own=actors[selected]?.root;if(own){own.position.set(message.self.x,message.self.y,message.self.z);own.rotation.y=message.self.yaw}
+    if(message.version!==SYNC_VERSION){roomFailure='ページと同期サーバーの版が一致しません';notify('ページと同期サーバーの版が違います。サーバーを更新・再起動し、ページを再読み込みしてください。',12000);roomSocket?.close(1000,'update server');updateRoomStatus(roomFailure);return;}
+    roomSelfId=message.self.id;localHitSerial=message.self.hitSerial||0;
+    for(const [skin,record]of Object.entries(message.characters||{}))receiveCharacter(Number(skin),record);receiveCharacter(selected,message.self);
+    const own=actors[selected]?.root;if(own){own.position.set(message.self.x,message.self.y,message.self.z);own.rotation.y=message.self.yaw}
+    if(athleticActive&&courseAwaitingSave){athleticCheckpoint=world.athletic.checkpoints[cachedCharacter().checkpoint-1];respawnCourse();}courseAwaitingSave=false;
     (message.players||[]).forEach(updateRemotePlayer);updateRoomStatus(`${roomCode} · ${remoteActors.size+remoteLoading.size+1}/8人`);scheduleShare();return;
   }
   if(message.type==='player-joined'||message.type==='state'){updateRemotePlayer(message.player);updateRoomStatus(`${roomCode} · ${remoteActors.size+remoteLoading.size+1}/8人`);return}
@@ -279,7 +307,7 @@ function connectRoom(){
   if(!SYNC_ENDPOINT){updateRoomStatus('同期サーバー未設定');notify('Cloudflare WorkerのURL設定後に接続できます');return}
   const old=roomSocket;roomSocket=null;if(old)old.close();clearRemoteActors();roomSelfId='';roomCode=code;updateRoomStatus(`${code} · 接続中`);
   try{
-    const endpoint=new URL(SYNC_ENDPOINT);endpoint.protocol=endpoint.protocol==='https:'?'wss:':endpoint.protocol==='http:'?'ws:':endpoint.protocol;endpoint.searchParams.delete('code');endpoint.searchParams.set('skin',String(selected));endpoint.searchParams.set('profile',profile);
+    const endpoint=new URL(SYNC_ENDPOINT);endpoint.protocol=endpoint.protocol==='https:'?'wss:':endpoint.protocol==='http:'?'ws:':endpoint.protocol;endpoint.searchParams.delete('code');endpoint.searchParams.set('skin',String(selected));endpoint.searchParams.set('profile',profile);endpoint.searchParams.set('crown',crownEnabled?'1':'0');
     const socket=new WebSocket(endpoint);roomSocket=socket;
     socket.addEventListener('open',()=>{if(roomSocket===socket)updateRoomStatus(`${code} · 入室処理中`)});
     socket.addEventListener('message',event=>{if(roomSocket===socket)handleRoomMessage(socket,event)});
@@ -316,8 +344,8 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
       movement.copy(direction).multiplyScalar(my).addScaledVector(right,mx);if(movement.length()>1)movement.normalize();
       run=keys.has('ShiftLeft')||keys.has('ShiftRight')||(touch&&Math.hypot(stick.x,stick.y)>.94);
       if(world.inAthletic(p.position)&&!athleticActive){
-        athleticActive=true;athleticCheckpoint=world.athletic.checkpoints[0];airWalk=false;verticalSpeed=0;grounded=false;athleticPeak=p.position.y;updateJumpButton();notify('アスレチック開始 · ジャンプ力1.5倍');
-        if(p.position.y>athleticCheckpoint.y+5)respawnCourse();
+        athleticActive=true;courseAwaitingSave=!roomSelfId;athleticCheckpoint=world.athletic.checkpoints[cachedCharacter().checkpoint-1];airWalk=false;verticalSpeed=0;grounded=false;athleticPeak=p.position.y;updateJumpButton();
+        if(athleticCheckpoint.id>1||p.position.y>athleticCheckpoint.y+5)respawnCourse();else notify('アスレチック開始 · CHECK 1 · ジャンプ力1.5倍');
       }
       if(athleticActive&&airWalk){airWalk=false;updateJumpButton();}
       if((!paused()||localRagdoll)&&!localImpact){
@@ -357,7 +385,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
           if(speed>.06&&!localRagdoll&&punchSwing===0){const facing=cameraMode==='first'?yaw:Math.atan2(velocity.x,velocity.z);p.rotation.y+=angleDelta(p.rotation.y,facing)*(1-Math.exp(-dt*13));}
           if(athleticActive){
             const cp=grounded?world.checkpointAt(p.position):null;
-            if(cp&&cp.id>(athleticCheckpoint?.id||0)){athleticCheckpoint=cp;notify(cp.id===100?'CHECK 100！ クリア！':'CHECK '+cp.id+' / 100');}
+            if(cp&&cp.id>(athleticCheckpoint?.id||0)){athleticCheckpoint=cp;saveCheckpoint(cp.id);notify(cp.id===100?'CHECK 100！ クリア！':'CHECK '+cp.id+' / 100');}
             athleticPeak=Math.max(athleticPeak,p.position.y);
             if(world.lethal(p.position)||p.position.y<Math.max(athleticCheckpoint?.y||0,athleticPeak)-7)respawnCourse();
           }
@@ -438,7 +466,7 @@ async function start(){try{
   const firstReady=Promise.any(skinLoads.map((load,index)=>load.then(()=>actors[index]?index:Promise.reject(new Error('No avatar')))));
   const preferredReady=skinLoads[selected].then(()=>actors[selected]?selected:firstReady,()=>firstReady);
   const readyIndex=await Promise.race([preferredReady,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Skin loading timed out')),10000))]);
-  if(!actors[selected])selected=readyIndex;if(!actors[selected])throw Error('スキンを読み込めませんでした。');applyShare();placeActors();updateSelection();updateVisibility();setCameraMode(shareSource().get('cam')||'follow');requestId=requestAnimationFrame(tick);
+  if(!actors[selected])selected=readyIndex;if(!actors[selected])throw Error('スキンを読み込めませんでした。');applyShare();crownScore=cachedCharacter().score;crownEnabled=cachedCharacter().crownEnabled;updateCrown();placeActors();updateSelection();updateVisibility();setCameraMode(shareSource().get('cam')||'follow');requestId=requestAnimationFrame(tick);
   Promise.all(skinLoads).then(()=>{skinFailures.forEach(({index,error})=>{characterButtons[index].disabled=true;console.error('skin load failed',skinDefs[index][0],error)});updateSelection();updateVisibility();if(skinFailures.length)notify('一部のスキンを読み込めませんでした。')});
 }catch(error){console.error(error);$('loadError').hidden=false;$('loadError').textContent=`3Dスタジオを開始できませんでした。${error.message||'SafariのWebGL設定を確認してください。'}`}}
 canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();cancelAnimationFrame(requestId);clearInput();notify('描画が中断されました。復帰を待っています。',8000)});canvas.addEventListener('webglcontextrestored',()=>location.reload());

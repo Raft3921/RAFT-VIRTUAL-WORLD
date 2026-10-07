@@ -31,7 +31,7 @@ export class Room extends DurableObject {
     super(ctx, env);
     this.roomContext=ctx;
     this.players = new Map();
-    this.scores={};this.ready=ctx.blockConcurrencyWhile(async()=>{this.scores=await ctx.storage.get('scores')||{};const settings=await ctx.storage.get('settings')||{};this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.storage.put('scores',s),settings,s=>ctx.storage.put('settings',s));});
+    this.scores={};this.ready=ctx.blockConcurrencyWhile(async()=>{this.scores=await ctx.storage.get('scores')||{};const settings=await ctx.storage.get('settings')||{},characters=await ctx.storage.get('characters')||{};this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.storage.put('scores',s),settings,s=>ctx.storage.put('settings',s),characters,s=>ctx.storage.put('characters',s));});
   }
 
   async fetch(request) {
@@ -45,7 +45,7 @@ export class Room extends DurableObject {
     const spawn = this.players.size;
     const angle = spawn * 2.399;
     const profile=/^[a-f0-9-]{36}$/.test(url.searchParams.get('profile')||'')?url.searchParams.get('profile'):crypto.randomUUID();
-    const player = {profile,score:this.scores[profile]||0,crownEnabled:false,seated:false,
+    const player = {profile,...this.rules.character(skin,profile,url.searchParams.get('crown')==='1'),seated:false,
       id, skin,
       x: Math.sin(angle) * 3,
       y: 0,
@@ -58,7 +58,8 @@ export class Room extends DurableObject {
     server.accept();
     this.players.set(server, { player, lastStateAt: 0 });
 
-    server.send(json({ type: 'joined', version:SYNC_VERSION, self: player, players: [...this.players.values()].map(entry => entry.player).filter(other => other.id !== id) }));
+    this.roomContext.waitUntil(this.rules.characters.pending);
+    server.send(json({ type: 'joined', version:SYNC_VERSION, characters:this.rules.characters.snapshots(), self: player, players: [...this.players.values()].map(entry => entry.player).filter(other => other.id !== id) }));
     this.broadcast({ type: 'player-joined', player }, server);
     server.send(json(this.rules.snapshot()));
     server.addEventListener('message', event => this.receive(server, event.data));
@@ -80,6 +81,7 @@ export class Room extends DurableObject {
     const skin = Number.isInteger(requestedSkin) && requestedSkin >= 0 && requestedSkin < 7 ? requestedSkin : entry.player.skin;
     const state = cleanState(message.state, skin);
     if (!state) return;
+    if(state.skin!==entry.player.skin){if(!this.rules.selectCharacter(entry,state.skin))state.skin=entry.player.skin;this.roomContext.waitUntil(this.rules.characters.pending);}
     entry.lastStateAt = Date.now();
     applyPlayerState(entry.player,state);
     this.rules.state(entry);

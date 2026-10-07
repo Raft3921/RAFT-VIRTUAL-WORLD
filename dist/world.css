@@ -1,1 +1,9 @@
 .world-menu{position:fixed;z-index:11;left:18px;bottom:18px;width:320px;max-width:calc(100% - 36px);padding:20px}.world-menu>label{display:block;margin:20px 0 7px;color:#dce7dc;font-size:14px}.world-menu>button{width:100%;margin-top:13px;text-align:left}.world-menu .button-pair{margin-top:0}.world-menu .button-pair button{background:#ffffff12;font-weight:700}
+.world-menu{max-height:calc(100dvh - 36px);overflow-y:auto}
+.duel-hud{position:fixed;left:50%;top:22px;transform:translateX(-50%);background:#172c35e6;color:#fff;padding:12px 22px;border-radius:12px;pointer-events:none;white-space:nowrap}
+.secret-character{opacity:.45!important;cursor:default}
+.punch{position:fixed;right:28px;bottom:32px;width:76px;height:76px;border-radius:50%;background:#173b34dc;border:1px solid #fff7;z-index:5;color:#fff;font-size:24px;touch-action:none;user-select:none;box-shadow:0 4px 18px #0002}
+.punch small{display:block;font-size:10px;line-height:15px;letter-spacing:.08em}.punch:active{background:#b27931;transform:scale(.95)}
+body:not([data-screen=studio]) .punch,body[data-clean=true] .punch{display:none!important}
+body[data-touch=true] .punch{display:block;position:fixed;right:110px;bottom:44px;width:70px;height:70px;border-radius:50%;background:#173b34b3;border:1px solid #fff7;z-index:5}
+@media(max-height:650px){.world-menu{bottom:10px;padding:14px;max-height:calc(100dvh - 20px)}.world-menu>button{margin-top:6px}}

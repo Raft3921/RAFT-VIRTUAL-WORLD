@@ -1,4 +1,5 @@
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, statSync, readFileSync, writeFileSync,renameSync } from 'node:fs';
+import { cleanState, GameRules,applyPlayerState,SYNC_VERSION } from '../dist/game-rules.js';
 import { createServer } from 'node:http';
 import { networkInterfaces } from 'node:os';
 import { extname, resolve, sep } from 'node:path';
@@ -14,6 +15,7 @@ const mime = {
   '.js': 'text/javascript; charset=utf-8',
   '.png': 'image/png',
   '.txt': 'text/plain; charset=utf-8',
+  '.ttf': 'font/ttf',
 };
 
 function send(socket, message) {
@@ -26,33 +28,15 @@ function broadcast(message, except = null) {
   }
 }
 
-function cleanState(state, skin) {
-  const values = [state?.x, state?.y, state?.z, state?.yaw];
-  if (!values.every(Number.isFinite)) return null;
-  const [x, y, z, yaw] = values;
-  if (Math.abs(x) > 1300 || y < 0 || y > 80 || Math.abs(z) > 1300) return null;
-  const bounded = (value, limit) => Number.isFinite(value) ? Math.max(-limit, Math.min(value, limit)) : 0;
-  return {
-    x, y, z, yaw,
-    headYaw: bounded(state.headYaw, 1),
-    headPitch: bounded(state.headPitch, .7),
-    vx: bounded(state.vx, 200),
-    vy: bounded(state.vy, 200),
-    vz: bounded(state.vz, 200),
-    skin: Number.isInteger(skin) && skin >= 0 && skin < 7 ? skin : 3,
-    gesture: ['none', 'wave', 'cheer', 'pose'].includes(state.gesture) ? state.gesture : 'none',
-    speed: Number.isFinite(state.speed) ? Math.max(0, Math.min(state.speed, 20)) : 0,
-    grounded: state.grounded !== false,
-    verticalSpeed: bounded(state.verticalSpeed, 30),
-    flight: state.flight === true,
-    ragdoll: state.ragdoll === true,
-  };
-}
+let scores={};try{scores=JSON.parse(readFileSync('.room-scores.json','utf8'));}catch{}
+let settings={};try{settings=JSON.parse(readFileSync('.room-settings.json','utf8'));}catch{}
+const rules=new GameRules(players,broadcast,scores,s=>writeFileSync('.room-scores.json',JSON.stringify(s)),settings,s=>{writeFileSync('.room-settings.json.tmp',JSON.stringify(s));renameSync('.room-settings.json.tmp','.room-settings.json');});
 
 function remove(socket) {
   const entry = players.get(socket);
   if (!entry) return;
   players.delete(socket);
+  rules.removed(entry.player.id);
   broadcast({ type: 'player-left', id: entry.player.id });
 }
 
@@ -110,7 +94,8 @@ sockets.on('connection', (socket, request) => {
   const skin = Number.isInteger(requestedSkin) && requestedSkin >= 0 && requestedSkin < 7 ? requestedSkin : 3;
   const spawn = players.size;
   const angle = spawn * 2.399;
-  const player = {
+  const profile=/^[a-f0-9-]{36}$/.test(url.searchParams.get('profile')||'')?url.searchParams.get('profile'):crypto.randomUUID();
+  const player = {profile,score:scores[profile]||0,crownEnabled:false,seated:false,
     id: crypto.randomUUID(), skin,
     x: Math.sin(angle) * 3, y: 0, z: Math.cos(angle) * 3,
     yaw: Math.atan2(-Math.sin(angle), -Math.cos(angle)),
@@ -118,27 +103,22 @@ sockets.on('connection', (socket, request) => {
     gesture: 'none', speed: 0, grounded: true, verticalSpeed: 0, flight: false, ragdoll: false,
   };
   players.set(socket, { player, lastStateAt: 0 });
-  send(socket, { type: 'joined', self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
+  send(socket, { type: 'joined', version:SYNC_VERSION, self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
   broadcast({ type: 'player-joined', player }, socket);
+  send(socket,rules.snapshot());
 
   socket.on('message', raw => {
     const entry = players.get(socket);
     if (!entry || raw.length > 2048) return;
     let message;
     try { message = JSON.parse(raw.toString()); } catch { return; }
-    if (message.type === 'punch') {
-      const impulse = message.velocity;
-      if (typeof message.target !== 'string' || !impulse || ![impulse.x, impulse.y, impulse.z].every(Number.isFinite)
-        || Math.hypot(impulse.x, impulse.y, impulse.z) > 200) return;
-      if (![...players.values()].some(target => target.player.id === message.target)) return;
-      broadcast({ type: 'punch', target: message.target, velocity: impulse });
-      return;
-    }
+    if(message.type!=='state'){rules.receive(entry,message);return;}
     if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;
     const requestedSkin = Number(message.state?.skin);
     const state = cleanState(message.state, requestedSkin);
     if (!state) return;
-    Object.assign(entry.player, state);
+    applyPlayerState(entry.player,state);
+    rules.state(entry);
     entry.lastStateAt = Date.now();
     broadcast({ type: 'state', player: entry.player }, socket);
   });

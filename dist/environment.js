@@ -73,7 +73,7 @@ function makeGround() {
   for (let i = 0; i < positions.count; i++) {
     const x = positions.getX(i), z = positions.getZ(i);
     // A broad flat, usable recording area with gentle hills at the horizon.
-    const ramp = THREE.MathUtils.smoothstep(Math.hypot(x, z), 90, 420);
+    const ramp = THREE.MathUtils.smoothstep(Math.hypot(x, z), 360, 600);
     const hills = 3.4 + Math.sin(x * .033 + .7) * Math.cos(z * .021) * 4.6
       + Math.sin(x * .014 - z * .025 + 1.8) * 3.8;
     positions.setY(i, Math.max(0, hills) * ramp - .015);
@@ -174,6 +174,19 @@ function makeGrass(tier, uniforms) {
       vec2 wrap = floor((uFocus - initialRoot) / uSpan + .5) * uSpan;
       vec2 root = initialRoot + wrap;
       float distanceToFocus = length(root - uFocus);
+      // Keep vegetation out of the studio, homes, arena, paved avenues and course.
+      bool studio = abs(root.x)<11.5 && abs(root.y)<9.5;
+      bool road = (abs(root.x)<4.5 && root.y>8. && root.y<35.)
+        || (abs(root.y-31.)<4. && root.x>-90. && root.x<0.)
+        || (abs(root.y-27.)<4. && root.x>0. && root.x<116.)
+        || (abs(root.x-112.)<4. && root.y>27. && root.y<63.)
+        || (abs(root.y-62.)<5. && abs(root.x)<47.)
+        || (abs(root.x+79.)<4. && root.y>31. && root.y<103.);
+      bool homes=false;
+      for(int k=0;k<4;k++){float hx=-39.+float(k)*26.;if(abs(root.x-hx)<8.2 && (abs(root.y-45.)<7.8 || abs(root.y-80.)<7.8)) homes=true;if(abs(root.x-hx)<2.8 && root.y>51. && root.y<74.) homes=true;}
+      bool arena=distance(root,vec2(112.,8.))<33.5;
+      if(studio || road || homes || arena) transformed*=0.;
+
       float visibility = 1.0 - smoothstep(uSpan * .30, uSpan * .47, distanceToFocus);
       float phase = root.x * .48 + root.y * .31;
       float breeze = sin(phase + uMeadowTime * 1.6) * .55
@@ -324,7 +337,9 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
     update(time, nextFocus) {
       uniforms.uMeadowTime.value = Number.isFinite(time) ? time : 0;
       sky.material.uniforms.uTime.value = uniforms.uMeadowTime.value;
-      if (nextFocus) focus.set(nextFocus.x, 0, nextFocus.z);
+      if (nextFocus) focus.copy(nextFocus);
+      // Grass blades are subpixel from elevated parkour/free-camera viewpoints.
+      grass.visible=focus.y<18;
       uniforms.uFocus.value.set(focus.x, focus.z);
       sun.position.copy(focus).add(sunOffset);
       sun.target.position.copy(focus);

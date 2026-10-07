@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="studio.css">
 <link rel="stylesheet" href="room.css">
 <link rel="stylesheet" href="world.css">
+<link rel="stylesheet" href="pixel.css">
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
 </head>
 <body data-screen="lobby">
@@ -26,16 +27,17 @@
 <p id="loadError" class="error" hidden></p>
 </section>
 <div id="hud" hidden>
-<button id="menuBtn" class="hud-button" aria-label="メニューを開く" title="メニュー (Esc)">☰</button>
+<div id="duelHud" class="duel-hud" hidden></div>
+<div id="targetHud" class="target-hud" hidden></div>
 <div id="moveStick" class="joystick touch-only" role="group" aria-label="移動ジョイスティック"><span class="stick-ring"></span><i id="stickKnob"></i></div>
 <button id="jumpBtn" class="jump touch-only" aria-label="ジャンプ。連続2回タップで空中歩行" title="ジャンプ / 連続2回タップで空中歩行">↑</button>
 <div id="flightControls" class="flight-controls touch-only" hidden><button id="flightUp" aria-label="上昇" title="上昇">↑</button><button id="flightDown" aria-label="下降" title="下降">↓</button></div>
-<button id="punchBtn" class="punch touch-only" aria-label="パンチ">グー</button>
+<button id="punchBtn" class="punch" aria-label="パンチ。長押しでチャージ" title="長押しでチャージ / 離してパンチ"><svg viewBox="0 0 16 16" aria-hidden="true" shape-rendering="crispEdges"><path fill="#f7df8f" d="M3 3h2V1h2v2h2V1h2v2h2v6h2v3h-2v3H5v-2H3V9H1V5h2z"/><path fill="#ba864e" d="M5 3h1v5H5zm3 0h1v5H8zm3 0h1v5h-1zM3 9h3v1H3zm3 3h7v1H6z"/></svg><small>パンチ</small></button>
 <div id="chargeHud" hidden><div class="charge-track"><i id="chargeFill"></i><span class="charge-ticks"></span></div><span id="chargeLabel">溜め 0</span></div>
 </div>
 <section id="menu" class="pause-panel surface" role="dialog" aria-label="スタジオメニュー" hidden>
 <div class="panel-title"><span class="eyebrow">SESSION</span><button id="resume" class="icon-button" aria-label="メニューを閉じる">×</button></div>
-<h2 id="sessionName">Meadow</h2><button id="changeCharacter">キャラクターを変更</button><button id="openMaster" class="desktop-only">マスターモード <kbd>F1</kbd></button><button id="studioBoard">スタジオ背景・ワールド設定</button><button id="cleanView">撮影表示 · UIを隠す <kbd>H</kbd></button>
+<h2 id="sessionName">Meadow</h2><button id="changeCharacter">キャラクターを変更</button><button id="openMaster">マスターモード <kbd>F1</kbd></button><button id="studioBoard">スタジオ背景・ワールド設定</button><button id="cleanView">撮影表示 · UIを隠す <kbd>H</kbd></button>
 <p id="controlHelp" class="help"></p>
 <section class="room-controls" aria-label="オンラインルーム">
 <label>オンライン · 共通ルーム（最大8人）</label>
@@ -76,9 +78,14 @@
 </aside>
 <aside id="worldMenu" class="world-menu surface" aria-label="ワールドメニュー" hidden>
   <div class="panel-title"><div><span class="eyebrow">WORLD BOARD</span><h2>ワールドメニュー</h2></div><button id="closeWorldMenu" class="icon-button" aria-label="メニューを閉じる">×</button></div>
-  <p class="help">スタジオのメニューボードをパンチしても開けます。</p>
+  <p class="help">ボードをパンチして開く · 自由カメラはパンチで操作に戻る</p>
+  <button id="boardSession">キャラクター・撮影表示・オンライン設定</button>
+  <button id="boardMaster">マスターモード（カメラ・草原・プレイヤー）</button>
   <label>スタジオ背景</label><div class="button-pair"><button data-bg="GB">GB</button><button data-bg="RB">RB</button><button data-bg="BB">BB</button></div>
-  <button id="crownToggle">王冠：OFF</button>
+  <button id="crownToggle">王冠・ハゲ表現：OFF</button>
+  <label for="duelGoal">勝利に必要な合計ダメージ（1〜100）</label>
+  <div class="duel-settings"><input id="duelGoal" type="number" min="1" max="100" step="1" value="11" inputmode="numeric"><button id="saveDuelGoal">サーバーに保存</button></div>
+  <p id="duelSettingsStatus" class="help" role="status">現在：11ダメージ · 変更は次の試合から反映</p>
   <button id="stopAthletic">アスレチックをやめる</button>
   <p id="worldStatus" class="help">闘技場：2人がほぼ同時にパンチすると開始</p>
 </aside>

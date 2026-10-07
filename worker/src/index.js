@@ -93,7 +93,17 @@ export class Room extends DurableObject {
       if (typeof message.target !== 'string' || !velocity || ![velocity.x, velocity.y, velocity.z].every(Number.isFinite)
         || Math.hypot(velocity.x, velocity.y, velocity.z) > 200) return;
       if (![...this.players.values()].some(target => target.player.id === message.target)) return;
-      this.broadcast({ type: 'punch', target: message.target, velocity });
+      const damage = Number.isInteger(message.damage) ? Math.max(0, Math.min(message.damage, 10)) : 0;
+      this.broadcast({ type: 'punch', target: message.target, damage, attacker: entry.player.id, velocity });
+      return;
+    }
+    if (message.type === 'duel-ready') {
+      this.broadcast({ type: 'duel-ready', id: entry.player.id });
+      return;
+    }
+    if (message.type === 'duel-result' && typeof message.winner === 'string'
+      && [...this.players.values()].some(target => target.player.id === message.winner)) {
+      this.broadcast({ type: 'duel-result', winner: message.winner });
       return;
     }
     if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;

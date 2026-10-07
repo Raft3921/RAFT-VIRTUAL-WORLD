@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js';
 import { createEnvironment } from './environment.js';
+import { createWorld } from './world.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 
 const $ = id => document.getElementById(id);
@@ -8,16 +9,14 @@ const clamp = THREE.MathUtils.clamp;
 const angleDelta = (a,b) => Math.atan2(Math.sin(b-a),Math.cos(b-a));
 const safeRead = key => {try{return localStorage.getItem(key)}catch{return null}};
 const safeSave = (key,value) => {try{localStorage.setItem(key,value);return true}catch{return false}};
-const skinDefs = [['ウィーク','week.png'],['もろん','moron.png'],['やんさん','やんさん.png'],['ラフト','raft.png'],['ムート','muto.png'],['まい','maiのコピー.png'],['たぬつな','1000001207.png'],['カスタム',null]];
-const castOrder=[3,5,6,2,4,1,0,7];
-let custom = {};try{custom=JSON.parse(safeRead('raft-studio-skins-v2')||'{}')}catch{}
-if(!custom[7] && safeRead('raftSkin'))custom[7]=safeRead('raftSkin');
-let selected=clamp(Number(safeRead('raft-studio-character')??3),0,7), inStudio=false, clean=false;
+const skinDefs = [['ウィーク','week.png'],['もろん','moron.png'],['やんさん','やんさん.png'],['ラフト','raft.png'],['ムート','muto.png'],['まい','maiのコピー.png'],['たぬつな','1000001207.png']];
+const castOrder=[3,5,6,2,4,1,0];
+let selected=clamp(Number(safeRead('raft-studio-character')??3),0,6), inStudio=false, clean=false;
 let touch = matchMedia('(pointer:coarse)').matches;
 let cameraMode='follow',yaw=0,pitch=-.14,lobbyYaw=.35;
 let distance=5.5,fov=55,smoothing=.14,flySpeed=4,moveSpeed=2.8,gesture='none',showCast=false;
-let renderer,environment,requestId,lastTime=0,time=0,metricsAt=0,fpsFrames=0,fps=60;
-let activeQuality=touch?'low':'high',qualityChoice='auto',slowSeconds=0,cleanTimer=0,pendingClean=0,uploadTarget=null;
+let renderer,environment,world,requestId,lastTime=0,time=0,metricsAt=0,fpsFrames=0,fps=60;
+let activeQuality=touch?'low':'high',qualityChoice='auto',slowSeconds=0,cleanTimer=0,pendingClean=0;
 const PUNCH={maxCharge:10,maxRange:1000,tapRange:8,reach:2.25,radius:1.2,gravity:18,angle:24*Math.PI/180};
 const canvas=$('scene'),scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(55,1,.05,2600);
 const particleLimit=touch?72:144,particleGeometry=new THREE.SphereGeometry(1,5,4),particleMaterial=new THREE.MeshBasicMaterial({color:0xffffff,vertexColors:true,transparent:true,opacity:.82,depthWrite:false,blending:THREE.AdditiveBlending});
@@ -39,6 +38,7 @@ const remoteActors=new Map(),remoteLoading=new Map();
 let airWalk=false,lastJumpTapAt=-Infinity,flightAscend=false,flightDescend=false;
 const localImpulse=new THREE.Vector3();
 let localRagdoll=false,localLandedAt=0;
+let crownEnabled=false,crownScore=0,crownMesh=null,athleticCheckpoint=null,athleticActive=false,seated=false,duelReadyAt=0,duelActive=false,duelDamage=0;
 const keys=new Set(),stick={x:0,y:0},stickCenter={x:0,y:0},pointerStart={x:0,y:0};
 const punchRaycaster=new THREE.Raycaster(),punchNdc=new THREE.Vector2();
 let pointerPunchTarget=null;
@@ -65,8 +65,10 @@ function cancelCharge(){charging=false;chargeTime=0;chargeLevelShown=-1;updateCh
 function updateJumpButton(){$('jumpBtn').textContent=airWalk?'✈':'↑';$('jumpBtn').setAttribute('aria-label',airWalk?'飛行中。連続2回タップで解除':'ジャンプ。連続2回タップで飛行');$('flightControls').hidden=!airWalk}
 function requestJump(){
   if(!inStudio||paused()||(cameraMode!=='follow'&&cameraMode!=='first'))return;
+  if(seated){seated=false;grounded=true;jumpRequested=true;notify('立ちました');return}
   const now=performance.now();
   if(now-lastJumpTapAt<360){
+    if(world?.inAthletic(actors[selected]?.root.position||new THREE.Vector3())){notify('アスレチックゾーンでは飛行できません');lastJumpTapAt=-Infinity;return}
     airWalk=!airWalk;jumpRequested=false;
     if(airWalk){const player=actors[selected]?.root;if(player)player.position.y=Math.max(1.3,player.position.y);verticalSpeed=0;grounded=false;flightAscend=flightDescend=false}
     else if(!grounded)verticalSpeed=0;
@@ -75,13 +77,15 @@ function requestJump(){
   lastJumpTapAt=now;if(!airWalk&&grounded)jumpRequested=true;
 }
 function canPunch(){return inStudio&&!paused()&&(cameraMode==='follow'||cameraMode==='first')}
-function beginCharge(){if(!canPunch()||charging||punchSwing>0)return;charging=true;chargeTime=0;chargeLevelShown=-1;updateChargeHud()}
+function beginCharge(){if(inStudio&&(cameraMode==='free'||cameraMode==='orbit')){setCameraMode('follow');notify('パンチ操作でプレイヤー操作に戻りました');return}if(!canPunch()||charging||punchSwing>0)return;charging=true;chargeTime=0;chargeLevelShown=-1;updateChargeHud()}
 function launchPunch(targetId=null){if(!charging)return;const held=chargeTime;charging=false;chargeLevelShown=-1;punchSwing=.001;applyPunch(held,targetId);particleOrigin.copy(actors[selected]?.root.position||particleOrigin.set(0,0,0));particleOrigin.y+=1.1;emitParticles(particleOrigin,'#fff0b0',10,2.5,1);chargeTime=0;updateChargeHud()}
 function applyPunch(held,targetId=null){
   const actor=actors[selected],p=actor?.root;if(!p)return;
   const dist=punchDistance(held),speed=Math.sqrt(dist*PUNCH.gravity/Math.max(1e-4,Math.sin(2*PUNCH.angle)));
   const facing=new THREE.Vector3(Math.sin(p.rotation.y),0,Math.cos(p.rotation.y));
   const origin=p.position.clone();origin.y+=1.05;
+  if(world?.boardHit(origin,facing)){openWorldMenu();notify('ワールドメニューボード');return}
+  if(world&&Math.hypot(p.position.x-world.arena.center.x,p.position.z-world.arena.center.z)<world.arena.radius-1&&roomSocket?.readyState===WebSocket.OPEN){duelReadyAt=performance.now();roomSocket.send(JSON.stringify({type:'duel-ready'}));notify('対戦準備！ 相手も1秒以内にパンチで開始')}
   const aimedTarget=targetId?remoteActors.get(targetId):null;
   if(aimedTarget){const aimed=aimedTarget.target.clone().sub(origin);aimed.y=0;if(aimed.lengthSq()>.001)facing.copy(aimed.normalize())}
   for(let i=0;i<actors.length;i++){
@@ -98,33 +102,34 @@ function applyPunch(held,targetId=null){
       const to=remote.target.clone().sub(origin);to.y+=.9;
       const along=to.x*facing.x+to.z*facing.z,side=Math.abs(to.x*facing.z-to.z*facing.x);
       if(along<.15||along>PUNCH.reach+1.1||side>PUNCH.radius+.35||Math.hypot(to.x,to.z)>PUNCH.reach+1.35)continue;
-      roomSocket.send(JSON.stringify({type:'punch',target:id,velocity:{x:facing.x*speed*Math.cos(PUNCH.angle),y:speed*Math.sin(PUNCH.angle),z:facing.z*speed*Math.cos(PUNCH.angle)}}));
+      roomSocket.send(JSON.stringify({type:'punch',target:id,damage:duelActive?Math.max(1,punchLevel(held)):0,velocity:{x:facing.x*speed*Math.cos(PUNCH.angle),y:speed*Math.sin(PUNCH.angle),z:facing.z*speed*Math.cos(PUNCH.angle)}}));
       particleOrigin.copy(remote.target);particleOrigin.y+=.9;emitParticles(particleOrigin,'#ffe28a',18,3.2,2);
     }
   }
 }
 function unlocked(){if(document.pointerLockElement)document.exitPointerLock();clearInput()}
-function paused(){return !inStudio||!$('menu').hidden||!$('master').hidden}
+function paused(){return !inStudio||!$('menu').hidden||!$('master').hidden||!$('worldMenu').hidden}
 function setClean(value){const wasClean=clean;clearTimeout(pendingClean);pendingClean=0;clean=value;document.body.dataset.clean=String(value);$('menu').hidden=$('master').hidden=true;clearInput();if(wasClean&&!value)notify('操作表示に戻りました',1700)}
 function enterClean(){if(pendingClean){clearTimeout(pendingClean);pendingClean=0;$('toast').hidden=true;return}notify(touch?'画面を長押しすると操作表示に戻れます':'H・Escで戻る / F1でマスターモード',2200);$('menu').hidden=$('master').hidden=true;canvas.focus();pendingClean=setTimeout(()=>{pendingClean=0;if(inStudio&&$('menu').hidden&&$('master').hidden)setClean(true)},1500)}
 function openMenu(){setClean(false);unlocked();$('master').hidden=true;$('menu').hidden=false;$('resume').focus()}
 function openMaster(){if(touch||!inStudio)return;const wasOpen=!$('master').hidden;setClean(false);unlocked();$('menu').hidden=true;$('master').hidden=wasOpen;if(!wasOpen)$('cameraMode').focus();else canvas.focus()}
 function setCameraMode(mode){if(!['follow','first','orbit','free'].includes(mode))return;const p=actors[selected]?.root;if(mode==='orbit'&&p)orbitTarget.copy(p.position).add(new THREE.Vector3(0,1.15,0));if(mode==='free'){freePosition.copy(camera.position);camera.getWorldDirection(direction);yaw=Math.atan2(direction.x,direction.z);pitch=Math.asin(clamp(direction.y,-1,1))}cameraMode=mode;$('cameraMode').value=mode;$('cameraHelp').textContent=cameraDescriptions[mode];$('distance').disabled=mode==='first'||mode==='free';clearInput();updateVisibility()}
 function updateVisibility(){actors.forEach((a,i)=>{if(a)a.root.visible=(i===selected&&(!inStudio||cameraMode!=='first'))||(inStudio&&showCast&&i!==selected)})}
-function setSelected(index){if(!actors[index]){if(index===7){uploadTarget=7;$('skinFile').click()}$('actorSelect').value=String(selected);return}selected=index;velocity.set(0,0,0);verticalSpeed=0;grounded=true;bodies[index].vel.set(0,0,0);bodies[index].grounded=true;bodies[index].travelRemaining=0;actors[index].root.position.y=0;safeSave('raft-studio-character',String(index));if(inStudio){setCameraMode('follow');focus.copy(actors[index].root.position).add(new THREE.Vector3(0,1.25,0));yaw=actors[index].root.rotation.y;pitch=-.14}updateSelection();updateVisibility();scheduleShare()}
-function updateSelection(){$('selectedName').textContent=skinDefs[selected][0];$('sessionName').textContent=skinDefs[selected][0]+' · Meadow';$('enter').disabled=!actors[selected];$('actorSelect').value=String(selected);$('restoreSkin').hidden=!custom[selected];document.querySelectorAll('.character').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.index===selected)))}
+function setSelected(index){if(!actors[index]){$('actorSelect').value=String(selected);return}selected=index;velocity.set(0,0,0);verticalSpeed=0;grounded=true;bodies[index].vel.set(0,0,0);bodies[index].grounded=true;bodies[index].travelRemaining=0;actors[index].root.position.y=0;safeSave('raft-studio-character',String(index));if(inStudio){setCameraMode('follow');focus.copy(actors[index].root.position).add(new THREE.Vector3(0,1.25,0));yaw=actors[index].root.rotation.y;pitch=-.14}updateCrown();updateSelection();updateVisibility();scheduleShare()}
+function updateSelection(){$('selectedName').textContent=skinDefs[selected][0];$('sessionName').textContent=skinDefs[selected][0]+' · Meadow';$('enter').disabled=!actors[selected];$('actorSelect').value=String(selected);document.querySelectorAll('.character').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.index===selected)))}
+function updateCrown(){if(crownMesh){crownMesh.removeFromParent();crownMesh=null}const actor=actors[selected];if(!actor||!crownEnabled)return;const crown=new THREE.Group(),gold=new THREE.MeshStandardMaterial({color:'#ffd84f',metalness:.65,roughness:.25});for(let i=0;i<5;i++){const tooth=new THREE.Mesh(new THREE.BoxGeometry(.23,.35+(i%2)*.15,.23),gold);tooth.position.set((i-2)*.25,.18+(i%2)*.07,0);crown.add(tooth)}const band=new THREE.Mesh(new THREE.BoxGeometry(1.35,.19,1.05),gold);band.position.y=-.08;crown.add(band);crown.position.set(0,2.18,0);crown.scale.y=1+Math.max(0,crownScore)*.08;crown.name='victory crown';actor.root.add(crown);crownMesh=crown}
+function openWorldMenu(){setClean(false);unlocked();$('menu').hidden=true;$('master').hidden=true;$('worldMenu').hidden=false}
+function closeWorldMenu(){$('worldMenu').hidden=true;canvas.focus()}
 function placeActors(){actors.forEach((a,i)=>{if(a){if(i===selected){a.root.position.set(0,0,0);a.root.rotation.set(0,0,0)}else{const angle=i*2.399+.4,radius=3.4+(i%3)*.85;a.root.position.set(Math.sin(angle)*radius,0,Math.cos(angle)*radius+1.2);a.root.rotation.set(0,Math.atan2(-a.root.position.x,-a.root.position.z),0)}}bodies[i].vel.set(0,0,0);bodies[i].grounded=true;bodies[i].travelRemaining=0});velocity.set(0,0,0);verticalSpeed=0;grounded=true;airWalk=false;lastJumpTapAt=-Infinity;updateJumpButton();cancelCharge();punchSwing=0}
 function enterStudio(){if(!actors[selected])return;const query=shareSource();inStudio=true;showCast=false;$('showCast').checked=false;document.body.dataset.screen='studio';$('lobby').hidden=true;$('hud').hidden=false;placeActors();focus.set(0,1.25,0);const sharedYaw=Number(query.get('yaw')),sharedPitch=Number(query.get('pitch'));yaw=query.has('yaw')&&Number.isFinite(sharedYaw)?angleDelta(0,sharedYaw):0;pitch=query.has('pitch')&&Number.isFinite(sharedPitch)?clamp(sharedPitch,-1.15,1.1):-.14;setCameraMode(query.get('cam')||'follow');updateVisibility();canvas.focus();notify(touch?'左スティックで移動。パンチを長押しで溜め':'左クリック長押しで溜めパンチ / 最大10秒で1km',3500);connectRoom();scheduleShare()}
 function returnLobby(){leaveRoom();unlocked();setClean(false);inStudio=false;document.body.dataset.screen='lobby';$('hud').hidden=true;$('lobby').hidden=false;$('menu').hidden=$('master').hidden=true;gesture='none';$('gesture').value='idle';placeActors();updateSelection();updateVisibility();$('enter').focus()}
 function makeFace(url,el){const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=c.height=32;c.className='face';c.setAttribute('aria-hidden','true');const q=c.getContext('2d');q.imageSmoothingEnabled=false;const s=img.width/64;q.drawImage(img,8*s,8*s,8*s,8*s,0,0,32,32);q.drawImage(img,40*s,8*s,8*s,8*s,0,0,32,32);el.replaceChildren(c)};img.src=url}
 const faces=[],characterButtons=[];
-castOrder.forEach(i=>{const [name,file]=skinDefs[i],b=document.createElement('button');b.className='character';b.dataset.index=i;b.setAttribute('aria-label',name+' を選択');b.setAttribute('aria-pressed',String(i===selected));const holder=document.createElement('span');holder.className='face';holder.textContent='＋';faces[i]=holder;characterButtons[i]=b;const label=document.createElement('span');label.textContent=name;b.append(holder,label);b.onclick=()=>setSelected(i);$('characters').append(b);$('actorSelect').add(new Option(name,String(i)));const url=custom[i]||(file?'skins/'+file:null);if(url)makeFace(url,holder)});
+castOrder.forEach(i=>{const [name,file]=skinDefs[i],b=document.createElement('button');b.className='character';b.dataset.index=i;b.setAttribute('aria-label',name+' を選択');b.setAttribute('aria-pressed',String(i===selected));const holder=document.createElement('span');holder.className='face';holder.textContent='＋';faces[i]=holder;characterButtons[i]=b;const label=document.createElement('span');label.textContent=name;b.append(holder,label);b.onclick=()=>setSelected(i);$('characters').append(b);$('actorSelect').add(new Option(name,String(i)));if(file)makeFace('skins/'+file,holder)});
 async function replaceSkin(i,url){const actor=await createAvatar(url);const old=actors[i];if(old){actor.root.position.copy(old.root.position);actor.root.rotation.copy(old.root.rotation);scene.remove(old.root);old.dispose()}actors[i]=actor;scene.add(actor.root);makeFace(url,faces[i]);updateSelection();updateVisibility()}
-$('upload').onclick=()=>{uploadTarget=selected;$('skinFile').click()};$('skinFile').addEventListener('cancel',()=>uploadTarget=null);
-$('skinFile').onchange=async e=>{const file=e.target.files[0];e.target.value='';const i=uploadTarget??selected;uploadTarget=null;if(!file)return;if(file.type!=='image/png'||file.size>1048576){notify('1MB以下のJava用PNGスキンを選んでください');return}try{const url=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)});await replaceSkin(i,url);custom[i]=url;setSelected(i);if(!safeSave('raft-studio-skins-v2',JSON.stringify(custom)))notify('表示しました。端末の保存容量不足で次回の保持はできません');else notify('スキンを保存しました');updateSelection()}catch(e){notify('スキンを読み込めません。64×64のJava用PNGを確認してください');console.error(e)}};
-$('restoreSkin').onclick=async()=>{const i=selected,file=skinDefs[i][1];try{if(file)await replaceSkin(i,'skins/'+file);else if(actors[i]){scene.remove(actors[i].root);actors[i].dispose();actors[i]=null;faces[i].textContent='＋'}if(!actors[i])setSelected(0);delete custom[i];safeSave('raft-studio-skins-v2',JSON.stringify(custom));updateSelection();updateVisibility()}catch{notify('スキンを戻せませんでした')}};
 $('enter').onclick=enterStudio;$('menuBtn').onclick=openMenu;$('resume').onclick=()=>{$('menu').hidden=true;clearInput();canvas.focus()};$('changeCharacter').onclick=$('masterCharacter').onclick=returnLobby;
 $('openMaster').onclick=openMaster;$('closeMaster').onclick=()=>{$('master').hidden=true;clearInput();canvas.focus()};$('cleanView').onclick=$('cleanMaster').onclick=enterClean;
+$('studioBoard').onclick=openWorldMenu;$('closeWorldMenu').onclick=closeWorldMenu;document.querySelectorAll('[data-bg]').forEach(button=>button.onclick=()=>{world?.setBackdrop(button.dataset.bg);notify(`${button.dataset.bg} 背景に切替`)});$('crownToggle').onclick=()=>{crownEnabled=!crownEnabled;updateCrown();$('crownToggle').textContent=`王冠：${crownEnabled?'ON':'OFF'}`};$('stopAthletic').onclick=()=>{athleticActive=false;airWalk=false;updateJumpButton();notify('アスレチックを終了しました')};
 $('actorSelect').onchange=e=>setSelected(+e.target.value);$('gesture').onchange=e=>{gesture=e.target.value==='idle'?'none':e.target.value;scheduleShare()};
 $('showCast').onchange=e=>{showCast=e.target.checked;updateVisibility();scheduleShare()};$('resetPosition').onclick=()=>{placeActors();notify('位置を戻しました')};$('cameraMode').onchange=e=>{setCameraMode(e.target.value);scheduleShare()};
 $('cameraReset').onclick=()=>{yaw=(actors[selected]?.root.rotation.y||0)+Math.PI;pitch=-.08;if(cameraMode==='free'||cameraMode==='first')setCameraMode('orbit');scheduleShare();notify('正面カメラ')};
@@ -171,7 +176,9 @@ function updateRemotePlayer(player){
 }
 function handleRoomMessage(socket,event){
   let message;try{message=JSON.parse(event.data)}catch{return}
-  if(message.type==='punch'){const impulse=message.velocity;if(!impulse||![impulse.x,impulse.y,impulse.z].every(Number.isFinite))return;if(message.target===roomSelfId){localImpulse.set(clamp(impulse.x,-160,160),clamp(impulse.y,-160,160),clamp(impulse.z,-160,160));localRagdoll=true;localLandedAt=0;airWalk=false;updateJumpButton();velocity.set(0,0,0);particleOrigin.copy(actors[selected]?.root.position||particleOrigin.set(0,0,0));particleOrigin.y+=1;emitParticles(particleOrigin,'#fff0b0',24,4,3)}else{const target=remoteActors.get(message.target);if(target){particleOrigin.copy(target.target);particleOrigin.y+=.9;emitParticles(particleOrigin,'#fff0b0',24,4,3)}}return}
+  if(message.type==='duel-ready'){const p=actors[selected]?.root;if(p&&world&&message.id!==roomSelfId&&performance.now()-duelReadyAt<1000&&Math.hypot(p.position.x-world.arena.center.x,p.position.z-world.arena.center.z)<world.arena.radius-1){duelActive=true;duelDamage=0;notify('タイマン開始！ 合計11ダメージで敗北',3500)}return}
+  if(message.type==='duel-result'){if(message.winner===roomSelfId){crownScore++;updateCrown();notify(`勝利！ 王冠が伸びた（${crownScore}勝）`,4000)}else{crownScore--;updateCrown();notify('敗北…王冠が縮みました',4000)}duelActive=false;duelDamage=0;return}
+  if(message.type==='punch'){const impulse=message.velocity;if(!impulse||![impulse.x,impulse.y,impulse.z].every(Number.isFinite))return;if(message.target===roomSelfId){if(duelActive&&message.damage>0){duelDamage+=message.damage;notify(`タイマン ${duelDamage} / 11 ダメージ`);if(duelDamage>=11){roomSocket?.send(JSON.stringify({type:'duel-result',winner:message.attacker}));duelActive=false}}localImpulse.set(clamp(impulse.x,-160,160),clamp(impulse.y,-160,160),clamp(impulse.z,-160,160));localRagdoll=true;localLandedAt=0;airWalk=false;updateJumpButton();velocity.set(0,0,0);particleOrigin.copy(actors[selected]?.root.position||particleOrigin.set(0,0,0));particleOrigin.y+=1;emitParticles(particleOrigin,'#fff0b0',24,4,3)}else{const target=remoteActors.get(message.target);if(target){particleOrigin.copy(target.target);particleOrigin.y+=.9;emitParticles(particleOrigin,'#fff0b0',24,4,3)}}return}
   if(message.type==='joined'){
     roomSelfId=message.self.id;const own=actors[selected]?.root;if(own){own.position.set(message.self.x,message.self.y,message.self.z);own.rotation.y=message.self.yaw}
     (message.players||[]).forEach(updateRemotePlayer);updateRoomStatus(`${roomCode} · ${remoteActors.size+remoteLoading.size+1}/8人`);scheduleShare();return;
@@ -209,14 +216,16 @@ function tick(now){requestId=requestAnimationFrame(tick);if(document.hidden){las
       if(cameraMode==='free'){
         velocity.set(0,0,0);freePosition.addScaledVector(movement,dt*flySpeed*(run?2.5:1));if(enabled)freePosition.y+=((keys.has('Space')?1:0)-(keys.has('ShiftLeft')||keys.has('ShiftRight')?1:0))*dt*flySpeed;freePosition.y=clamp(freePosition.y,.25,70);
       }else if(cameraMode!=='orbit'){
-        movement.multiplyScalar(moveSpeed*(run?1.65:1)*(airWalk?2.4:1));velocity.lerp(movement,1-Math.exp(-dt*(movement.lengthSq()>.01?10:16)));if(velocity.lengthSq()<.00005)velocity.set(0,0,0);p.position.addScaledVector(velocity,dt);speed=velocity.length();const radius=Math.hypot(p.position.x,p.position.z);if(radius>90){p.position.x*=90/radius;p.position.z*=90/radius}if(speed>.06||cameraMode==='first'){const facing=cameraMode==='first'?yaw:Math.atan2(velocity.x,velocity.z);p.rotation.y+=angleDelta(p.rotation.y,facing)*(1-Math.exp(-dt*13))}
+        movement.multiplyScalar(moveSpeed*(run?1.65:1)*(airWalk?2.4:1));velocity.lerp(movement,1-Math.exp(-dt*(movement.lengthSq()>.01?10:16)));if(velocity.lengthSq()<.00005)velocity.set(0,0,0);p.position.addScaledVector(velocity,dt);world?.resolve(p.position);speed=velocity.length();const radius=Math.hypot(p.position.x,p.position.z);if(radius>180){p.position.x*=180/radius;p.position.z*=180/radius}if(speed>.06||cameraMode==='first'){const facing=cameraMode==='first'?yaw:Math.atan2(velocity.x,velocity.z);p.rotation.y+=angleDelta(p.rotation.y,facing)*(1-Math.exp(-dt*13))}
       }else velocity.set(0,0,0);
+      if(world?.inAthletic(p.position)&&airWalk){airWalk=false;verticalSpeed=0;updateJumpButton();notify('アスレチックゾーン：飛行をOFFにしました')}
       if(airWalk){const verticalInput=(flightAscend||keys.has('Space')?1:0)-(flightDescend||keys.has('ShiftLeft')||keys.has('ShiftRight')?1:0);verticalSpeed=verticalInput*moveSpeed*2.4;p.position.y=clamp(p.position.y+verticalSpeed*dt,1.3,80);grounded=false}
       else if(jumpRequested&&enabled&&grounded&&(cameraMode==='follow'||cameraMode==='first')){verticalSpeed=5.3;grounded=false;particleOrigin.copy(p.position);emitParticles(particleOrigin,'#d8e7bc',9,1.5,5)}
       jumpRequested=false;
       if(!localRagdoll&&!airWalk&&!grounded){verticalSpeed-=15*dt;p.position.y+=verticalSpeed*dt;if(p.position.y<=0){const impactSpeed=Math.abs(verticalSpeed);p.position.y=0;verticalSpeed=0;grounded=true;particleOrigin.copy(p.position);emitParticles(particleOrigin,'#d8e7bc',Math.min(20,6+impactSpeed*2),2.4,5)}}
       if(localRagdoll){
         p.position.addScaledVector(localImpulse,dt);localImpulse.y-=PUNCH.gravity*dt;
+        if(world){const dx=p.position.x-world.arena.center.x,dz=p.position.z-world.arena.center.z,d=Math.hypot(dx,dz);if(d>world.arena.radius-.55&&d<world.arena.radius+4){p.position.x=world.arena.center.x+dx/d*(world.arena.radius-.55);p.position.z=world.arena.center.z+dz/d*(world.arena.radius-.55);localImpulse.x*=-.28;localImpulse.z*=-.28}}
         if(p.position.y<=0){p.position.y=0;if(localImpulse.y<0)localImpulse.y*=-.12;localImpulse.x*=.68;localImpulse.z*=.68;grounded=true;if(Math.hypot(localImpulse.x,localImpulse.z)<.4&&Math.abs(localImpulse.y)<.65){localImpulse.set(0,0,0);if(!localLandedAt){localLandedAt=now;particleOrigin.copy(p.position);emitParticles(particleOrigin,'#d8e7bc',22,3,5)}}}else{grounded=false;localLandedAt=0}
         if(localLandedAt&&now-localLandedAt>=1000){localRagdoll=false;localLandedAt=0;grounded=true;verticalSpeed=0}
       }
@@ -238,6 +247,7 @@ function tick(now){requestId=requestAnimationFrame(tick);if(document.hidden){las
         }else body.grounded=false;
       }
     }
+    if(inStudio&&world){world.update(time,p.position);const seat=world.seatAt(p.position);if(!seated&&seat&&p.position.y>.35&&!airWalk){p.position.set(seat.x,.55,seat.z);verticalSpeed=0;grounded=true;seated=true;notify('着席しました。ジャンプで立てます')}else if(!seat)seated=false;if(world.inAthletic(p.position)){athleticActive=true;for(const checkpoint of world.athletic.checkpoints)if(Math.hypot(p.position.x-checkpoint.x,p.position.z-checkpoint.z)<2.1)athleticCheckpoint=checkpoint;}}
     if(inStudio&&now-lastDashEffectAt>100){if(airWalk&&speed>.25){lastDashEffectAt=now;particleOrigin.copy(p.position);particleOrigin.y+=.9;particleOrigin.x-=velocity.x*.06;particleOrigin.z-=velocity.z*.06;emitParticles(particleOrigin,'#c9f0ff',2,.45,0)}else if(run&&speed>moveSpeed*1.2){lastDashEffectAt=now;particleOrigin.copy(p.position);emitParticles(particleOrigin,'#d8e7bc',2,.8,5)}}
     for(let i=0;i<actors.length;i++){const a=actors[i];if(!a||(!a.root.visible&&i!==selected))continue;const active=i===selected,body=bodies[i],fly=Math.hypot(body.vel.x,body.vel.z);a.update(dt,{speed:active?speed:fly,run:active&&run,grounded:active?grounded:body.grounded,verticalSpeed:active?verticalSpeed:body.vel.y,flight:active&&airWalk,ragdoll:active?localRagdoll:body.ragdoll,lookYaw:active&&inStudio&&(cameraMode==='follow'||cameraMode==='first')?angleDelta(p.rotation.y,yaw):0,lookPitch:active&&inStudio&&(cameraMode==='follow'||cameraMode==='first')?-pitch:0,gesture:active?gesture:'none',punchCharge:active&&charging?chargeTime/PUNCH.maxCharge:0,punchSwing:active?punchSwing:0,time:time+i*.7})}
     if(!inStudio){
@@ -262,7 +272,7 @@ function scheduleShare(){clearTimeout(shareTimer);shareTimer=setTimeout(()=>{con
 function applyShare(){
   const query=shareSource();const pick=(key,min,max,fallback)=>{if(!query.has(key))return fallback;const value=Number(query.get(key));return Number.isFinite(value)?clamp(value,min,max):fallback};
   if(query.has('punch')){const [held,range]=query.get('punch').split(',').map(Number);if(held>0)PUNCH.maxCharge=held;if(range>0)PUNCH.maxRange=range}
-  const character=clamp(Number(query.get('c')??selected),0,7);if(actors[character])selected=character;
+  const character=clamp(Number(query.get('c')??selected),0,6);if(actors[character])selected=character;
   distance=pick('d',2,18,distance);fov=pick('fov',25,90,fov);camera.fov=fov;camera.updateProjectionMatrix();
   smoothing=pick('smooth',0,.4,smoothing);flySpeed=pick('fly',1,12,flySpeed);moveSpeed=pick('move',1,4.5,moveSpeed);pitch=pick('pitch',-1.15,1.1,pitch);const sharedYaw=Number(query.get('yaw'));if(Number.isFinite(sharedYaw))yaw=angleDelta(0,sharedYaw);
   $('distance').value=distance;$('distanceOut').textContent=distance.toFixed(1)+' m';$('fov').value=fov;$('fovOut').textContent=fov+'°';$('smoothing').value=smoothing;$('smoothingOut').textContent=smoothing.toFixed(2)+' s';$('flySpeed').value=flySpeed;$('flySpeedOut').textContent=flySpeed+' m/s';$('moveSpeed').value=moveSpeed;$('moveSpeedOut').textContent=moveSpeed.toFixed(1)+' m/s';
@@ -283,9 +293,9 @@ async function start(){try{
     activeQuality='low';qualityChoice='low';$('quality').value='low';notify('WebGL2非対応のため軽量画質で起動します',5000);
   }
   renderer=new THREE.WebGLRenderer({canvas,antialias:!touch,powerPreference:'high-performance'});renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  environment=createEnvironment(scene,renderer,{mobile:touch});environment.setSettings({wind:.45,grassDensity:.8,sunHeight:50,exposure:1});quality(activeQuality);
+  environment=createEnvironment(scene,renderer,{mobile:touch});world=createWorld(scene);environment.setSettings({wind:.45,grassDensity:.8,sunHeight:50,exposure:1});quality(activeQuality);
   let loadedCount=0;const skinFailures=[];
-  const skinLoads=skinDefs.map(async([name,file],i)=>{const url=custom[i]||(file?'skins/'+file:null);if(!url)return;await replaceSkin(i,url)}).map((load,i)=>load.catch(error=>{skinFailures.push({index:i,error})}).finally(()=>{loadedCount++;if(!actors[selected])$('selectedName').textContent=`スキン読込 ${loadedCount}/${skinDefs.length}`}));
+  const skinLoads=skinDefs.map(async([name,file],i)=>{if(!file)return;await replaceSkin(i,'skins/'+file)}).map((load,i)=>load.catch(error=>{skinFailures.push({index:i,error})}).finally(()=>{loadedCount++;if(!actors[selected])$('selectedName').textContent=`スキン読込 ${loadedCount}/${skinDefs.length}`}));
   const firstReady=Promise.any(skinLoads.map((load,index)=>load.then(()=>actors[index]?index:Promise.reject(new Error('No avatar')))));
   const preferredReady=skinLoads[selected].then(()=>actors[selected]?selected:new Promise(()=>{}),()=>new Promise(()=>{}));
   const readyIndex=await Promise.race([preferredReady,firstReady,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Skin loading timed out')),10000))]);

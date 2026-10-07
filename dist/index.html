@@ -7,6 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23122c2b'/%3E%3Cpath d='M8 24V8h10l6 6-6 5 6 5h-7l-5-5v5zm4-10h6l-2-2h-4z' fill='%23c9eaae'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="studio.css">
 <link rel="stylesheet" href="room.css">
+<link rel="stylesheet" href="world.css">
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
 </head>
 <body data-screen="lobby">
@@ -19,9 +20,7 @@
 <div id="characters" class="characters" role="group" aria-label="キャラクターを選択"></div>
 <div class="selected-meta"><strong id="selectedName">読み込み中</strong><span>JAVA SKIN / SLIM</span></div>
 <button id="enter" class="primary" disabled>スタジオに入る</button>
-<div class="lobby-actions"><button id="upload" class="text-button">PNGスキンを登録</button><button id="restoreSkin" class="text-button" hidden>元のスキンに戻す</button></div>
-<input id="skinFile" type="file" accept="image/png" hidden>
-<p class="local-note">スキンと選択はこの端末に保存。リンクを送るとカメラや草原、パンチ設定を共有できます。</p>
+<p class="local-note">スキンと選択はこの端末に保存。カスタムスキンは近日公開予定です。</p>
 </div>
 <div class="lobby-caption"><span>01 / MEADOW</span><p>青い空。風の通る草原。</p><small>ドラッグでモデルを回転</small></div>
 <p id="loadError" class="error" hidden></p>
@@ -36,7 +35,7 @@
 </div>
 <section id="menu" class="pause-panel surface" role="dialog" aria-label="スタジオメニュー" hidden>
 <div class="panel-title"><span class="eyebrow">SESSION</span><button id="resume" class="icon-button" aria-label="メニューを閉じる">×</button></div>
-<h2 id="sessionName">Meadow</h2><button id="changeCharacter">キャラクターを変更</button><button id="openMaster" class="desktop-only">マスターモード <kbd>F1</kbd></button><button id="cleanView">撮影表示 · UIを隠す <kbd>H</kbd></button>
+<h2 id="sessionName">Meadow</h2><button id="changeCharacter">キャラクターを変更</button><button id="openMaster" class="desktop-only">マスターモード <kbd>F1</kbd></button><button id="studioBoard">スタジオ背景・ワールド設定</button><button id="cleanView">撮影表示 · UIを隠す <kbd>H</kbd></button>
 <p id="controlHelp" class="help"></p>
 <section class="room-controls" aria-label="オンラインルーム">
 <label>オンライン · 共通ルーム（最大8人）</label>
@@ -74,6 +73,14 @@
 <button id="resetPosition">プレイヤーの位置を戻す</button><button id="masterCharacter">キャラクター選択に戻る</button>
 <p class="help">整列表示のメンバーは溜めパンチの的になります。URLの punch=秒,距離 で威力も共有できます。</p>
 </div>
+</aside>
+<aside id="worldMenu" class="world-menu surface" aria-label="ワールドメニュー" hidden>
+  <div class="panel-title"><div><span class="eyebrow">WORLD BOARD</span><h2>ワールドメニュー</h2></div><button id="closeWorldMenu" class="icon-button" aria-label="メニューを閉じる">×</button></div>
+  <p class="help">スタジオのメニューボードをパンチしても開けます。</p>
+  <label>スタジオ背景</label><div class="button-pair"><button data-bg="GB">GB</button><button data-bg="RB">RB</button><button data-bg="BB">BB</button></div>
+  <button id="crownToggle">王冠：OFF</button>
+  <button id="stopAthletic">アスレチックをやめる</button>
+  <p id="worldStatus" class="help">闘技場：2人がほぼ同時にパンチすると開始</p>
 </aside>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <script type="module" src="app.js"></script>

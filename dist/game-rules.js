@@ -1,7 +1,8 @@
 import { ARENA,insideArena } from './world-layout.js';
 import { ATTACKS } from './combat-motion.js';
 import { CharacterStore,characterIndex } from './character-store.js';
-export const SYNC_VERSION='2026-10-07-characters-4';
+import { HousingStore } from './housing-store.js';
+export const SYNC_VERSION='2026-10-07-housing-5';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||Math.abs(s.x)>1300||Math.abs(s.z)>1300||s.y<0||s.y>512)return null;
@@ -29,11 +30,12 @@ export function applyPlayerState(player,state){
   state.hitSerial=serial;state.crownEnabled=player.crownEnabled;Object.assign(player,state);
 }
 export class GameRules{
-  constructor(players,broadcast,scores={},save=()=>{},settings={},saveSettings=()=>{},characters={},saveCharacters=()=>{}){
+  constructor(players,broadcast,scores={},save=()=>{},settings={},saveSettings=()=>{},characters={},saveCharacters=()=>{},houses={},saveHouses=()=>{}){
     this.players=players;this.broadcast=broadcast;this.scores=scores;this.save=save;this.ready=new Map();this.duel=null;this.cooldowns=new Map();this.backdrop='GB';
     settings=settings&&typeof settings==='object'?settings:{};
     const goal=Number(settings.goalDamage);this.settings={...settings,goalDamage:Number.isInteger(goal)&&goal>=1&&goal<=100?goal:11};this.saveSettings=saveSettings;this.settingsQueue=Promise.resolve();
     this.characters=new CharacterStore(characters,scores,saveCharacters,(skin,record)=>this.broadcastCharacter(skin,record),()=>this.broadcast({type:'character-save-error',message:'キャラクターの状態をサーバーに保存できませんでした。'}));
+    this.houses=new HousingStore(houses,saveHouses,broadcast);
   }
   entries(){return [...this.players.values()];}
   character(skin,profile,enabled=false){return this.characters.get(skin,profile,enabled);}
@@ -72,6 +74,7 @@ export class GameRules{
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
+    if(m.type==='housing-op'){if(this.duel?.ids.includes(p.id)||p.ragdoll){const house=this.houses.snapshots()[m.index];if(house)this.broadcast({type:'house-state',index:m.index,house,requestId:m.requestId,error:'試合・被弾中は家を編集できません'});return;}return this.houses.apply(p.skin,m);}
     if(m.type==='character-select'){this.selectCharacter(entry,m.skin);return this.characters.pending;}
     if(m.type==='crown-toggle'&&typeof m.enabled==='boolean')return this.characters.change(p.skin,{crownEnabled:m.enabled});
     if(m.type==='checkpoint')return this.characters.checkpoint(p.skin,m.id);

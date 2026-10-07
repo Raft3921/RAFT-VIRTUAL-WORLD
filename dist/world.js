@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ARENA, COURSE, buildCourse } from './world-layout.js';
 import { buildDistrict } from './district.js';
+import { HOUSES,HOUSE_COLORS } from './housing-data.js';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const materials=new Map();
@@ -9,10 +10,12 @@ const WHITE='#faf8f1',TRIM='#d4d7d5',WOOD='#bd8d60',STONE='#c9c4b7';
 export function createWorld(scene){
   const group=new THREE.Group();scene.add(group);group.name='RAFT World';
   const batches=new Map(),bodies=[],boards=[],seats=[],moving=[],hazards=[],pulsing=[],falling=[],balls=[],chunks=[];
-  let worldTime=0;
+  let worldTime=0,currentHouse=null;
+  const houses=HOUSES.map(h=>({...h,parts:[]}));
   const transform=new THREE.Object3D(),previous=new THREE.Vector3();
   function box(x,y,z,w,h,d,color=WHITE,solid=true,extra={}){
     const body={x,y,z,w,h,d,...extra};
+    if(currentHouse){body.houseIndex=currentHouse.index;currentHouse.parts.push(body);}
     if(solid)bodies.push(body);
     // Spatial and vertical batches keep elevated/far-away parts independently culled.
     const key=color+':'+Math.floor(x/48)+','+Math.floor(y/24)+','+Math.floor(z/48);
@@ -35,12 +38,13 @@ export function createWorld(scene){
     const c=document.createElement('canvas');c.width=128;c.height=256;const ctx=c.getContext('2d');
     ctx.fillStyle='#142d3c';ctx.fillRect(0,0,128,256);ctx.fillStyle='#80e8db';ctx.fillRect(10,12,108,24);
     ctx.fillStyle='#152d3a';ctx.font='16px DotGothic16,monospace';ctx.textAlign='center';ctx.fillText('RAFT',64,30);
-    ctx.fillStyle='#eff8de';ctx.font='16px DotGothic16,monospace';ctx.fillText(checkpoint?'CHECK '+checkpoint.id:'MENU',64,66);
+    ctx.fillStyle='#eff8de';ctx.font='16px DotGothic16,monospace';ctx.fillText(kind==='house'?'HOME':checkpoint?'CHECK '+checkpoint.id:'MENU',64,66);
+    if(kind==='house'){ctx.fillStyle=currentHouse.color;ctx.fillRect(15,78,98,5);ctx.fillStyle='#eff8de';ctx.fillText('EDIT',64,219);}
     for(let i=0;i<4;i++){ctx.fillStyle=i%2?'#284c5a':'#203f4f';ctx.fillRect(12,82+i*32,104,24);ctx.fillStyle='#78d7c8';ctx.fillRect(18,89+i*32,10,10);ctx.fillStyle='#bad6d2';ctx.fillRect(38,93+i*32,64-i*7,3);}
     ctx.fillStyle='#6eb5aa';ctx.fillRect(47,226,34,4);
     const tex=new THREE.CanvasTexture(c);tex.magFilter=THREE.NearestFilter;tex.minFilter=THREE.NearestFilter;
     const label=new THREE.Mesh(new THREE.PlaneGeometry(.73,1.46),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));label.position.set(x,floor+1.49,z+face*.12);label.rotation.y=face>0?0:Math.PI;group.add(label);
-    const b={x,y:floor+1.45,z,kind,checkpoint,label};boards.push(b);
+    const b={x,y:floor+1.45,z,kind,checkpoint,label,...(kind==='house'?{houseIndex:currentHouse.index,owner:currentHouse.owner}:{})};boards.push(b);return b;
   }
   // Centre studio: a white box with a genuinely open, broad entrance on +Z.
   const studio={x:0,z:0};box(0,.08,0,22,.16,18);box(-10.9,3.5,0,.3,7,18);box(10.9,3.5,0,.3,7,18);
@@ -54,8 +58,9 @@ export function createWorld(scene){
   // Roads and a residential avenue; all eight houses face its open central space.
   box(0,.035,24,8,.07,30,STONE);box(56,.035,27,112,.07,7,STONE);box(112,.035,45,7,.07,36,STONE);box(-45,.035,31,90,.07,7,STONE);
   box(0,.045,62,92,.09,9,STONE);box(-79,.035,67,7,.07,72,STONE);
-  const colors=['#d84a42','#52a96d','#48b8d4','#e88a38','#87929a','#9a70c5','#e4c84d','#9a6748'];
+  const colors=HOUSE_COLORS;
   for(let i=0;i<8;i++){
+    currentHouse=houses[i];
     const x=-39+(i%4)*26,z=i<4?45:80;
     const front=i<4?1:-1; const accent=colors[i];
     box(x,.09,z,16,.18,15,TRIM);box(x,.19,z,15.2,.05,14.2,WOOD);
@@ -87,7 +92,8 @@ export function createWorld(scene){
     box(x,.39,z-front*7.28,15.5,.35,.16,TRIM,false);
     for(const side of [-1,1])box(x+side*2.6,1.9,z+front*9,.24,3.6,.24,WHITE);
     box(x,3.8,z+front*8.4,5.8,.18,3.1,accent);
-    board(x-6,.22,z+front*9,'world',null,front);
+    currentHouse.board=board(x-6,.22,z+front*9,currentHouse.owner===null?'world':'house',null,front);
+    currentHouse=null;
   }
   // Colosseum: sunken combat floor, four accessible terraces, radial seats,
   // open entrance aisles, exterior piers and a continuous upper cornice.
@@ -185,7 +191,15 @@ export function createWorld(scene){
   // Broad-phase buckets avoid scanning the 600 platforms during every physics substep.
   const buckets=new Map();
   for(const b of bodies){const extent=Math.hypot(b.w,b.d)/2+1+(b.motionMargin||0);for(let x=Math.floor((b.x-extent)/12);x<=Math.floor((b.x+extent)/12);x++)for(let z=Math.floor((b.z-extent)/12);z<=Math.floor((b.z+extent)/12);z++){const k=x+','+z;if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(b);}}
-  function nearby(p){return buckets.get(Math.floor(p.x/12)+','+Math.floor(p.z/12))||[];}
+  const housingBodies=new Map(),housingBuckets=new Map(),nearbyCache=new Map(),housingSeatLists=new Map();let housingSeats=[];
+  function setHouseBodies(index,list,roomSeats=[]){
+    housingBodies.set(index,list);housingSeatLists.set(index,roomSeats);housingSeats=[...housingSeatLists.values()].flat();housingBuckets.clear();nearbyCache.clear();
+    for(const records of housingBodies.values())for(const b of records){const extent=Math.hypot(b.w,b.d)/2+1;for(let x=Math.floor((b.x-extent)/12);x<=Math.floor((b.x+extent)/12);x++)for(let z=Math.floor((b.z-extent)/12);z<=Math.floor((b.z+extent)/12);z++){const key=x+','+z;if(!housingBuckets.has(key))housingBuckets.set(key,[]);housingBuckets.get(key).push(b);}}
+  }
+  function nearby(p){const key=Math.floor(p.x/12)+','+Math.floor(p.z/12);if(!nearbyCache.has(key))nearbyCache.set(key,(buckets.get(key)||[]).concat(housingBuckets.get(key)||[]));return nearbyCache.get(key);}
+  function cutawayHouse(index,enabled){
+    const h=houses[index];if(!h)return;h.board.editorHidden=enabled;h.board.label.visible=!enabled;for(const b of h.parts){if(b.y<1||!(b.y>5.5||(b.z-h.z)*h.front>6.94||b.x-h.x>7.4))continue;transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,b.rotation||0,0);transform.scale.set(enabled?0:b.w,enabled?0:b.h,enabled?0:b.d);transform.updateMatrix();b.mesh.setMatrixAt(b.instance,transform.matrix);b.mesh.instanceMatrix.needsUpdate=true;}
+  }
   function inAthletic(p){return p.x>COURSE.minX&&p.x<COURSE.maxX&&p.z>COURSE.minZ&&p.z<COURSE.maxZ;}
   function localPoint(p,b){const c=Math.cos(b.rotation||0),s=Math.sin(b.rotation||0),x=p.x-b.x,z=p.z-b.z;return {x:c*x-s*z,z:s*x+c*z,c,s};}
   function terrainHeight(p){const distance=Math.hypot(p.x-ARENA.x,p.z-ARENA.z);return distance<ARENA.radius?.24:distance<33.1?.12:0;}
@@ -225,10 +239,10 @@ export function createWorld(scene){
     }
     return {grounded,body:landed};
   }
-  function seatAt(p,oldY,vy){if(vy>0)return null;return seats.find(s=>Math.hypot(p.x-s.x,p.z-s.z)<.64&&oldY>s.y+.001&&p.y<=s.y+.12)||null;}
+  function seatAt(p,oldY,vy){if(vy>0)return null;const match=s=>Math.hypot(p.x-s.x,p.z-s.z)<.64&&oldY>s.y+.001&&p.y<=s.y+.12;return seats.find(match)||housingSeats.find(match)||null;}
   function checkpointAt(p){return athletic.checkpoints.find(cp=>Math.abs(p.x-cp.x)<cp.size/2&&Math.abs(p.z-cp.z)<cp.size/2&&Math.abs(p.y-cp.y)<.12);}
   function lethal(p){return hazards.some(h=>{const q=localPoint(p,h);return Math.abs(q.x)<h.w/2+.27&&Math.abs(q.z)<h.d/2+.27&&p.y<h.y+.2&&p.y+1.85>h.y-.2;})||balls.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<b.radius+.3&&p.y<b.y+b.radius&&p.y+1.85>b.y-b.radius);}
-  function boardHit(o,f){let best=null,dist=4;for(const b of boards){const dx=b.x-o.x,dy=b.y-o.y,dz=b.z-o.z,d=Math.hypot(dx,dy,dz);if(d<dist&&(dx*f.x+dz*f.z)/Math.max(.01,Math.hypot(dx,dz))>.45){best=b;dist=d;}}return best;}
+  function boardHit(o,f){let best=null,dist=4;for(const b of boards){if(b.kind==='house')continue;const dx=b.x-o.x,dy=b.y-o.y,dz=b.z-o.z,d=Math.hypot(dx,dy,dz);if(d<dist&&(dx*f.x+dz*f.z)/Math.max(.01,Math.hypot(dx,dz))>.45){best=b;dist=d;}}return best;}
   // Sweep a near-plane-sized camera sphere against the same oriented solids.
   // Test the whole segment (not just its endpoint), preventing fast wall tunnelling.
   function cameraPosition(from,to,radius=.24){
@@ -253,7 +267,7 @@ export function createWorld(scene){
   }
   function cull(view){
     for(const mesh of chunks){const sphere=mesh.boundingSphere,d=sphere.center.distanceTo(view);mesh.visible=d<115+sphere.radius;mesh.castShadow=mesh.visible&&d<55+sphere.radius;}
-    for(const b of boards)b.label.visible=Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<65;
+    for(const b of boards)b.label.visible=!b.editorHidden&&Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<65;
     for(let i=0;i<balls.length;i++){const b=balls[i],visible=Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<100;transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,worldTime,worldTime*.8);transform.scale.setScalar(visible?b.radius:0);transform.updateMatrix();ballMesh.setMatrixAt(i,transform.matrix);}ballMesh.instanceMatrix.needsUpdate=true;
   }
   function update(t,p){
@@ -268,5 +282,5 @@ export function createWorld(scene){
     for(const b of balls){const phase=((t+b.phase)*b.speed)%8;b.z=b.originZ+b.side*(4-phase);}
   }
   function setBackdrop(mode){chromaMaterial.color.set(mode==='RB'?'#ff0000':mode==='BB'?'#0000ff':'#00ff00');}
-  return {group,studio,arena,athletic,boards,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,checkpointAt,lethal,boardHit,update,cull,cameraPosition,setBackdrop};
+  return {group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,checkpointAt,lethal,boardHit,update,cull,cameraPosition,setBackdrop,setHouseBodies,cutawayHouse};
 }

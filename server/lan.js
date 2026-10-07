@@ -31,7 +31,8 @@ function broadcast(message, except = null) {
 let scores={};try{scores=JSON.parse(readFileSync('.room-scores.json','utf8'));}catch{}
 let settings={};try{settings=JSON.parse(readFileSync('.room-settings.json','utf8'));}catch{}
 let characters={};try{characters=JSON.parse(readFileSync('.room-characters.json','utf8'));}catch{}
-const rules=new GameRules(players,broadcast,scores,s=>writeFileSync('.room-scores.json',JSON.stringify(s)),settings,s=>{writeFileSync('.room-settings.json.tmp',JSON.stringify(s));renameSync('.room-settings.json.tmp','.room-settings.json');},characters,s=>{writeFileSync('.room-characters.json.tmp',JSON.stringify(s));renameSync('.room-characters.json.tmp','.room-characters.json');});
+let houses={};try{houses=JSON.parse(readFileSync('.room-houses.json','utf8'));}catch{}
+const rules=new GameRules(players,broadcast,scores,s=>writeFileSync('.room-scores.json',JSON.stringify(s)),settings,s=>{writeFileSync('.room-settings.json.tmp',JSON.stringify(s));renameSync('.room-settings.json.tmp','.room-settings.json');},characters,s=>{writeFileSync('.room-characters.json.tmp',JSON.stringify(s));renameSync('.room-characters.json.tmp','.room-characters.json');},houses,s=>{writeFileSync('.room-houses.json.tmp',JSON.stringify(s));renameSync('.room-houses.json.tmp','.room-houses.json');});
 
 function remove(socket) {
   const entry = players.get(socket);
@@ -104,7 +105,7 @@ sockets.on('connection', (socket, request) => {
     gesture: 'none', speed: 0, grounded: true, verticalSpeed: 0, flight: false, ragdoll: false,
   };
   players.set(socket, { player, lastStateAt: 0 });
-  send(socket, { type: 'joined', version:SYNC_VERSION, characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
+  send(socket, { type: 'joined', version:SYNC_VERSION, houses:rules.houses.snapshots(), characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
   broadcast({ type: 'player-joined', player }, socket);
   send(socket,rules.snapshot());
 
@@ -113,6 +114,7 @@ sockets.on('connection', (socket, request) => {
     if (!entry || raw.length > 2048) return;
     let message;
     try { message = JSON.parse(raw.toString()); } catch { return; }
+    if(!message||typeof message!=='object'||Array.isArray(message))return;
     if(message.type!=='state'){rules.receive(entry,message);return;}
     if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;
     const requestedSkin = Number(message.state?.skin);

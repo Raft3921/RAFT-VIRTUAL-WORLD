@@ -4,6 +4,8 @@ node_modules/
 .room-settings.json.tmp
 .room-characters.json
 .room-characters.json.tmp
+.room-houses.json
+.room-houses.json.tmp
 .wrangler/
 artifacts/
 .DS_Store

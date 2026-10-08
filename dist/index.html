@@ -8,9 +8,9 @@
 <link rel="stylesheet" href="studio.css">
 <link rel="stylesheet" href="room.css">
 <link rel="stylesheet" href="world.css">
-<link rel="stylesheet" href="pixel.css?v=20261008-ui11">
+<link rel="stylesheet" href="pixel.css?v=20261008-day13">
 <script defer src="ui-guard.js?v=20261008-ui11"></script>
-<script type="importmap">{"imports":{"three":"./vendor/three.module.js","./combat-policy.js":"./combat-policy.js?v=20261008-mirror12","./combat-motion.js":"./combat-motion.js?v=20261008-mirror12","./hit-reaction.js":"./hit-reaction.js?v=20261008-mirror12","./player-types.js":"./player-types.js?v=20261008-mirror12","./character-store.js":"./character-store.js?v=20261008-mirror12","./housing-data.js":"./housing-data.js?v=20261008-mirror12","./housing-mirror.js":"./housing-mirror.js?v=20261008-mirror12","./furniture-models.js":"./furniture-models.js?v=20261008-mirror12","./housing-store.js":"./housing-store.js?v=20261008-mirror12","./game-rules.js":"./game-rules.js?v=20261008-mirror12"}}</script>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js","./world-clock.js":"./world-clock.js?v=20261008-day13","./environment.js":"./environment.js?v=20261008-day13","./district.js":"./district.js?v=20261008-day13","./furniture-effects.js":"./furniture-effects.js?v=20261008-day13","./record-audio.js":"./record-audio.js?v=20261008-day13","./combat-policy.js":"./combat-policy.js?v=20261008-day13","./combat-motion.js":"./combat-motion.js?v=20261008-day13","./hit-reaction.js":"./hit-reaction.js?v=20261008-day13","./player-types.js":"./player-types.js?v=20261008-day13","./character-store.js":"./character-store.js?v=20261008-day13","./housing-data.js":"./housing-data.js?v=20261008-day13","./housing-mirror.js":"./housing-mirror.js?v=20261008-day13","./furniture-models.js":"./furniture-models.js?v=20261008-day13","./housing-store.js":"./housing-store.js?v=20261008-day13","./game-rules.js":"./game-rules.js?v=20261008-day13"}}</script>
 </head>
 <body data-screen="lobby">
 <canvas id="scene" aria-label="3D草原スタジオ" tabindex="0"></canvas>
@@ -84,6 +84,11 @@
   <button id="boardMaster">マスターモード（カメラ・草原・プレイヤー）</button>
   <label>スタジオ背景</label><div class="button-pair"><button data-bg="GB">GB</button><button data-bg="RB">RB</button><button data-bg="BB">BB</button></div>
   <button id="crownToggle">王冠・ハゲ表現：OFF</button>
+  <p id="gameClock" class="help" role="status">ゲーム内時刻 12:00 · 1日10分</p>
+  <button id="cycleToggle">昼夜サイクル：ON</button>
+  <label for="dayMinutes">1日の長さ（実時間・1〜120分）</label>
+  <div class="duel-settings"><input id="dayMinutes" type="number" min="1" max="120" step="1" value="10" inputmode="numeric"><button id="saveDayMinutes">サーバーに保存</button></div>
+  <button id="flashlightToggle">自動懐中電灯：ON（自分だけの設定）</button>
   <label for="duelGoal">勝利に必要な合計ダメージ（1〜100）</label>
   <div class="duel-settings"><input id="duelGoal" type="number" min="1" max="100" step="1" value="11" inputmode="numeric"><button id="saveDuelGoal">サーバーに保存</button></div>
   <p id="duelSettingsStatus" class="help" role="status">現在：11ダメージ · 変更は次の試合から反映</p>
@@ -121,6 +126,6 @@
   <p id="houseSaveStatus" class="house-save-status" role="status">サーバーに保存済み</p>
   </footer>
 </aside>
-<script type="module" src="app.js?v=20261008-mirror12"></script>
+<script type="module" src="app.js?v=20261008-day13"></script>
 </body>
 </html>

@@ -26,6 +26,7 @@ function makeSky() {
     uTime: { value: 0 },
     uZenith: { value: new THREE.Color('#2791ed') },
     uHorizon: { value: new THREE.Color('#abd5f2') },
+    uNight: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({
     uniforms, side: THREE.BackSide, depthWrite: false, depthTest: false, toneMapped: false,
@@ -38,7 +39,7 @@ function makeSky() {
       }`,
     fragmentShader: `
       uniform vec3 uSun, uZenith, uHorizon;
-      uniform float uTime;
+      uniform float uTime, uNight;
       varying vec3 vDirection;
       ${NOISE}
       void main() {
@@ -46,14 +47,20 @@ function makeSky() {
         float elevation = max(direction.y, 0.0);
         vec3 sky = mix(uHorizon, uZenith, pow(elevation, .42));
         float sunAlignment = max(dot(direction, uSun), 0.0);
-        sky += vec3(.30, .24, .13) * pow(sunAlignment, 18.0);
-        sky += vec3(1.0, .92, .70) * smoothstep(.99976, .99991, sunAlignment) * 1.3;
+        float solarVisibility=smoothstep(-.1,.08,uSun.y);
+        sky += vec3(.30, .24, .13) * pow(sunAlignment, 18.0)*solarVisibility;
+        sky += vec3(1.0, .92, .70) * smoothstep(.99976, .99991, sunAlignment) * 1.3*solarVisibility;
+        float moonAlignment=max(dot(direction,-uSun),0.0);
+        sky += vec3(.55,.63,.78)*smoothstep(.99955,.99986,moonAlignment)*uNight;
+        vec2 starCell=floor(direction.xz/max(direction.y+.2,.2)*240.0);
+        float stars=step(.997,fieldHash(starCell))*smoothstep(.08,.3,direction.y);
+        sky+=vec3(.55,.65,.85)*stars*uNight*(.75+.25*sin(uTime*.5+fieldHash(starCell)*20.0));
         // A few thin high wisps; the main view remains a clean blue sky.
         vec2 cloudPoint = direction.xz / max(direction.y + .17, .10);
         cloudPoint = cloudPoint * vec2(1.35, 4.5) + vec2(uTime * .0015, 0.0);
         float clouds = fieldNoise(cloudPoint) * .65 + fieldNoise(cloudPoint * 2.1) * .35;
         float veil = smoothstep(.68, .91, clouds) * smoothstep(.12, .4, elevation);
-        sky = mix(sky, vec3(.87, .91, .90), veil * .22);
+        sky = mix(sky, mix(vec3(.87,.91,.90),vec3(.06,.08,.14),uNight), veil * .22);
         gl_FragColor = vec4(sky, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -270,6 +277,7 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
   sun.shadow.camera.left = sun.shadow.camera.bottom = -19;
   sun.shadow.camera.right = sun.shadow.camera.top = 19;
   const sunOffset = new THREE.Vector3();
+  const dayZenith=new THREE.Color('#2791ed'),nightZenith=new THREE.Color('#030919'),dayHorizon=new THREE.Color('#abd5f2'),nightHorizon=new THREE.Color('#101c32'),warmColor=new THREE.Color(),dayAmbient=new THREE.Color('#e3f1ff'),nightAmbient=new THREE.Color('#6876a5'),dayGround=new THREE.Color('#728153'),nightGround=new THREE.Color('#11182a');
   const focus = new THREE.Vector3();
   const uniforms = {
     uMeadowTime: { value: 0 }, uWind: { value: settings.wind },
@@ -334,10 +342,17 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
     group, ground, sun, ambient, settings,
     get grass() { return grass; },
     setSettings,
-    update(time, nextFocus) {
+    update(time, nextFocus,phase=null) {
       uniforms.uMeadowTime.value = Number.isFinite(time) ? time : 0;
       sky.material.uniforms.uTime.value = uniforms.uMeadowTime.value;
       if (nextFocus) focus.copy(nextFocus);
+      if(Number.isFinite(phase)){
+        const angle=(phase-.25)*Math.PI*2,elevation=Math.sin(angle),daylight=THREE.MathUtils.smoothstep(elevation,-.12,.32),warm=(1-THREE.MathUtils.smoothstep(Math.abs(elevation),.03,.45))*THREE.MathUtils.smoothstep(elevation,-.3,-.03);
+        sunOffset.set(-Math.cos(angle)*.8,elevation,-Math.cos(angle)*.6).multiplyScalar(70);
+        const skyUniforms=sky.material.uniforms;skyUniforms.uSun.value.copy(sunOffset).normalize();skyUniforms.uNight.value=1-daylight;skyUniforms.uZenith.value.copy(nightZenith).lerp(dayZenith,daylight);skyUniforms.uHorizon.value.copy(nightHorizon).lerp(dayHorizon,daylight);warmColor.set(phase<.5?'#f5aa77':'#fa5439');skyUniforms.uHorizon.value.lerp(warmColor,warm*.88);warmColor.set(phase<.5?'#77618a':'#7d345e');skyUniforms.uZenith.value.lerp(warmColor,warm*.48);
+        ambient.intensity=.10+1.5*daylight;ambient.color.copy(nightAmbient).lerp(dayAmbient,daylight);ambient.groundColor.copy(nightGround).lerp(dayGround,daylight);sun.intensity=Math.max(0,elevation)*2.5;sun.castShadow=elevation>.01;sun.color.set(warm>.3?'#ffbd7b':'#fff7e3');scene.fog.color.copy(skyUniforms.uHorizon.value);renderer.toneMappingExposure=settings.exposure;
+        settings.night=1-THREE.MathUtils.smoothstep(elevation,-.10,.08);
+      }
       // Grass blades are subpixel from elevated parkour/free-camera viewpoints.
       grass.visible=focus.y<18;
       uniforms.uFocus.value.set(focus.x, focus.z);

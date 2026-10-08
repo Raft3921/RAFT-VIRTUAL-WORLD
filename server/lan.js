@@ -18,6 +18,7 @@ const mime = {
   '.png': 'image/png',
   '.txt': 'text/plain; charset=utf-8',
   '.ttf': 'font/ttf',
+  '.mp3': 'audio/mpeg',
 };
 
 function send(socket, message) {
@@ -99,7 +100,7 @@ sockets.on('connection', (socket, request) => {
   const spawn = players.size;
   const angle = spawn * 2.399;
   const profile=/^[a-f0-9-]{36}$/.test(url.searchParams.get('profile')||'')?url.searchParams.get('profile'):crypto.randomUUID();
-  const player = {profile,...rules.character(skin,profile,url.searchParams.get('crown')==='1'),seated:false,
+  const player = {profile,flashlightEnabled:rules.flashlightPreference(profile),...rules.character(skin,profile,url.searchParams.get('crown')==='1'),seated:false,
     id: crypto.randomUUID(), skin, guest:skin===GUEST_SKIN,
     x: Math.sin(angle) * 3, y: 0, z: Math.cos(angle) * 3,
     yaw: Math.atan2(-Math.sin(angle), -Math.cos(angle)),

@@ -9,7 +9,7 @@ function material(color){if(!materials.has(color))materials.set(color,new THREE.
 const WHITE='#faf8f1',TRIM='#d4d7d5',WOOD='#bd8d60',STONE='#c9c4b7';
 export function createWorld(scene){
   const group=new THREE.Group();scene.add(group);group.name='RAFT World';
-  const batches=new Map(),bodies=[],boards=[],seats=[],moving=[],hazards=[],pulsing=[],falling=[],balls=[],chunks=[];
+  const batches=new Map(),bodies=[],boards=[],seats=[],moving=[],hazards=[],pulsing=[],falling=[],balls=[],chunks=[],clockHands=[];
   let worldTime=0,currentHouse=null;
   const houses=HOUSES.map(h=>({...h,parts:[]}));
   const transform=new THREE.Object3D(),previous=new THREE.Vector3();
@@ -181,7 +181,7 @@ export function createWorld(scene){
   }
   athletic.finish=athletic.checkpoints.at(-1);
   box(COURSE.exit.x,.08,COURSE.exit.z,10,.16,10,STONE);board(COURSE.exit.x+3,.16,COURSE.exit.z,'world');
-  buildDistrict({box,board,sign,seats});
+  buildDistrict({box,board,sign,seats,clockHands});
   // Flush repeated parts to one draw per material, with instance indices for moving pads.
   for(const {color,list} of batches.values()){
     const mesh=new THREE.InstancedMesh(boxGeometry,material(color),list.length);
@@ -283,8 +283,9 @@ export function createWorld(scene){
     for(const b of boards)b.label.visible=!b.editorHidden&&Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<65;
     for(let i=0;i<balls.length;i++){const b=balls[i],visible=Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<100;transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,worldTime,worldTime*.8);transform.scale.setScalar(visible?b.radius:0);transform.updateMatrix();ballMesh.setMatrixAt(i,transform.matrix);}ballMesh.instanceMatrix.needsUpdate=true;
   }
-  function update(t,p){
+  function update(t,p,clockPhase=.5){
     worldTime=t;
+    for(const hand of clockHands){const angle=hand.clockSide*(hand.clockHand==='hour'?Math.PI/2-clockPhase*Math.PI*4:-clockPhase*Math.PI*48);transform.position.set(hand.clockX+Math.cos(angle)*hand.clockDX-Math.sin(angle)*hand.clockDY,hand.clockY+Math.sin(angle)*hand.clockDX+Math.cos(angle)*hand.clockDY,hand.z);transform.rotation.set(0,0,angle);transform.scale.set(hand.w,hand.h,hand.d);transform.updateMatrix();hand.mesh.setMatrixAt(hand.instance,transform.matrix);hand.mesh.instanceMatrix.needsUpdate=true;}
     transform.rotation.set(0,0,0);
     barrierMaterial.uniforms.uPlayer.value.copy(p).y+=1;barrierMaterial.uniforms.uTime.value=t;
     const sync=b=>{transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,b.rotation||0,0);transform.scale.set(b.w,b.disabled?.025:b.warning?.18:b.h,b.d);transform.updateMatrix();b.mesh.setMatrixAt(b.instance,transform.matrix);b.mesh.instanceMatrix.needsUpdate=true;};

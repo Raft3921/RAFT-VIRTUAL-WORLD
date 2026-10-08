@@ -1,5 +1,5 @@
 // Low-poly town details share the world's box instances and collision grid.
-export function buildDistrict({box,board,sign,seats}){
+export function buildDistrict({box,board,sign,seats,clockHands}){
   const stone='#c9c4b7',white='#faf8f1',wood='#9a6748',trim='#d4d7d5';
   box(0,.04,-42,42,.08,28,stone);box(16,.04,-6,6,.08,58,stone);
   box(7,.04,-28,22,.08,6,stone);box(32,.04,-28,32,.08,5,stone);
@@ -54,7 +54,8 @@ export function buildDistrict({box,board,sign,seats}){
   box(tx,6.55,tz,5.5,3.8,5.5,white);box(tx,8.55,tz,6,.3,6,'#d84a42');box(tx,8.9,tz,4.7,.4,4.7,'#d84a42');
   for(const side of [-1,1]){
     box(tx,6.65,tz+side*2.8,2.45,2.45,.1,'#344c57',false);box(tx,6.65,tz+side*2.87,2.1,2.1,.04,'#f2e9cb',false);
-    box(tx,7.05,tz+side*2.91,.12,.9,.04,'#344c57',false);box(tx+.38,6.65,tz+side*2.91,.8,.12,.04,'#344c57',false);
+    clockHands.push(box(tx,7.05,tz+side*2.91,.12,.9,.04,'#344c57',false,{clockHand:'minute',clockSide:side,clockX:tx,clockY:6.65,clockDX:0,clockDY:.40}));
+    clockHands.push(box(tx+side*.38,6.65,tz+side*2.96,.8,.12,.04,'#344c57',false,{clockHand:'hour',clockSide:side,clockX:tx,clockY:6.65,clockDX:side*.38,clockDY:0}));
   }
   board(tx-5,.28,tz+2);
   // Lamps, hedges and direction markers create landmarks without house labels.

@@ -44,7 +44,7 @@ export class Room extends DurableObject {
     const spawn = this.players.size;
     const angle = spawn * 2.399;
     const profile=/^[a-f0-9-]{36}$/.test(url.searchParams.get('profile')||'')?url.searchParams.get('profile'):crypto.randomUUID();
-    const player = {profile,...this.rules.character(skin,profile,url.searchParams.get('crown')==='1'),seated:false,
+    const player = {profile,flashlightEnabled:this.rules.flashlightPreference(profile),...this.rules.character(skin,profile,url.searchParams.get('crown')==='1'),seated:false,
       id, skin, guest:skin===GUEST_SKIN,
       x: Math.sin(angle) * 3,
       y: 0,

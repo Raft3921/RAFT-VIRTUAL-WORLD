@@ -1,20 +1,21 @@
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261008-mirror12';
+import { createAvatar } from './avatar.js?v=20261008-day13';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261008-mirror12';
+import { createWorld } from './world.js?v=20261008-day13';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION } from './game-rules.js?v=20261008-mirror12';
+import { SYNC_VERSION } from './game-rules.js?v=20261008-day13';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261008-mirror12';
+import { createHousingRenderer } from './housing-renderer.js?v=20261008-day13';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261008-mirror12';
+import { createHouseEditor } from './house-editor.js?v=20261008-day13';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
+import {cleanCycle,dayPhase,clockLabel,PIANO_MELODY} from './world-clock.js';
 
 const $ = id => document.getElementById(id);
 const clamp = THREE.MathUtils.clamp;
@@ -90,9 +91,14 @@ let crownEnabled=cachedCharacter().crownEnabled,crownScore=cachedCharacter().sco
 let courseAwaitingSave=false;
 let standingOn=null,seat=null,seatCooldown=0,sleeping=false,bed=null,pianoNote=0,knockbackInArena=false,duelIds=[],openBoard=null,athleticPeak=0;
 let goalDamage=11,matchGoalDamage=11;
+let dayCycle=cleanCycle(),serverOffset=0,flashlightEnabled=safeRead('raft-flashlight-enabled')!=='false',flashlightPending=safeRead('raft-flashlight-pending')==='true',clockHudAt=0;
+const serverNow=()=>Date.now()+serverOffset;
+const flashlight=new THREE.SpotLight('#eaf3ff',0,28,Math.PI/7,.65,1.6),flashlightDirection=new THREE.Vector3();flashlight.castShadow=false;scene.add(flashlight,flashlight.target);
+function updateClockControls(){$('cycleToggle').textContent='昼夜サイクル：'+(dayCycle.enabled?'ON':'OFF · ずっと昼');$('dayMinutes').value=String(dayCycle.duration/60);$('cycleToggle').disabled=$('dayMinutes').disabled=$('saveDayMinutes').disabled=selected===GUEST_SKIN;$('flashlightToggle').textContent='自動懐中電灯：'+(flashlightEnabled?'ON':'OFF')+'（自分だけの設定）';}
+function requestCycle(enabled=dayCycle.enabled){if(selected===GUEST_SKIN)return;const minutes=Number($('dayMinutes').value);if(!Number.isInteger(minutes)||minutes<1||minutes>120){notify('1日の長さは1〜120分の整数にしてください');return;}if(roomSocket?.readyState!==WebSocket.OPEN||!roomSelfId){notify('昼夜設定を保存するにはサーバーに接続してください');return;}$('cycleToggle').disabled=$('saveDayMinutes').disabled=true;roomSocket.send(JSON.stringify({type:'cycle-settings',enabled,duration:minutes*60}));}
 const profile=safeRead('raft-world-profile')||(crypto.randomUUID?.()||'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const n=Math.floor(Math.random()*16);return (c==='x'?n:(n&3)|8).toString(16);}));safeSave('raft-world-profile',profile);
 function cachedCharacter(skin=selected){return skin===GUEST_SKIN?guestState:characterCache[skin]||cleanCharacter();}
-function cacheCharacter(skin,value){const record=cleanCharacter(value);record.checkpoint=Math.max(record.checkpoint,cachedCharacter(skin).checkpoint);if(skin===GUEST_SKIN){guestState={...record,score:0,crownEnabled:false};return;}characterCache[skin]=record;safeSave('raft-character-state',JSON.stringify(characterCache));actors[skin]?.setAppearance(record.score,record.crownEnabled);if(skin===selected){crownScore=record.score;crownEnabled=record.crownEnabled;updateCrown();}}
+function cacheCharacter(skin,value){const record=cleanCharacter(value);record.checkpoint=Math.max(record.checkpoint,cachedCharacter(skin).checkpoint);if(skin===GUEST_SKIN){guestState={...record,score:0,crownEnabled:false};return;}characterCache[skin]=record;safeSave('raft-character-state',JSON.stringify(characterCache));actors[skin]?.setAppearance(record.appearanceLevel,record.crownEnabled);if(skin===selected){crownScore=record.score;crownEnabled=record.crownEnabled;updateCrown();}}
 function saveCheckpoint(id){cacheCharacter(selected,{...cachedCharacter(),checkpoint:id});if(selected!==GUEST_SKIN&&roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'checkpoint',id:cachedCharacter().checkpoint}));}
 function receiveCharacter(skin,value){
   if(skin===GUEST_SKIN)return;
@@ -149,7 +155,7 @@ function chooseTarget(requested){
     const value=d+(1-dot)*8;if(value<score){score=value;best=id;}
   }return best;
 }
-function beginCharge(){if(inStudio&&(cameraMode==='free'||cameraMode==='orbit')){setCameraMode('follow');notify('パンチ操作でプレイヤー操作に戻りました');return}if(!canPunch()||charging)return;charging=true;chargeTime=0;chargeLevelShown=-1;updateChargeHud()}
+function beginCharge(){if(inStudio&&(cameraMode==='free'||cameraMode==='orbit')){setCameraMode('follow');notify('パンチ操作でプレイヤー操作に戻りました');return}if(!canPunch()||charging)return;const origin=actors[selected].root.position.clone();origin.y+=1.05;const instrument=housingView?.instrumentHit(origin,new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw)));if(instrument?.family==='record')housingView.recordAudio.prepare();charging=true;chargeTime=0;chargeLevelShown=-1;updateChargeHud()}
 function startAttack(held,targetId){
   if(!canPunch())return;
   if(sleeping)wakeFromBed();
@@ -157,7 +163,7 @@ function startAttack(held,targetId){
   attackStrength=clamp(held/PUNCH.maxCharge,0,1);attackKind=held>=1?chargeAttack(punchLevel(held)):!grounded&&!airWalk?8:comboIndex++%4;
   const spec=ATTACKS[attackKind];attackDuration=spec.duration;attackYaw=yaw;
   const interactionOrigin=actors[selected].root.position.clone();interactionOrigin.y+=1.05;
-  const playingPiano=!targetId&&housingView?.pianoHit(interactionOrigin,new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw)));
+  const playingPiano=!targetId&&housingView?.instrumentHit(interactionOrigin,new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw)));
   const picked=playingPiano?null:chooseTarget(targetId);lastComboAt=now;attackSerial++;punchSwing=.001;pendingAttack={held,targetId,hit:false,jumpStarted:false};
   targetLock=picked;pendingAttack.targetId=targetLock;attackRushing=!!targetLock;rushTime=0;
   const p=actors[selected].root,q=attackTarget(targetLock);if(q)attackYaw=Math.atan2(q.x-p.position.x,q.z-p.position.z);p.rotation.y=attackYaw;
@@ -177,7 +183,7 @@ function applyPunch(held,targetId=null){
   const facing=new THREE.Vector3(Math.sin(attackYaw),0,Math.cos(attackYaw));
   const origin=p.position.clone();origin.y+=1.05;
   const board=!targetId&&world?.boardHit(origin,facing);if(board){openWorldMenu(board);return;}
-  const piano=!targetId&&housingView?.pianoHit(origin,facing);if(piano){const sequence=[0,2,4,7,9,12,9,7,4,2],message={type:'piano-play',index:piano.index,itemId:piano.itemId,note:sequence[pianoNote++%sequence.length],serial:attackSerial};if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));else housingView.playPiano(message,p.position);return;}
+  const instrument=!targetId&&housingView?.instrumentHit(origin,facing);if(instrument){const record=instrument.family==='record',message={type:record?'record-toggle':'piano-play',index:instrument.index,itemId:instrument.itemId,note:record?undefined:PIANO_MELODY[pianoNote++%PIANO_MELODY.length],serial:attackSerial};if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));else if(record)housingView.recordAudio.toggle(instrument.index,instrument.itemId);else housingView.playPiano(message,p.position);return;}
   const throwing=selected===GYOZA_SKIN&&held<1&&attackKind===3;
   if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId){
     if(throwing)brownProjectiles.launch(p.position,attackYaw,{predicted:true,owner:roomSelfId,serial:attackSerial});
@@ -220,10 +226,10 @@ function setSelected(index){
   updateCrown();updateSelection();updateVisibility();scheduleShare();
 }
 function updateSelection(){$('selectedName').textContent=skinDefs[selected][0];$('sessionName').textContent=skinDefs[selected][0]+' · Meadow';$('enter').disabled=!actors[selected];$('actorSelect').value=String(selected);document.querySelectorAll('.character').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.index===selected)))}
-function updateCrown(){const guest=selected===GUEST_SKIN;if(guest){crownScore=0;crownEnabled=false;}actors[selected]?.setAppearance(crownScore,crownEnabled);$('crownToggle').disabled=guest;$('saveDuelGoal').disabled=guest;$('duelGoal').disabled=guest;document.querySelectorAll('[data-bg]').forEach(button=>button.disabled=guest);$('crownToggle').textContent=guest?'ゲスト · 王冠・ハゲ表現なし':skinDefs[selected][0]+' · 王冠・ハゲ表現：'+(crownEnabled?'ON':'OFF');}
+function updateCrown(){const guest=selected===GUEST_SKIN;if(guest){crownScore=0;crownEnabled=false;}updateClockControls();actors[selected]?.setAppearance(cachedCharacter().appearanceLevel,crownEnabled);$('crownToggle').disabled=guest;$('saveDuelGoal').disabled=guest;$('duelGoal').disabled=guest;document.querySelectorAll('[data-bg]').forEach(button=>button.disabled=guest);$('crownToggle').textContent=guest?'ゲスト · 王冠・ハゲ表現なし':skinDefs[selected][0]+' · 王冠・ハゲ表現：'+(crownEnabled?'ON':'OFF');}
 function updateDuelSettings(){$('duelGoal').value=String(goalDamage);$('duelSettingsStatus').textContent=selected===GUEST_SKIN?'ゲストはワールド設定を変更できません':`現在：${goalDamage}ダメージ · サーバー保存 · 次の試合から反映`;}
 function receiveDuel(duel,announce=false){duelIds=duel.ids;duelActive=duelIds.includes(roomSelfId);matchGoalDamage=duel.goalDamage||goalDamage;duelDamage=duel.damage?.[roomSelfId]||0;if(duelActive){airWalk=false;updateJumpButton();}if(announce)notify('タイマン開始！',3500);$('duelHud').hidden=false;$('duelHud').textContent=duelActive?`被ダメージ ${duelDamage} / ${matchGoalDamage} · 試合中はバリア封鎖`:`タイマン観戦中 · ${matchGoalDamage}ダメージで決着`;}
-function openWorldMenu(board=null){setClean(false);unlocked();openBoard=board;$('menu').hidden=true;$('master').hidden=true;$('worldMenu').hidden=false;$('stopAthletic').disabled=!athleticActive;updateDuelSettings();$('worldStatus').textContent=athleticActive?'CHECK '+(athleticCheckpoint?.id||1)+' / 100 · ジャンプ力1.5倍':`闘技場：2人が1秒以内にパンチで開始 · ${goalDamage}ダメージで勝利`;}
+function openWorldMenu(board=null){setClean(false);unlocked();openBoard=board;$('menu').hidden=true;$('master').hidden=true;$('worldMenu').hidden=false;$('stopAthletic').disabled=!athleticActive;updateDuelSettings();updateClockControls();$('worldStatus').textContent=athleticActive?'CHECK '+(athleticCheckpoint?.id||1)+' / 100 · ジャンプ力1.5倍':`闘技場：2人が1秒以内にパンチで開始 · ${goalDamage}ダメージで勝利`;}
 function closeWorldMenu(){$('worldMenu').hidden=true;canvas.focus();}
 function respawnCourse(){
   const cp=athleticCheckpoint||world.athletic.checkpoints[0];
@@ -238,7 +244,7 @@ function makeFace(url,el){const img=new Image();img.onload=()=>{const c=document
 const faces=[],characterButtons=[];
 castOrder.forEach(i=>{const [name,file]=skinDefs[i],b=document.createElement('button');b.className='character';b.dataset.index=i;b.setAttribute('aria-label',name+' を選択');b.setAttribute('aria-pressed',String(i===selected));const holder=document.createElement('span');holder.className='face';holder.textContent='＋';faces[i]=holder;characterButtons[i]=b;const label=document.createElement('span');label.textContent=name;b.append(holder,label);b.onclick=()=>setSelected(i);$('characters').append(b);$('actorSelect').add(new Option(name,String(i)));if(file)makeFace(skinURL(i),holder)});
 const guestButton=document.createElement('button');guestButton.className='character guest-character';guestButton.dataset.index=String(GUEST_SKIN);guestButton.setAttribute('aria-label','ゲスト · 保存データを変更しない白いキャラクター');const guestFace=document.createElement('span');guestFace.className='face';const guestLabel=document.createElement('span');guestLabel.textContent='ゲスト';guestButton.append(guestFace,guestLabel);guestButton.onclick=()=>setSelected(GUEST_SKIN);$('characters').append(guestButton);faces[GUEST_SKIN]=guestFace;characterButtons[GUEST_SKIN]=guestButton;$('actorSelect').add(new Option('ゲスト（保存なし）',String(GUEST_SKIN)));makeFace(skinURL(GUEST_SKIN),guestFace);
-async function replaceSkin(i,url){const actor=await playerAvatar(i,url);const old=actors[i];if(old){actor.root.position.copy(old.root.position);actor.root.rotation.copy(old.root.rotation);scene.remove(old.root);old.dispose()}actors[i]=actor;const appearance=cachedCharacter(i);actor.setAppearance(appearance.score,appearance.crownEnabled);scene.add(actor.root);makeFace(url,faces[i]);updateSelection();updateVisibility()}
+async function replaceSkin(i,url){const actor=await playerAvatar(i,url);const old=actors[i];if(old){actor.root.position.copy(old.root.position);actor.root.rotation.copy(old.root.rotation);scene.remove(old.root);old.dispose()}actors[i]=actor;const appearance=cachedCharacter(i);actor.setAppearance(appearance.appearanceLevel,appearance.crownEnabled);scene.add(actor.root);makeFace(url,faces[i]);updateSelection();updateVisibility()}
 $('enter').onclick=enterStudio;$('resume').onclick=()=>{$('menu').hidden=true;clearInput();canvas.focus()};$('changeCharacter').onclick=$('masterCharacter').onclick=returnLobby;
 $('openMaster').onclick=openMaster;$('closeMaster').onclick=()=>{$('master').hidden=true;clearInput();canvas.focus()};$('cleanView').onclick=$('cleanMaster').onclick=enterClean;
 $('studioBoard').onclick=()=>openWorldMenu();$('closeWorldMenu').onclick=closeWorldMenu;
@@ -246,6 +252,8 @@ document.querySelectorAll('[data-bg]').forEach(button=>button.onclick=()=>{if(se
 $('crownToggle').onclick=()=>{if(selected===GUEST_SKIN)return;cacheCharacter(selected,{...cachedCharacter(),crownEnabled:!crownEnabled});pendingCrown[selected]=crownEnabled;safeSave('raft-character-crown-pending',JSON.stringify(pendingCrown));if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'crown-toggle',enabled:crownEnabled}));};
 $('saveDuelGoal').onclick=()=>{if(selected===GUEST_SKIN)return;const value=Number($('duelGoal').value);if(!Number.isInteger(value)||value<1||value>100){notify('合計ダメージは1〜100の整数にしてください');return;}if(roomSocket?.readyState!==WebSocket.OPEN||!roomSelfId){notify('設定を保存するにはサーバーに接続してください');return;}$('saveDuelGoal').disabled=true;$('duelSettingsStatus').textContent='サーバーに保存中…';roomSocket.send(JSON.stringify({type:'duel-settings',goalDamage:value}));};
 $('stopAthletic').onclick=stopCourse;
+$('cycleToggle').onclick=()=>requestCycle(!dayCycle.enabled);$('saveDayMinutes').onclick=()=>requestCycle();
+$('flashlightToggle').onclick=()=>{flashlightEnabled=!flashlightEnabled;if(selected!==GUEST_SKIN){flashlightPending=true;safeSave('raft-flashlight-enabled',String(flashlightEnabled));safeSave('raft-flashlight-pending','true');}updateClockControls();if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'flashlight-toggle',enabled:flashlightEnabled}));};
 $('boardSession').onclick=()=>{closeWorldMenu();openMenu();};
 $('boardMaster').onclick=()=>{closeWorldMenu();openMaster();};
 
@@ -279,13 +287,13 @@ addEventListener('keydown',e=>{if(housingEditor?.key(e))return;if(e.code==='F1')
 addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',clearInput);document.addEventListener('visibilitychange',()=>{clearInput();lastTime=0});
 function updateRoomStatus(message){$('roomStatus').textContent=message}
 const brownProjectiles=createBrownProjectiles(scene,{world:()=>world,targets:()=>actors.flatMap((actor,index)=>actor&&index!==selected&&actor.root.visible&&!protectedFromHit(bodies[index],time)?[{index,position:actor.root.position,height:actor.collisionShape?.height||1.9}]:[]),onLocalHit:(index,shot)=>{const body=bodies[index];if(protectedFromHit(body,time))return;body.vel.set(shot.vx*.8,4,shot.vz*.8);body.ragdoll=true;body.hit=createHit(.2);body.grounded=false;body.inArena=insideArena(actors[index].root.position);actors[index].root.rotation.y=Math.atan2(-shot.vx,-shot.vz);},onImpact:position=>{particleOrigin.set(position.x,position.y,position.z);emitParticles(particleOrigin,'#ad7844',10,2,5);}});
-function clearRemoteActors(){remoteActors.forEach(entry=>entry.actor.dispose());remoteActors.clear();remoteLoading.clear();brownProjectiles.clear()}
+function clearRemoteActors(){remoteActors.forEach(entry=>entry.actor.dispose());remoteActors.clear();remoteLoading.clear();brownProjectiles.clear();housingView?.recordAudio.clear()}
 function removeRemotePlayer(id){remoteLoading.delete(id);const entry=remoteActors.get(id);if(entry){entry.actor.dispose();remoteActors.delete(id)}}
 function updateRemotePlayer(player){
   if(!player?.id||player.id===roomSelfId||!roomSocket)return;
   let entry=remoteActors.get(player.id);
   if(entry&&entry.skin!==player.skin){removeRemotePlayer(player.id);entry=null;}
-  if(entry){if((player.hitSerial||0)<(entry.hitSerial||0)){player={...player,ragdoll:entry.ragdoll,sleeping:entry.sleeping,hitPhase:entry.hitPhase,hitTime:entry.hitTime,hitDownTime:entry.hitDownTime,hitRecovery:entry.hitRecovery,hitStrength:entry.hitStrength,hitSerial:entry.hitSerial};}entry.actor.reactHit(player.flinchSerial,player.flinchStrength,Math.max(0,(Date.now()-(player.flinchAt||0))/1000));entry.hitSerial=player.hitSerial||0;entry.target.set(player.x,player.y,player.z);if(entry.actor.root.position.distanceToSquared(entry.target)>900)entry.actor.root.position.copy(entry.target);entry.velocity.set(player.vx||0,player.vy||0,player.vz||0);entry.receivedAt=performance.now();entry.yaw=player.yaw;entry.headYaw=player.headYaw;entry.headPitch=player.headPitch;entry.speed=player.speed;entry.grounded=player.grounded;entry.verticalSpeed=player.verticalSpeed;entry.gesture=player.gesture;entry.flight=player.flight;entry.ragdoll=player.ragdoll;entry.seated=player.seated;entry.sleeping=player.sleeping;entry.crownEnabled=player.crownEnabled;entry.attackRushing=player.attackRushing;entry.punchCharge=player.punchCharge;entry.attackDuration=player.attackDuration;entry.hitPhase=player.hitPhase;entry.hitTime=player.hitTime;entry.hitDownTime=player.hitDownTime;entry.hitRecovery=player.hitRecovery;entry.hitStrength=player.hitStrength;entry.attackKind=player.attackKind||0;entry.attackProgress=player.attackProgress||0;entry.attackStrength=player.attackStrength||0;entry.attackSerial=player.attackSerial||0;entry.actor.setAppearance(player.score||0,player.crownEnabled);return}
+  if(entry){if((player.hitSerial||0)<(entry.hitSerial||0)){player={...player,ragdoll:entry.ragdoll,sleeping:entry.sleeping,hitPhase:entry.hitPhase,hitTime:entry.hitTime,hitDownTime:entry.hitDownTime,hitRecovery:entry.hitRecovery,hitStrength:entry.hitStrength,hitSerial:entry.hitSerial};}entry.actor.reactHit(player.flinchSerial,player.flinchStrength,Math.max(0,(Date.now()-(player.flinchAt||0))/1000));entry.hitSerial=player.hitSerial||0;entry.target.set(player.x,player.y,player.z);if(entry.actor.root.position.distanceToSquared(entry.target)>900)entry.actor.root.position.copy(entry.target);entry.velocity.set(player.vx||0,player.vy||0,player.vz||0);entry.receivedAt=performance.now();entry.yaw=player.yaw;entry.headYaw=player.headYaw;entry.headPitch=player.headPitch;entry.speed=player.speed;entry.grounded=player.grounded;entry.verticalSpeed=player.verticalSpeed;entry.gesture=player.gesture;entry.flight=player.flight;entry.ragdoll=player.ragdoll;entry.seated=player.seated;entry.sleeping=player.sleeping;entry.crownEnabled=player.crownEnabled;entry.attackRushing=player.attackRushing;entry.punchCharge=player.punchCharge;entry.attackDuration=player.attackDuration;entry.hitPhase=player.hitPhase;entry.hitTime=player.hitTime;entry.hitDownTime=player.hitDownTime;entry.hitRecovery=player.hitRecovery;entry.hitStrength=player.hitStrength;entry.attackKind=player.attackKind||0;entry.attackProgress=player.attackProgress||0;entry.attackStrength=player.attackStrength||0;entry.attackSerial=player.attackSerial||0;entry.appearanceLevel=player.appearanceLevel??Math.max(-8,player.score||0);entry.actor.setAppearance(entry.appearanceLevel,player.crownEnabled);return}
   if(remoteLoading.has(player.id)){remoteLoading.set(player.id,player);return}
   remoteLoading.set(player.id,player);
   const loadingSocket=roomSocket,index=playableSkin(player.skin);
@@ -293,8 +301,8 @@ function updateRemotePlayer(player){
     const latest=remoteLoading.get(player.id);
     if(!latest||roomSocket!==loadingSocket){actor.dispose();return}
     remoteLoading.delete(player.id);actor.root.position.set(latest.x,latest.y,latest.z);actor.root.rotation.y=latest.yaw;scene.add(actor.root);
-    actor.reactHit(latest.flinchSerial,latest.flinchStrength,Math.max(0,(Date.now()-(latest.flinchAt||0))/1000));actor.setAppearance(latest.score||0,latest.crownEnabled);
-    remoteActors.set(player.id,{actor,hitSerial:latest.hitSerial||0,punchCharge:latest.punchCharge||0,attackRushing:latest.attackRushing,attackDuration:latest.attackDuration,hitPhase:latest.hitPhase,hitTime:latest.hitTime,hitDownTime:latest.hitDownTime,hitRecovery:latest.hitRecovery,hitStrength:latest.hitStrength,attackKind:latest.attackKind||0,attackProgress:latest.attackProgress||0,attackStrength:latest.attackStrength||0,attackSerial:latest.attackSerial||0,effectSerial:0,skin:latest.skin,seated:latest.seated,sleeping:latest.sleeping,crownEnabled:latest.crownEnabled,target:new THREE.Vector3(latest.x,latest.y,latest.z),velocity:new THREE.Vector3(latest.vx||0,latest.vy||0,latest.vz||0),renderTarget:new THREE.Vector3(),receivedAt:performance.now(),yaw:latest.yaw,headYaw:latest.headYaw,headPitch:latest.headPitch,speed:latest.speed,grounded:latest.grounded,verticalSpeed:latest.verticalSpeed,gesture:latest.gesture,flight:latest.flight,ragdoll:latest.ragdoll});
+    actor.reactHit(latest.flinchSerial,latest.flinchStrength,Math.max(0,(Date.now()-(latest.flinchAt||0))/1000));actor.setAppearance(latest.appearanceLevel??Math.max(-8,latest.score||0),latest.crownEnabled);
+    remoteActors.set(player.id,{actor,appearanceLevel:latest.appearanceLevel??Math.max(-8,latest.score||0),hitSerial:latest.hitSerial||0,punchCharge:latest.punchCharge||0,attackRushing:latest.attackRushing,attackDuration:latest.attackDuration,hitPhase:latest.hitPhase,hitTime:latest.hitTime,hitDownTime:latest.hitDownTime,hitRecovery:latest.hitRecovery,hitStrength:latest.hitStrength,attackKind:latest.attackKind||0,attackProgress:latest.attackProgress||0,attackStrength:latest.attackStrength||0,attackSerial:latest.attackSerial||0,effectSerial:0,skin:latest.skin,seated:latest.seated,sleeping:latest.sleeping,crownEnabled:latest.crownEnabled,target:new THREE.Vector3(latest.x,latest.y,latest.z),velocity:new THREE.Vector3(latest.vx||0,latest.vy||0,latest.vz||0),renderTarget:new THREE.Vector3(),receivedAt:performance.now(),yaw:latest.yaw,headYaw:latest.headYaw,headPitch:latest.headPitch,speed:latest.speed,grounded:latest.grounded,verticalSpeed:latest.verticalSpeed,gesture:latest.gesture,flight:latest.flight,ragdoll:latest.ragdoll});
     updateRoomStatus(`${roomCode} · ${remoteActors.size+1}/${MAX_PLAYERS}人`);
   }).catch(error=>{remoteLoading.delete(player.id);console.error('remote skin load failed',error)});
 }
@@ -306,8 +314,13 @@ function handleRoomMessage(socket,event){
   if(message.type==='guest-denied'){if(message.id===roomSelfId)notify(message.message);return;}
   if(message.type==='house-state'){housingEditor?.receive(message);return;}
   if(message.type==='piano-play'){housingView?.playPiano(message,actors[selected]?.root.position);return;}
-  if(message.type==='world'){world?.setBackdrop(message.backdrop);if(Number.isInteger(message.goalDamage)){goalDamage=message.goalDamage;updateDuelSettings();}if(message.duel)receiveDuel(message.duel);return;}
-  if(message.type==='character-state'){const skin=Number(message.skin);if(Number.isInteger(skin)&&skin>=0&&skin<8){receiveCharacter(skin,message.character);for(const remote of remoteActors.values())if(remote.skin===skin){remote.crownEnabled=message.character.crownEnabled;remote.actor.setAppearance(message.character.score,remote.crownEnabled);}}return;}
+  if(message.type==='record-state'){housingView?.recordAudio.receive(message);return;}
+  if(message.type==='world'){world?.setBackdrop(message.backdrop);if(message.cycle){dayCycle=cleanCycle(message.cycle);if(Number.isFinite(message.serverNow))serverOffset=message.serverNow-Date.now();updateClockControls();}if(message.records)housingView?.recordAudio.hydrate(message.records);if(Number.isInteger(message.goalDamage)){goalDamage=message.goalDamage;updateDuelSettings();}if(message.duel)receiveDuel(message.duel);return;}
+  if(message.type==='cycle-saved'){updateClockControls();notify('昼夜設定をサーバーに保存しました');return;}
+  if(message.type==='cycle-error'){updateClockControls();notify(message.message);return;}
+  if(message.type==='flashlight-state'&&message.id===roomSelfId){flashlightEnabled=message.enabled;flashlightPending=false;if(selected!==GUEST_SKIN){safeSave('raft-flashlight-enabled',String(flashlightEnabled));safeSave('raft-flashlight-pending','false');}updateClockControls();return;}
+  if(message.type==='flashlight-error'&&message.id===roomSelfId){notify(message.message);return;}
+  if(message.type==='character-state'){const skin=Number(message.skin);if(Number.isInteger(skin)&&skin>=0&&skin<8){receiveCharacter(skin,message.character);for(const remote of remoteActors.values())if(remote.skin===skin){remote.crownEnabled=message.character.crownEnabled;remote.appearanceLevel=message.character.appearanceLevel??Math.max(-8,message.character.score||0);remote.actor.setAppearance(remote.appearanceLevel,remote.crownEnabled);}}return;}
   if(message.type==='character-save-error'){notify(message.message,8000);return;}
   if(message.type==='character-select-rejected'&&message.id===roomSelfId){selected=message.skin;crownScore=cachedCharacter().score;crownEnabled=cachedCharacter().crownEnabled;updateSelection();updateVisibility();updateCrown();notify(message.reason||'試合・被弾中はキャラクターを変更できません');return;}
   if(message.type==='settings-saved'){goalDamage=message.goalDamage;updateDuelSettings();$('saveDuelGoal').disabled=selected===GUEST_SKIN;notify(`次の試合：${goalDamage}ダメージ · サーバーに保存しました`);return;}
@@ -317,7 +330,7 @@ function handleRoomMessage(socket,event){
   if(message.type==='duel-damage'){receiveDuel(message);return;}
   if(message.type==='duel-cancel'){duelActive=false;duelIds=[];$('duelHud').hidden=true;notify(message.reason);return;}
   if(message.type==='duel-result'){
-    for(const [id,score]of Object.entries(message.scores)){if(id===roomSelfId){crownScore=score;updateCrown();}else{const r=remoteActors.get(id);if(r)r.actor.setAppearance(score,r.crownEnabled);}}
+    for(const [id,score]of Object.entries(message.scores)){if(id===roomSelfId){crownScore=score;updateCrown();}else{const r=remoteActors.get(id);if(r)r.actor.setAppearance(message.appearances?.[id]??r.appearanceLevel??Math.max(-8,score),r.crownEnabled);}}
     if(message.practice)notify((message.winner===roomSelfId?'勝利！ ':message.loser===roomSelfId?'敗北 · ':'決着 · ')+'ゲスト練習試合 · 保存スコアの変更なし',4000);else if(message.winner===roomSelfId)notify('勝利！ 勝敗スコア '+crownScore,4000);else if(message.loser===roomSelfId)notify('敗北 · 勝敗スコア '+crownScore,4000);else notify('タイマン決着！',3000);
     duelActive=false;duelIds=[];$('duelHud').hidden=true;return;
   }
@@ -345,7 +358,7 @@ function handleRoomMessage(socket,event){
   }
   if(message.type==='joined'){
     if(message.version!==SYNC_VERSION){roomFailure='ページと同期サーバーの版が一致しません';notify('ページと同期サーバーの版が違います。サーバーを更新・再起動し、ページを再読み込みしてください。',12000);roomSocket?.close(1000,'update server');updateRoomStatus(roomFailure);return;}
-    roomSelfId=message.self.id;actors[selected]?.resetHitReaction();localHitSerial=message.self.hitSerial||0;
+    roomSelfId=message.self.id;actors[selected]?.resetHitReaction();localHitSerial=message.self.hitSerial||0;if(flashlightPending&&selected!==GUEST_SKIN)roomSocket.send(JSON.stringify({type:'flashlight-toggle',enabled:flashlightEnabled}));else flashlightEnabled=message.self.flashlightEnabled!==false;updateClockControls();
     housingEditor?.hydrate(message.houses);
     for(const projectile of message.projectiles||[])brownProjectiles.spawn(projectile);
     for(const [skin,record]of Object.entries(message.characters||{}))receiveCharacter(Number(skin),record);receiveCharacter(selected,message.self);
@@ -391,7 +404,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
   if(p){
     if(!inStudio){p.position.set(0,0,0);p.rotation.y=lobbyYaw;velocity.set(0,0,0);grounded=true}
     else{
-      world.update(time,p.position);
+      world.update(time,p.position,dayPhase(dayCycle,serverNow()));
       const enabled=!paused()&&!localRagdoll&&!localImpact;
       const mx=enabled?((keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+stick.x):0;
       const my=enabled?((keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-stick.y):0;
@@ -491,7 +504,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
   });
   const locked=attackTarget(targetLock),showLock=locked&&p&&inStudio&&!clean&&performance.now()-lastComboAt<3000;lockMarker.visible=!!showLock;if(showLock){lockMarker.position.copy(locked).y+=.04;const index=targetLock.startsWith('cast:')?Number(targetLock.slice(5)):remoteActors.get(targetLock)?.skin;$('targetHud').textContent='LOCK ON · '+(skinDefs[index]?.[0]||'PLAYER')+' · '+p.position.distanceTo(locked).toFixed(1)+'m';}$('targetHud').hidden=!showLock;
   if(p&&inStudio)combatEffects.attack(actors[selected],attackKind,localRagdoll?0:punchSwing,attackSerial,attackStrength,attackRushing,dt);
-  combatEffects.update(dt);brownProjectiles.update();updateParticles(dt);updateShockwaves(dt);world.cull(camera.position);housingView?.cull(camera.position,touch);environment.update(time,inStudio?(cameraMode==='free'?camera.position:p?.position||focus):focus.set(0,0,0));housingView?.update(dt,time,camera,renderer,inStudio?p?.position:null,touch,actors[selected]?.root);renderer.render(scene,camera);
+  combatEffects.update(dt);brownProjectiles.update();updateParticles(dt);updateShockwaves(dt);world.cull(camera.position);housingView?.cull(camera.position,touch);const phase=dayPhase(dayCycle,serverNow());environment.update(time,inStudio?(cameraMode==='free'?camera.position:p?.position||focus):focus.set(0,0,0),phase);housingView?.update(dt,time,camera,renderer,inStudio?p?.position:null,touch,actors[selected]?.root,phase,serverNow);flashlight.visible=inStudio&&flashlightEnabled&&(environment.settings.night||0)>.001;if(flashlight.visible&&p){camera.getWorldDirection(flashlightDirection);flashlight.position.copy(p.position).y+=actors[selected].eyeHeight-.12;flashlight.position.addScaledVector(flashlightDirection,.35);flashlight.target.position.copy(flashlight.position).addScaledVector(flashlightDirection,20);flashlight.intensity=38*environment.settings.night;}if(now-clockHudAt>200&&!$('worldMenu').hidden){clockHudAt=now;$('gameClock').textContent='ゲーム内時刻 '+clockLabel(phase)+' · '+(dayCycle.enabled?'1日 '+dayCycle.duration/60+'分':'ずっと昼');}renderer.render(scene,camera);
   if(now-metricsAt>=1000){fps=fpsFrames*1000/Math.max(1,now-metricsAt);fpsFrames=0;metricsAt=now;$('performance').textContent=`${Math.round(fps)} fps · ${activeQuality==='high'?'高画質':activeQuality==='medium'?'標準':'軽量'} · 描画 ${renderer.info.render.calls} 回`;if(qualityChoice==='auto'&&fps<34){slowSeconds++;if(slowSeconds>=5&&activeQuality!=='low'){quality(activeQuality==='high'?'medium':'low');slowSeconds=0}}else slowSeconds=0;
     canvas.dataset.telemetry=JSON.stringify({selected,screen:inStudio?'studio':'lobby',touch,clean,cameraMode,athleticActive,checkpoint:athleticCheckpoint?.id,seated,duelActive,duelDamage,hitPhase:localHit?.phase||'none',hitRecovery:localHit?.recovery||0,attackRushing,targetLock,chainRemaining,attackKind,attackProgress:punchSwing,attackSerial,attackStrength,crownScore,crownEnabled,position:p?.position.toArray(),bodyYaw:p?.rotation.y,yaw,pitch,speed,grounded,camera:camera.position.toArray(),room:roomCode,roomPlayers:roomSelfId?remoteActors.size+1:remoteActors.size,remotePositions:[...remoteActors.values()].map(remote=>remote.target.toArray()),fps:Math.round(fps),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,quality:activeQuality});
   }

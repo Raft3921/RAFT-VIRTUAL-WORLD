@@ -10,7 +10,7 @@ export function createFurnitureEffects(scene){
   window.addEventListener('pointerdown',unlock,{passive:true});window.addEventListener('keydown',unlock,{passive:true});
   function play(point,note,listener){
     if(!listener||Math.hypot(listener.x-point.x,listener.y-point.y,listener.z-point.z)>30)return;
-    note=Math.max(0,Math.min(23,Math.floor(note)||0));const distance=Math.hypot(listener.x-point.x,listener.y-point.y,listener.z-point.z);
+    note=Math.max(-12,Math.min(23,Math.floor(note)||0));const distance=Math.hypot(listener.x-point.x,listener.y-point.y,listener.z-point.z);
     if(audio?.state==='running'){
       while(voices.length>=8){const voice=voices.shift();for(const oscillator of voice.oscillators)try{oscillator.stop();}catch{}voice.gain.disconnect();}
       const now=audio.currentTime,gain=audio.createGain(),frequency=261.625565*Math.pow(2,note/12),voice={gain,oscillators:[]};gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(.12/(1+distance*.25),now+.008);gain.gain.exponentialRampToValueAtTime(.0001,now+1.5);gain.connect(audio.destination);

@@ -1,3 +1,4 @@
+import {STREET_LAMPS} from './local-lighting.js';
 // Low-poly town details share the world's box instances and collision grid.
 export function buildDistrict({box,board,sign,seats,clockHands}){
   const stone='#c9c4b7',white='#faf8f1',wood='#9a6748',trim='#d4d7d5';
@@ -59,8 +60,8 @@ export function buildDistrict({box,board,sign,seats,clockHands}){
   }
   board(tx-5,.28,tz+2);
   // Lamps, hedges and direction markers create landmarks without house labels.
-  for(const [x,z] of [[-25,20],[25,20],[-25,62],[25,62],[16,-15],[-34,12],[60,27],[78,27]]){
-    box(x,1.6,z,.16,3.2,.16,'#344c57');box(x,3.3,z,.6,.45,.6,'#e4c84d',false);box(x,3.58,z,.9,.15,.9,'#344c57',false);
+  for(const [x,z] of STREET_LAMPS){
+    box(x,1.6,z,.16,3.2,.16,'#344c57');box(x,3.3,z,.6,.45,.6,'#ffe4a6',false,{streetLamp:true,noShadow:true});box(x,3.58,z,.9,.15,.9,'#344c57',false);
   }
   for(const x of [-25,25])for(const z of [60,64])box(x,.45,z,10,.9,1.0,'#438766');
   sign('PLAZA',16,2.6,-19,2.5);

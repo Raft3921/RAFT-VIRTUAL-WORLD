@@ -2,16 +2,18 @@ import * as THREE from 'three';
 import { ARENA, COURSE, buildCourse } from './world-layout.js';
 import { buildDistrict } from './district.js';
 import { HOUSES,HOUSE_COLORS } from './housing-data.js';
+import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const materials=new Map();
-function material(color){if(!materials.has(color))materials.set(color,new THREE.MeshStandardMaterial({color,roughness:.82}));return materials.get(color);}
+function material(color){if(!materials.has(color))materials.set(color,withLocalLighting(new THREE.MeshStandardMaterial({color,roughness:.82})));return materials.get(color);}
 const WHITE='#faf8f1',TRIM='#d4d7d5',WOOD='#bd8d60',STONE='#c9c4b7';
 export function createWorld(scene){
   const group=new THREE.Group();scene.add(group);group.name='RAFT World';
   const batches=new Map(),bodies=[],boards=[],seats=[],moving=[],hazards=[],pulsing=[],falling=[],balls=[],chunks=[],clockHands=[];
   let worldTime=0,currentHouse=null;
   const houses=HOUSES.map(h=>({...h,parts:[]}));
+  const lampMaterial=withLocalLighting(new THREE.MeshStandardMaterial({color:'#ffe4a6',emissive:'#ffe4a6',emissiveIntensity:0,roughness:.6}));
   const transform=new THREE.Object3D(),previous=new THREE.Vector3();
   const boardPickGeometry=new THREE.BoxGeometry(1.12,2.05,.24),boardPickMaterial=new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false});
   function box(x,y,z,w,h,d,color=WHITE,solid=true,extra={}){
@@ -19,7 +21,7 @@ export function createWorld(scene){
     if(currentHouse){body.houseIndex=currentHouse.index;currentHouse.parts.push(body);}
     if(solid)bodies.push(body);
     // Spatial and vertical batches keep elevated/far-away parts independently culled.
-    const key=color+':'+Math.floor(x/48)+','+Math.floor(y/24)+','+Math.floor(z/48);
+    const key=color+':'+!!extra.noShadow+':'+!!extra.streetLamp+':'+Math.floor(x/48)+','+Math.floor(y/24)+','+Math.floor(z/48);
     if(!batches.has(key))batches.set(key,{color,list:[]});
     batches.get(key).list.push(body);return body;
   }
@@ -52,7 +54,8 @@ export function createWorld(scene){
   // Centre studio: a white box with a genuinely open, broad entrance on +Z.
   const studio={x:0,z:0};box(0,.08,0,22,.16,18);box(-10.9,3.5,0,.3,7,18);box(10.9,3.5,0,.3,7,18);
   box(0,3.5,-8.9,22,7,.3);box(-7.5,3.5,8.9,7,7,.3);box(7.5,3.5,8.9,7,7,.3);box(0,6.1,8.9,8,1.8,.3);
-  box(0,7,0,22.5,.25,18.5);box(0,7.22,0,23,.2,19,TRIM);
+  // Roof collision and visibility remain, but neither roof layer blocks sun.
+  box(0,7,0,22.5,.25,18.5,WHITE,true,{noShadow:true});box(0,7.22,0,23,.2,19,TRIM,true,{noShadow:true});
   const chromaMaterial=new THREE.MeshBasicMaterial({color:'#00ff00',toneMapped:false});
   const backdrop=new THREE.Group();
   const bgWall=new THREE.Mesh(boxGeometry,chromaMaterial);bgWall.position.set(0,3.2,-8.64);bgWall.scale.set(20,6.25,.03);backdrop.add(bgWall);
@@ -184,10 +187,24 @@ export function createWorld(scene){
   buildDistrict({box,board,sign,seats,clockHands});
   // Flush repeated parts to one draw per material, with instance indices for moving pads.
   for(const {color,list} of batches.values()){
-    const mesh=new THREE.InstancedMesh(boxGeometry,material(color),list.length);
+    const mesh=new THREE.InstancedMesh(boxGeometry,list[0].streetLamp?lampMaterial:material(color),list.length);mesh.userData.noShadow=!!list[0].noShadow;
     for(let i=0;i<list.length;i++){const b=list[i];transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,b.rotation||0,0);transform.scale.set(b.w,b.h,b.d);transform.updateMatrix();mesh.setMatrixAt(i,transform.matrix);b.mesh=mesh;b.instance=i;}
-    mesh.receiveShadow=true;mesh.castShadow=color!==STONE;mesh.computeBoundingSphere();mesh.boundingSphere.radius+=4;group.add(mesh);chunks.push(mesh);
+    mesh.receiveShadow=true;mesh.castShadow=!mesh.userData.noShadow&&color!==STONE;mesh.computeBoundingSphere();mesh.boundingSphere.radius+=4;group.add(mesh);chunks.push(mesh);
   }
+  // Eight softly fading ground pools in one draw; no extra realtime lights,
+  // shadow maps, image downloads or day/night material replacement.
+  const poolMaterial=new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,uniforms:{uNight:nightLight},vertexShader:'varying vec2 vPoolUV; void main(){vPoolUV=uv; gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position,1.0);}',fragmentShader:`
+    varying vec2 vPoolUV; uniform float uNight;
+    void main(){
+      float falloff=pow(max(0.0,1.0-length(vPoolUV*2.0-1.0)),2.0);
+      gl_FragColor=vec4(vec3(1.0,.78,.46),falloff*uNight*.42);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }
+  `});
+  const lightPools=new THREE.InstancedMesh(new THREE.PlaneGeometry(12,12),poolMaterial,STREET_LAMPS.length);
+  for(let i=0;i<STREET_LAMPS.length;i++){const [x,z]=STREET_LAMPS[i];transform.position.set(x,.12,z);transform.rotation.set(-Math.PI/2,0,0);transform.scale.setScalar(1);transform.updateMatrix();lightPools.setMatrixAt(i,transform.matrix);}
+  lightPools.computeBoundingSphere();group.add(lightPools);transform.rotation.set(0,0,0);
   for(const h of hazards){h.mesh.material.emissive.set('#ff0018');h.mesh.material.emissiveIntensity=2;}
   const ballMaterial=new THREE.MeshStandardMaterial({color:'#ffd05e',emissive:'#fa6839',emissiveIntensity:.6,roughness:.6});
   const ballMesh=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0),ballMaterial,balls.length);ballMesh.frustumCulled=false;group.add(ballMesh);
@@ -279,7 +296,7 @@ export function createWorld(scene){
     return to.clone().lerp(from,1-fraction);
   }
   function cull(view){
-    for(const mesh of chunks){const sphere=mesh.boundingSphere,d=sphere.center.distanceTo(view);mesh.visible=d<115+sphere.radius;mesh.castShadow=mesh.visible&&d<55+sphere.radius;}
+    for(const mesh of chunks){const sphere=mesh.boundingSphere,d=sphere.center.distanceTo(view);mesh.visible=d<115+sphere.radius;mesh.castShadow=!mesh.userData.noShadow&&mesh.visible&&d<55+sphere.radius;}
     for(const b of boards)b.label.visible=!b.editorHidden&&Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<65;
     for(let i=0;i<balls.length;i++){const b=balls[i],visible=Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<100;transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,worldTime,worldTime*.8);transform.scale.setScalar(visible?b.radius:0);transform.updateMatrix();ballMesh.setMatrixAt(i,transform.matrix);}ballMesh.instanceMatrix.needsUpdate=true;
   }
@@ -296,5 +313,8 @@ export function createWorld(scene){
     for(const b of balls){const phase=((t+b.phase)*b.speed)%8;b.z=b.originZ+b.side*(4-phase);}
   }
   function setBackdrop(mode){chromaMaterial.color.set(mode==='RB'?'#ff0000':mode==='BB'?'#0000ff':'#00ff00');}
-  return {group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,setBackdrop,setHouseBodies,cutawayHouse};
+  // Keep the inexpensive pool draw registered even during the day (alpha 0)
+  // so its shader is not first compiled when night begins.
+  function setNight(value){nightLight.value=THREE.MathUtils.clamp(value||0,0,1);lampMaterial.emissiveIntensity=nightLight.value*1.8;}
+  return {group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,setBackdrop,setNight,setHouseBodies,cutawayHouse};
 }

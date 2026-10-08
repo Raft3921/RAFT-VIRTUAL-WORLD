@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {withLocalLighting} from './local-lighting.js';
 import { sampleAttack,sampleCharge } from './combat-motion.js';
 import { sampleHit } from './hit-reaction.js';
 import { jemAvatarDefinition } from './jem-avatar.js';
@@ -456,6 +457,7 @@ export async function createAvatar(url,{model=null}={}) {
     texture.dispose();headMaterials.forEach(m=>m.dispose());crownGeometry.dispose();gold.dispose();
   }
 
+  root.traverse(object=>{if(object.isMesh)withLocalLighting(object.material);});
   return {
     root, update, dispose, head, setAppearance,
     reactHit(serial,strength=.2,age=0){if(!Number.isFinite(serial)||serial<=flinchSerial)return;flinchSerial=serial;if(age>=.24)return;flinchStart=elapsed-Math.max(0,age);flinchStrength=clamp(strength,0,1);},

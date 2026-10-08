@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261008-day13';
+import { createAvatar } from './avatar.js?v=20261008-light14';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261008-day13';
+import { createWorld } from './world.js?v=20261008-light14';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
@@ -11,7 +11,7 @@ import { createBrownProjectiles } from './brown-projectiles.js';
 import { SYNC_VERSION } from './game-rules.js?v=20261008-day13';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261008-day13';
+import { createHousingRenderer } from './housing-renderer.js?v=20261008-light14';
 // Versioned URL prevents a previously cached editor module from blocking startup.
 import { createHouseEditor } from './house-editor.js?v=20261008-day13';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
@@ -93,6 +93,8 @@ let standingOn=null,seat=null,seatCooldown=0,sleeping=false,bed=null,pianoNote=0
 let goalDamage=11,matchGoalDamage=11;
 let dayCycle=cleanCycle(),serverOffset=0,flashlightEnabled=safeRead('raft-flashlight-enabled')!=='false',flashlightPending=safeRead('raft-flashlight-pending')==='true',clockHudAt=0;
 const serverNow=()=>Date.now()+serverOffset;
+// A permanently registered, shadowless light avoids shader variants whenever
+// dusk or the preference changes. Intensity zero is the OFF state.
 const flashlight=new THREE.SpotLight('#eaf3ff',0,28,Math.PI/7,.65,1.6),flashlightDirection=new THREE.Vector3();flashlight.castShadow=false;scene.add(flashlight,flashlight.target);
 function updateClockControls(){$('cycleToggle').textContent='昼夜サイクル：'+(dayCycle.enabled?'ON':'OFF · ずっと昼');$('dayMinutes').value=String(dayCycle.duration/60);$('cycleToggle').disabled=$('dayMinutes').disabled=$('saveDayMinutes').disabled=selected===GUEST_SKIN;$('flashlightToggle').textContent='自動懐中電灯：'+(flashlightEnabled?'ON':'OFF')+'（自分だけの設定）';}
 function requestCycle(enabled=dayCycle.enabled){if(selected===GUEST_SKIN)return;const minutes=Number($('dayMinutes').value);if(!Number.isInteger(minutes)||minutes<1||minutes>120){notify('1日の長さは1〜120分の整数にしてください');return;}if(roomSocket?.readyState!==WebSocket.OPEN||!roomSelfId){notify('昼夜設定を保存するにはサーバーに接続してください');return;}$('cycleToggle').disabled=$('saveDayMinutes').disabled=true;roomSocket.send(JSON.stringify({type:'cycle-settings',enabled,duration:minutes*60}));}
@@ -504,7 +506,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
   });
   const locked=attackTarget(targetLock),showLock=locked&&p&&inStudio&&!clean&&performance.now()-lastComboAt<3000;lockMarker.visible=!!showLock;if(showLock){lockMarker.position.copy(locked).y+=.04;const index=targetLock.startsWith('cast:')?Number(targetLock.slice(5)):remoteActors.get(targetLock)?.skin;$('targetHud').textContent='LOCK ON · '+(skinDefs[index]?.[0]||'PLAYER')+' · '+p.position.distanceTo(locked).toFixed(1)+'m';}$('targetHud').hidden=!showLock;
   if(p&&inStudio)combatEffects.attack(actors[selected],attackKind,localRagdoll?0:punchSwing,attackSerial,attackStrength,attackRushing,dt);
-  combatEffects.update(dt);brownProjectiles.update();updateParticles(dt);updateShockwaves(dt);world.cull(camera.position);housingView?.cull(camera.position,touch);const phase=dayPhase(dayCycle,serverNow());environment.update(time,inStudio?(cameraMode==='free'?camera.position:p?.position||focus):focus.set(0,0,0),phase);housingView?.update(dt,time,camera,renderer,inStudio?p?.position:null,touch,actors[selected]?.root,phase,serverNow);flashlight.visible=inStudio&&flashlightEnabled&&(environment.settings.night||0)>.001;if(flashlight.visible&&p){camera.getWorldDirection(flashlightDirection);flashlight.position.copy(p.position).y+=actors[selected].eyeHeight-.12;flashlight.position.addScaledVector(flashlightDirection,.35);flashlight.target.position.copy(flashlight.position).addScaledVector(flashlightDirection,20);flashlight.intensity=38*environment.settings.night;}if(now-clockHudAt>200&&!$('worldMenu').hidden){clockHudAt=now;$('gameClock').textContent='ゲーム内時刻 '+clockLabel(phase)+' · '+(dayCycle.enabled?'1日 '+dayCycle.duration/60+'分':'ずっと昼');}renderer.render(scene,camera);
+  combatEffects.update(dt);brownProjectiles.update();updateParticles(dt);updateShockwaves(dt);world.cull(camera.position);housingView?.cull(camera.position,touch);const phase=dayPhase(dayCycle,serverNow());environment.update(time,inStudio?(cameraMode==='free'?camera.position:p?.position||focus):focus.set(0,0,0),phase);world.setNight(environment.settings.night);housingView?.update(dt,time,camera,renderer,inStudio?p?.position:null,touch,actors[selected]?.root,phase,serverNow);flashlight.intensity=inStudio&&flashlightEnabled&&p?38*(environment.settings.night||0):0;if(flashlight.intensity>0&&p){camera.getWorldDirection(flashlightDirection);flashlight.position.copy(p.position).y+=actors[selected].eyeHeight-.12;flashlight.position.addScaledVector(flashlightDirection,.35);flashlight.target.position.copy(flashlight.position).addScaledVector(flashlightDirection,20);}if(now-clockHudAt>200&&!$('worldMenu').hidden){clockHudAt=now;$('gameClock').textContent='ゲーム内時刻 '+clockLabel(phase)+' · '+(dayCycle.enabled?'1日 '+dayCycle.duration/60+'分':'ずっと昼');}renderer.render(scene,camera);
   if(now-metricsAt>=1000){fps=fpsFrames*1000/Math.max(1,now-metricsAt);fpsFrames=0;metricsAt=now;$('performance').textContent=`${Math.round(fps)} fps · ${activeQuality==='high'?'高画質':activeQuality==='medium'?'標準':'軽量'} · 描画 ${renderer.info.render.calls} 回`;if(qualityChoice==='auto'&&fps<34){slowSeconds++;if(slowSeconds>=5&&activeQuality!=='low'){quality(activeQuality==='high'?'medium':'low');slowSeconds=0}}else slowSeconds=0;
     canvas.dataset.telemetry=JSON.stringify({selected,screen:inStudio?'studio':'lobby',touch,clean,cameraMode,athleticActive,checkpoint:athleticCheckpoint?.id,seated,duelActive,duelDamage,hitPhase:localHit?.phase||'none',hitRecovery:localHit?.recovery||0,attackRushing,targetLock,chainRemaining,attackKind,attackProgress:punchSwing,attackSerial,attackStrength,crownScore,crownEnabled,position:p?.position.toArray(),bodyYaw:p?.rotation.y,yaw,pitch,speed,grounded,camera:camera.position.toArray(),room:roomCode,roomPlayers:roomSelfId?remoteActors.size+1:remoteActors.size,remotePositions:[...remoteActors.values()].map(remote=>remote.target.toArray()),fps:Math.round(fps),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,quality:activeQuality});
   }

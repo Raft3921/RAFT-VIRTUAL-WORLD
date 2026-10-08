@@ -4,9 +4,10 @@ import {furnitureParts} from './furniture-models.js';
 import {createHousingMirrors} from './housing-mirror.js';
 import {createFurnitureEffects} from './furniture-effects.js';
 import {createRecordAudio} from './record-audio.js';
+import {withLocalLighting} from './local-lighting.js';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1),materials=new Map();
-function material(color,detail=false,glow=false){const key=color+':'+detail+':'+glow;if(!materials.has(key))materials.set(key,new THREE.MeshStandardMaterial({color,roughness:.84,polygonOffset:detail,polygonOffsetFactor:-1,polygonOffsetUnits:-1,emissive:glow?color:'#000000',emissiveIntensity:glow?.65:0}));return materials.get(key);}
+function material(color,detail=false,glow=false){const key=color+':'+detail+':'+glow;if(!materials.has(key))materials.set(key,withLocalLighting(new THREE.MeshStandardMaterial({color,roughness:.84,polygonOffset:detail,polygonOffsetFactor:-1,polygonOffsetUnits:-1,emissive:glow?color:'#000000',emissiveIntensity:glow?.65:0})));return materials.get(key);}
 function finishMaterial(surface,id){
   const key=surface+':'+id;if(materials.has(key))return materials.get(key);
   const choice=FINISHES[surface].find(f=>f[0]===id)||FINISHES[surface][0],canvas=document.createElement('canvas');canvas.width=canvas.height=64;const ctx=canvas.getContext('2d');ctx.fillStyle=choice[2];ctx.fillRect(0,0,64,64);
@@ -17,7 +18,7 @@ function finishMaterial(surface,id){
   else if(id==='stripe'){ctx.fillStyle='#ffffff45';for(let x=0;x<64;x+=16)ctx.fillRect(x,0,8,64);}
   else if(id==='carpet'){ctx.fillStyle='#ffffff24';for(let y=0;y<64;y+=4)for(let x=0;x<64;x+=4)ctx.fillRect(x+(y%8?1:0),y,1,1);}
   const texture=new THREE.CanvasTexture(canvas);texture.magFilter=THREE.NearestFilter;texture.minFilter=THREE.LinearMipmapLinearFilter;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(6,surface==='floor'?6:2);
-  const mat=new THREE.MeshStandardMaterial({map:texture,roughness:.92});materials.set(key,mat);return mat;
+  const mat=withLocalLighting(new THREE.MeshStandardMaterial({map:texture,roughness:.92}));materials.set(key,mat);return mat;
 }
 export function createHousingRenderer(scene,world){
   const rooms=HOUSES.map(h=>({group:new THREE.Group(),layout:emptyHouse(),meshes:[],references:new Map(),finishes:[],mirrors:[],animated:[],editing:false})),transform=new THREE.Object3D(),itemTransform=new THREE.Object3D(),partMatrix=new THREE.Matrix4(),partOffset=new THREE.Vector3(),mirrors=createHousingMirrors(scene,world),effects=createFurnitureEffects(scene),recordAudio=createRecordAudio(index=>rooms[index]?.layout);let gamePhase=.5;

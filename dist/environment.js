@@ -270,6 +270,10 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
   const ambient = new THREE.HemisphereLight('#e3f1ff', '#728153', 1.6);
   const sun = new THREE.DirectionalLight('#fff7e3', 2.5);
   sun.castShadow = true;
+  // Keep the light/shadow layout constant: toggling castShadow recompiles all
+  // lit material variants. Schedule the shadow pass independently instead.
+  sun.shadow.autoUpdate = false;
+  sun.shadow.needsUpdate = true;
   sun.shadow.bias = -.00018;
   sun.shadow.normalBias = .026;
   sun.shadow.camera.near = 1;
@@ -279,6 +283,7 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
   const sunOffset = new THREE.Vector3();
   const dayZenith=new THREE.Color('#2791ed'),nightZenith=new THREE.Color('#030919'),dayHorizon=new THREE.Color('#abd5f2'),nightHorizon=new THREE.Color('#101c32'),warmColor=new THREE.Color(),dayAmbient=new THREE.Color('#e3f1ff'),nightAmbient=new THREE.Color('#6876a5'),dayGround=new THREE.Color('#728153'),nightGround=new THREE.Color('#11182a');
   const focus = new THREE.Vector3();
+  let lastShadowTime = -Infinity;
   const uniforms = {
     uMeadowTime: { value: 0 }, uWind: { value: settings.wind },
     uSpan: { value: TIERS[settings.quality].span },
@@ -300,6 +305,8 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
       sun.shadow.map.dispose();
       sun.shadow.map = null;
     }
+    sun.shadow.needsUpdate = true;
+    lastShadowTime = -Infinity;
     renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, tier.pixelRatio));
     uniforms.uSpan.value = tier.span;
     grass.count = Math.floor(tier.clumps * settings.grassDensity);
@@ -350,7 +357,7 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
         const angle=(phase-.25)*Math.PI*2,elevation=Math.sin(angle),daylight=THREE.MathUtils.smoothstep(elevation,-.12,.32),warm=(1-THREE.MathUtils.smoothstep(Math.abs(elevation),.03,.45))*THREE.MathUtils.smoothstep(elevation,-.3,-.03);
         sunOffset.set(-Math.cos(angle)*.8,elevation,-Math.cos(angle)*.6).multiplyScalar(70);
         const skyUniforms=sky.material.uniforms;skyUniforms.uSun.value.copy(sunOffset).normalize();skyUniforms.uNight.value=1-daylight;skyUniforms.uZenith.value.copy(nightZenith).lerp(dayZenith,daylight);skyUniforms.uHorizon.value.copy(nightHorizon).lerp(dayHorizon,daylight);warmColor.set(phase<.5?'#f5aa77':'#fa5439');skyUniforms.uHorizon.value.lerp(warmColor,warm*.88);warmColor.set(phase<.5?'#77618a':'#7d345e');skyUniforms.uZenith.value.lerp(warmColor,warm*.48);
-        ambient.intensity=.10+1.5*daylight;ambient.color.copy(nightAmbient).lerp(dayAmbient,daylight);ambient.groundColor.copy(nightGround).lerp(dayGround,daylight);sun.intensity=Math.max(0,elevation)*2.5;sun.castShadow=elevation>.01;sun.color.set(warm>.3?'#ffbd7b':'#fff7e3');scene.fog.color.copy(skyUniforms.uHorizon.value);renderer.toneMappingExposure=settings.exposure;
+        ambient.intensity=.10+1.5*daylight;ambient.color.copy(nightAmbient).lerp(dayAmbient,daylight);ambient.groundColor.copy(nightGround).lerp(dayGround,daylight);sun.intensity=Math.max(0,elevation)*2.5;sun.color.set(warm>.3?'#ffbd7b':'#fff7e3');scene.fog.color.copy(skyUniforms.uHorizon.value);renderer.toneMappingExposure=settings.exposure;
         settings.night=1-THREE.MathUtils.smoothstep(elevation,-.10,.08);
       }
       // Grass blades are subpixel from elevated parkour/free-camera viewpoints.
@@ -358,6 +365,14 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
       uniforms.uFocus.value.set(focus.x, focus.z);
       sun.position.copy(focus).add(sunOffset);
       sun.target.position.copy(focus);
+      // At night retain the existing map (zero sun intensity contributes no
+      // shadow). Initialise once even when joining at night, and cap daytime
+      // shadow rendering at 15 Hz on mobile / 30 Hz elsewhere.
+      const shadowTime = uniforms.uMeadowTime.value;
+      if (!sun.shadow.map || (sun.intensity > 0 && shadowTime - lastShadowTime >= (mobile ? 1 / 15 : 1 / 30))) {
+        sun.shadow.needsUpdate = true;
+        lastShadowTime = shadowTime;
+      }
     },
     get stats() {
       return {

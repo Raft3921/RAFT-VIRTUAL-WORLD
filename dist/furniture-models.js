@@ -50,8 +50,8 @@ export function furnitureParts(item){
     case 'pegboard':box(0,.5,0,1,1,.25,WOOD);for(let i=0;i<5;i++){box(-.36+i*.18,.7,.3,.03,.08,.45,METAL,true);box(-.36+i*.18,.46,.32,.06,.38,.09,paint,true);}break;
     case 'sconce':box(0,.5,-.3,.5,.65,.25,METAL);box(0,.6,.12,1,.8,.75,paint);box(0,.6,.51,.76,.55,.03,WHITE,true);break;
     case 'aircon':box(0,.5,0,1,1,1,WHITE);box(0,.27,.525,.83,.12,.02,DARK,true);box(0,.27,.55,.8,.035,.035,METAL,true);motion('flap');box(.38,.69,.525,.05,.045,.02,'#85ddb5',true);break;
-    case 'pendant':box(0,.72,0,.045,.56,.045,METAL);box(0,.24,0,1,.48,1,paint);box(0,.035,0,.8,.03,.8,WHITE);break;
-    case 'chandelier':box(0,.75,0,.04,.5,.04,METAL);box(0,.4,0,.75,.055,.09,METAL);box(0,.4,0,.09,.055,.75,METAL);for(const [x,z]of [[-.36,0],[.36,0],[0,-.36],[0,.36]])box(x,.2,z,.27,.4,.27,paint);break;
+    case 'pendant':box(0,.72,0,.045,.56,.045,METAL);box(0,.24,0,1,.48,1,paint);box(0,.012,0,.8,.025,.8,WHITE);break;
+    case 'chandelier':box(0,.75,0,.04,.5,.04,METAL);box(0,.4,0,.75,.055,.09,METAL);box(0,.4,0,.09,.055,.75,METAL);for(const [x,z]of [[-.36,0],[.36,0],[0,-.36],[0,.36]]){box(x,.2,z,.27,.4,.27,paint);box(x,.012,z,.21,.02,.21,WHITE);}break;
     case 'fan':box(0,.74,0,.055,.52,.055,METAL);box(0,.38,0,.2,.18,.2,paint);box(0,.3,0,1,.05,.14,WOOD);motion('spin',{rate:2.6});box(0,.3,0,.14,.05,1,WOOD);motion('spin',{rate:2.6});box(0,.1,0,.19,.2,.19,WHITE);break;
     case 'vent':box(0,.5,0,1,1,.65,WHITE);for(let i=0;i<5;i++)box(0,.18+i*.16,.37,.85,.035,.035,METAL,true);break;
     case 'wall-planter':box(0,.3,0,.9,.48,.75,paint);for(const x of [-.27,0,.27]){box(x,.68,.1,.18,.42,.4,LEAF);motion('sway',{phase:x*8});}break;

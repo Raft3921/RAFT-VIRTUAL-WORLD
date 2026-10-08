@@ -11,7 +11,7 @@ import { createBrownProjectiles } from './brown-projectiles.js';
 import { SYNC_VERSION } from './game-rules.js?v=20261008-day13';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261008-light14';
+import { createHousingRenderer } from './housing-renderer.js?v=20261008-fixture15';
 // Versioned URL prevents a previously cached editor module from blocking startup.
 import { createHouseEditor } from './house-editor.js?v=20261008-day13';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';

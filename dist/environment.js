@@ -283,7 +283,6 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
   const sunOffset = new THREE.Vector3();
   const dayZenith=new THREE.Color('#2791ed'),nightZenith=new THREE.Color('#030919'),dayHorizon=new THREE.Color('#abd5f2'),nightHorizon=new THREE.Color('#101c32'),warmColor=new THREE.Color(),dayAmbient=new THREE.Color('#e3f1ff'),nightAmbient=new THREE.Color('#6876a5'),dayGround=new THREE.Color('#728153'),nightGround=new THREE.Color('#11182a');
   const focus = new THREE.Vector3();
-  let lastShadowTime = -Infinity;
   const uniforms = {
     uMeadowTime: { value: 0 }, uWind: { value: settings.wind },
     uSpan: { value: TIERS[settings.quality].span },
@@ -306,7 +305,6 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
       sun.shadow.map = null;
     }
     sun.shadow.needsUpdate = true;
-    lastShadowTime = -Infinity;
     renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, tier.pixelRatio));
     uniforms.uSpan.value = tier.span;
     grass.count = Math.floor(tier.clumps * settings.grassDensity);
@@ -365,14 +363,9 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
       uniforms.uFocus.value.set(focus.x, focus.z);
       sun.position.copy(focus).add(sunOffset);
       sun.target.position.copy(focus);
-      // At night retain the existing map (zero sun intensity contributes no
-      // shadow). Initialise once even when joining at night, and cap daytime
-      // shadow rendering at 15 Hz on mobile / 30 Hz elsewhere.
-      const shadowTime = uniforms.uMeadowTime.value;
-      if (!sun.shadow.map || (sun.intensity > 0 && shadowTime - lastShadowTime >= (mobile ? 1 / 15 : 1 / 30))) {
-        sun.shadow.needsUpdate = true;
-        lastShadowTime = shadowTime;
-      }
+      // Restore full-rate soft player shadows without changing the shader
+      // light layout. Only skip the invisible sun pass after sunset.
+      sun.shadow.needsUpdate=!sun.shadow.map||sun.intensity>0;
     },
     get stats() {
       return {

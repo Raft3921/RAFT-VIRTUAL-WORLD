@@ -14,6 +14,7 @@ const mime = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.jem': 'application/json; charset=utf-8',
   '.png': 'image/png',
   '.txt': 'text/plain; charset=utf-8',
   '.ttf': 'font/ttf',
@@ -106,7 +107,7 @@ sockets.on('connection', (socket, request) => {
     gesture: 'none', speed: 0, grounded: true, verticalSpeed: 0, flight: false, ragdoll: false,
   };
   players.set(socket, { player, lastStateAt: 0 });
-  send(socket, { type: 'joined', version:SYNC_VERSION, houses:rules.houses.snapshots(), characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
+  send(socket, { type: 'joined', version:SYNC_VERSION, projectiles:rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:rules.houses.snapshots(), characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
   broadcast({ type: 'player-joined', player }, socket);
   send(socket,rules.snapshot());
 

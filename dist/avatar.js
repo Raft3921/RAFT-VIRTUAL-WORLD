@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { sampleAttack,sampleCharge } from './combat-motion.js';
 import { sampleHit } from './hit-reaction.js';
+import { jemAvatarDefinition } from './jem-avatar.js';
 
 const PX = 1 / 16;
 const TAU = Math.PI * 2;
@@ -46,6 +47,15 @@ function skinBox(part, overlay = false, start = 0, length = part.size[1]) {
   );
   geometry.translate(0, (topPad - bottomPad) * PX / 2, 0);
   const rects = faceRects(overlay ? part.overlay : part.base, width, fullHeight, depth, start, length);
+  const box=overlay?part.overlayBox:part.baseBox;
+  // Face UV endpoints may run backwards: preserve the supplied orientation.
+  if(box&&!box.textureOffset){
+    for(const [face,key]of ['uvWest','uvEast','uvUp','uvDown','uvNorth','uvSouth'].entries()){
+      const value=box[key];if(!value)continue;const [u1,v1,u2,v2]=value;
+      const side=face===0||face===1||face===4||face===5;
+      rects[face]=[u1,side?v1+(v2-v1)*start/fullHeight:v1,u2-u1,side?(v2-v1)*length/fullHeight:v2-v1];
+    }
+  }
 
   // A bent elbow/knee exposes the new cut face. Sample the neighbouring
   // skin row here, never the shoulder cap or a transparent atlas gap.
@@ -112,7 +122,10 @@ function group(name, parent, x = 0, y = 0, z = 0) {
  * positive lookPitch looks down. update receives world speed in metres/sec.
  * All supplied 64x64 skins (and proportionally scaled HD PNGs) share this rig.
  */
-export async function createAvatar(url) {
+export async function createAvatar(url,{model=null}={}) {
+  const custom=model?jemAvatarDefinition(model):null,parts=custom?.parts||PARTS;
+  const legHeight=custom?.legHeight||12,bodyBottom=custom?.bodyBottom||12,bodyHeight=custom?.bodyHeight||12;
+  const legHalf=legHeight/2,armHalf=parts.leftArm.size[1]/2,motionScale=legHeight/12;
   const texture = await new THREE.TextureLoader().loadAsync(url);
   const image = texture.image;
   if (!image || image.width !== image.height || image.width < 64 || image.width % 64 !== 0) {
@@ -131,18 +144,19 @@ export async function createAvatar(url) {
   });
   const skinCanvas=document.createElement('canvas');skinCanvas.width=image.width;skinCanvas.height=image.height;
   const skinContext=skinCanvas.getContext('2d');skinContext.drawImage(image,0,0);
-  const pixel=skinContext.getImageData(Math.floor(15*image.width/64),Math.floor(15*image.height/64),1,1).data;
+  const front=faceRects(parts.head.base,...parts.head.size,0,parts.head.size[1])[4];
+  const pixel=skinContext.getImageData(Math.floor((front[0]+front[2]-1)*image.width/64),Math.floor((front[1]+front[3]-1)*image.height/64),1,1).data;
   const skinColor=new THREE.Color().setRGB(pixel[0]/255,pixel[1]/255,pixel[2]/255,THREE.SRGBColorSpace);
   const bald={value:0},headMaterials=[];
   const geometries = [];
   const meshes = [];
   const root = new THREE.Group();
-  root.name = 'java-slim-player';
+  root.name = custom?'gyoza-jem-player':'java-slim-player';
   const pelvis = group('pelvis', root);
-  const torso = group('waist', pelvis, 0, 12);
+  const torso = group('waist', pelvis, 0, bodyBottom);
 
-  function addPart(parent, name, x, y, start = 0, length = PARTS[name].size[1]) {
-    const definition = PARTS[name];
+  function addPart(parent, name, x, y, start = 0, length = parts[name].size[1]) {
+    const definition = parts[name];
     for (const overlay of [false, true]) {
       const geometry = skinBox(definition, overlay, start, length);
       let partMaterial=overlay?overlayMaterial:baseMaterial;
@@ -153,10 +167,11 @@ export async function createAvatar(url) {
           shader.vertexShader='varying float vHeadY;\n'+shader.vertexShader;
           shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvHeadY=position.y;');
           shader.fragmentShader='varying float vHeadY; uniform float uBald; uniform vec3 uSkinColor;\n'+shader.fragmentShader;
+          const height=(definition.size[1]+(overlay?definition.inflate*2:0))*PX;
           shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',
-            '#include <color_fragment>\n'+(overlay?'if(uBald>0. && vHeadY > .28125-uBald*.5625) discard;':'if(uBald>0. && vHeadY > .25-uBald*.5) diffuseColor.rgb=uSkinColor;'));
+            '#include <color_fragment>\n'+(overlay?`if(uBald>0. && vHeadY > ${(height/2).toFixed(6)}-uBald*${height.toFixed(6)}) discard;`:`if(uBald>0. && vHeadY > ${(height/2).toFixed(6)}-uBald*${height.toFixed(6)}) diffuseColor.rgb=uSkinColor;`));
         };
-        partMaterial.customProgramCacheKey=()=>overlay?'bald-overlay-v1':'bald-base-v1';
+        partMaterial.customProgramCacheKey=()=>`bald-${overlay}-${definition.size[1]}`;
       }
       const mesh = new THREE.Mesh(geometry, partMaterial);
       mesh.name = `${name}-${start}-${overlay ? 'overlay' : 'base'}`;
@@ -170,9 +185,9 @@ export async function createAvatar(url) {
   }
 
   function addJoint(parent, name, x = 0, y = 0) {
-    const definition = PARTS[name];
+    const definition = parts[name];
     for (const overlay of [false, true]) {
-      const geometry = jointBox(definition, overlay);
+      const geometry = custom?skinBox(definition,overlay,definition.size[1]*.4,definition.size[1]*.2):jointBox(definition,overlay);
       const mesh = new THREE.Mesh(geometry, overlay ? overlayMaterial : baseMaterial);
       mesh.name = `${name}-joint-${overlay ? 'overlay' : 'base'}`;
       mesh.position.set(x * PX, y * PX, 0);
@@ -184,25 +199,26 @@ export async function createAvatar(url) {
     }
   }
 
-  addPart(torso, 'torso', 0, 6);
-  const head = group('neck', torso, 0, 12);
+  addPart(torso, 'torso', 0, bodyHeight/2);
+  const head = group('neck', torso, 0, custom?custom.headBottom-bodyBottom:12);
   head.rotation.order = 'YXZ';
-  addPart(head, 'head', 0, 4);
+  addPart(head, 'head', 0, parts.head.size[1]/2);
   const shoulders = {};
   const elbows = {};
   const hips = {};
   const knees = {};
   for (const [side, sign] of [['right', -1], ['left', 1]]) {
     // Java's shoulder is two pixels below the top edge, not at arm centre.
-    const shoulder = group(`${side}-shoulder`, torso, sign * 5, 10);
-    const elbow = group(`${side}-elbow`, shoulder, sign * .5, -4);
-    addPart(shoulder, `${side}Arm`, sign * .5, -1.4, 0, 6);
-    addPart(elbow, `${side}Arm`, 0, -2.6, 6, 6);
+    const arm=parts[`${side}Arm`],leg=parts[`${side}Leg`];
+    const shoulder = group(`${side}-shoulder`, torso, custom?arm.pivot[0]:sign*5,custom?arm.top-bodyBottom:10);
+    const elbow = group(`${side}-elbow`, shoulder,custom?arm.center[0]-arm.pivot[0]:sign*.5,custom?-armHalf:-4);
+    addPart(shoulder, `${side}Arm`,custom?arm.center[0]-arm.pivot[0]:sign*.5,custom?-armHalf/2:-1.4,0,armHalf);
+    addPart(elbow, `${side}Arm`,0,custom?-armHalf/2:-2.6,armHalf,armHalf);
     addJoint(elbow, `${side}Arm`);
-    const hip = group(`${side}-hip`, pelvis, sign * 2, 12);
-    const knee = group(`${side}-knee`, hip, 0, -6);
-    addPart(hip, `${side}Leg`, 0, -3.4, 0, 6);
-    addPart(knee, `${side}Leg`, 0, -2.6, 6, 6);
+    const hip = group(`${side}-hip`, pelvis,custom?leg.center[0]:sign*2,legHeight);
+    const knee = group(`${side}-knee`, hip,0,-legHalf);
+    addPart(hip, `${side}Leg`,0,custom?-legHalf/2:-3.4,0,legHalf);
+    addPart(knee, `${side}Leg`,0,custom?-legHalf/2:-2.6,legHalf,legHalf);
     addJoint(knee, `${side}Leg`);
     shoulders[side] = shoulder;
     elbows[side] = elbow;
@@ -213,20 +229,21 @@ export async function createAvatar(url) {
   const crown=new THREE.Group();crown.name='block crown';head.add(crown);
   const gold=new THREE.MeshStandardMaterial({color:'#f9c744',metalness:.45,roughness:.35}),crownGeometry=new THREE.BoxGeometry(1,1,1);
   const crownBand=[];
-  for(const [x,z,w,d] of [[0,-.28,.62,.055],[0,.28,.62,.055],[-.28,0,.055,.51],[.28,0,.055,.51]]){
+  const crownX=parts.head.size[0]*PX/2+.03,crownZ=parts.head.size[2]*PX/2+.03,crownFloor=parts.head.size[1]*PX+.01;
+  for(const [x,z,w,d] of [[0,-crownZ,crownX*2+.06,.055],[0,crownZ,crownX*2+.06,.055],[-crownX,0,.055,crownZ*2-.05],[crownX,0,.055,crownZ*2-.05]]){
     const b=new THREE.Mesh(crownGeometry,gold);b.position.set(x,.56,z);b.scale.set(w,.12,d);crown.add(b);crownBand.push(b);
   }
   const crownTips=[];
-  for(let i=0;i<12;i++){const side=Math.floor(i/3),offset=(i%3-1)*.22;
-    const t=new THREE.Mesh(crownGeometry,gold);t.position.set(side<2?offset:(side===2?-.28:.28),.7,side<2?(side===0?-.28:.28):offset);t.scale.set(.09,.14,.09);crown.add(t);crownTips.push(t);
+  for(let i=0;i<12;i++){const side=Math.floor(i/3),offset=(i%3-1)*(side<2?crownX:crownZ)*.78;
+    const t=new THREE.Mesh(crownGeometry,gold);t.position.set(side<2?offset:(side===2?-crownX:crownX),crownFloor+.19,side<2?(side===0?-crownZ:crownZ):offset);t.scale.set(.09,.14,.09);crown.add(t);crownTips.push(t);
   }
   let appearanceKey='';
   function setAppearance(score=0,enabled=false){
     const key=score+':'+enabled;if(key===appearanceKey)return;appearanceKey=key;
     bald.value=enabled?clamp(-score/8,0,1):0;crown.visible=enabled&&score>0;
     const height=.12+Math.max(0,score-1)*.045;
-    crownBand.forEach(b=>{b.position.y=.51+height/2;b.scale.y=height;});
-    crownTips.forEach(t=>t.position.y=.51+height+.07);
+    crownBand.forEach(b=>{b.position.y=crownFloor+height/2;b.scale.y=height;});
+    crownTips.forEach(t=>t.position.y=crownFloor+height+.07);
   }
   setAppearance();
   let sitWeight=0;
@@ -252,7 +269,7 @@ export async function createAvatar(url) {
   // Two-bone leg solve. Stance soles remain on the ground; the knee bends
   // backwards while the raised foot advances, instead of spinning whole legs.
   function solveLeg(side, footZ, lift, hipHeight, dt) {
-    const limbLength = 6 * PX;
+    const limbLength = legHalf * PX;
     let footY = lift;
     let hipAngle = 0, kneeAngle = 0;
     for (let i = 0; i < 3; i++) {
@@ -287,19 +304,19 @@ export async function createAvatar(url) {
     landing = damp(landing, 0, 11, dt);
     wasGrounded = grounded;
     lastVerticalSpeed = verticalSpeed;
-    phase = (phase + dt * Math.min(speed,6.5) * TAU / (1.35 + running * .38)) % TAU;
-    const stride = (.24 + running * .08) * motion;
+    phase = (phase + dt * Math.min(speed,6.5) * TAU / ((1.35 + running * .38)*motionScale)) % TAU;
+    const stride = (.24 + running * .08) * motion*motionScale;
     const breathing = Math.sin(elapsed * 1.7);
     const bob = (1 - Math.cos(phase * 2)) * .0055 * motion;
     braking=damp(braking,clamp((previousSpeed-speed)*1.6,0,.16),18,dt);previousSpeed=speed;
-    pelvis.position.set(0,-.085 * motion + bob - landing,0);
+    pelvis.position.set(0,(-.085 * motion + bob - landing)*motionScale,0);
     pelvis.rotation.set(0,0,0);
     torso.rotation.x = damp(torso.rotation.x, motion * (.07 + running * .10) - braking + airborne * .05 + flying * .38, 16, dt);
     torso.rotation.y = Math.sin(phase) * .035 * motion;
     torso.rotation.z = Math.sin(phase) * .012 * motion;
     // Breathing is limited to the upper body so the feet never bounce at rest.
     torso.scale.y = 1 + breathing * .002;
-    const hipHeight = 12 * PX + pelvis.position.y;
+    const hipHeight = legHeight * PX + pelvis.position.y;
     for (const [side, offset, sign] of [['right', 0, -1], ['left', Math.PI, 1]]) {
       hips[side].position.x=damp(hips[side].position.x,sign*(.125+.045*motion),16,dt);
       hips[side].rotation.y=0;hips[side].rotation.z=sign*.12*motion*(1-airborne);knees[side].rotation.y=knees[side].rotation.z=0;
@@ -329,7 +346,7 @@ export async function createAvatar(url) {
       for (const side of ['right', 'left']) {
         const a = hips[side].rotation.x;
         const b = a + knees[side].rotation.x;
-        const sole = hipHeight - 6 * PX * (Math.cos(a) + Math.cos(b)) - 2 * PX * Math.abs(Math.sin(b));
+        const sole = hipHeight - legHalf * PX * (Math.cos(a) + Math.cos(b)) - 2 * PX * Math.abs(Math.sin(b));
         lowestSole = Math.min(lowestSole, sole);
       }
       if (lowestSole < 0) pelvis.position.y -= lowestSole;
@@ -356,11 +373,11 @@ export async function createAvatar(url) {
     if (punchCharge > .001) {
       const pose=sampleCharge(punchCharge,elapsed),w=pose.weight;
       for(const side of ['right','left']){const sign=side==='left'?1:-1;gestureJoint(shoulders[side],...pose[side+'Shoulder'],w);gestureJoint(elbows[side],...pose[side+'Elbow'],w);gestureJoint(hips[side],pose.hip,0,sign*pose.spread,w);gestureJoint(knees[side],pose.knee,0,0,w);}
-      pelvis.position.y=THREE.MathUtils.lerp(pelvis.position.y,pose.drop,w);torso.rotation.y=pose.twist*w;
+      pelvis.position.y=THREE.MathUtils.lerp(pelvis.position.y,pose.drop*motionScale,w);torso.rotation.y=pose.twist*w;
     }
     if (punchSwing > .001) {
       const pose=sampleAttack(state.attackKind||0,punchSwing),w=pose.weight;
-      pelvis.position.y=THREE.MathUtils.lerp(pelvis.position.y,pose.drop,w);pelvis.rotation.y=state.attackRushing?0:pose.spin;
+      pelvis.position.y=THREE.MathUtils.lerp(pelvis.position.y,pose.drop*motionScale,w);pelvis.rotation.y=state.attackRushing?0:pose.spin;
       torso.rotation.x=THREE.MathUtils.lerp(torso.rotation.x,pose.lean,w);torso.rotation.y=THREE.MathUtils.lerp(torso.rotation.y,pose.twist,w);
       for(const side of ['right','left'])for(const [suffix,joints] of [['Shoulder',shoulders],['Elbow',elbows],['Hip',hips],['Knee',knees]]){if(state.attackRushing&&(suffix==='Hip'||suffix==='Knee'))continue;gestureJoint(joints[side],...pose[side+suffix],w);}
       if(!state.attackRushing)for(const side of ['right','left'])hips[side].rotation.z+=(side==='left'?1:-1)*(pose.spread||.12)*w;
@@ -383,7 +400,7 @@ export async function createAvatar(url) {
     }
     sitWeight=damp(sitWeight,state.seated?1:0,12,dt);
     if(sitWeight>.001){
-      pelvis.position.y=THREE.MathUtils.lerp(pelvis.position.y,-.34,sitWeight);
+      pelvis.position.y=THREE.MathUtils.lerp(pelvis.position.y,-.34*motionScale,sitWeight);
       torso.rotation.x=THREE.MathUtils.lerp(torso.rotation.x,.04,sitWeight);
       for(const side of ['left','right']){
         gestureJoint(hips[side],-Math.PI/2,0,0,sitWeight);
@@ -398,7 +415,7 @@ export async function createAvatar(url) {
     }
     // Keep the supporting foot planted after the combat pose has been blended.
     if(grounded&&airborne<.02&&sitWeight<.01&&ragdollWeight<.01){
-      let sole=Infinity;for(const side of ['right','left']){const a=hips[side].rotation.x,b=a+knees[side].rotation.x,z=hips[side].rotation.z;const y=.75+pelvis.position.y-(.375*Math.cos(a)+.375*Math.cos(b))*Math.cos(z)-.125*Math.abs(Math.sin(b));sole=Math.min(sole,y);}
+      let sole=Infinity;for(const side of ['right','left']){const a=hips[side].rotation.x,b=a+knees[side].rotation.x,z=hips[side].rotation.z;const y=legHeight*PX+pelvis.position.y-(legHalf*PX*Math.cos(a)+legHalf*PX*Math.cos(b))*Math.cos(z)-.125*Math.abs(Math.sin(b));sole=Math.min(sole,y);}
       if(sole<0)pelvis.position.y-=sole;
     }
     if(state.ragdoll&&grounded){root.updateMatrixWorld(true);let lowest=Infinity;for(const mesh of meshes){const b=mesh.geometry.boundingBox;for(let corner=0;corner<8;corner++){groundProbe.set(corner&1?b.max.x:b.min.x,corner&2?b.max.y:b.min.y,corner&4?b.max.z:b.min.z).applyMatrix4(mesh.matrixWorld);lowest=Math.min(lowest,groundProbe.y);}}if(lowest<root.position.y+.015)pelvis.position.y+=root.position.y+.015-lowest;}
@@ -420,6 +437,10 @@ export async function createAvatar(url) {
 
   return {
     root, update, dispose, head, setAppearance,
+    eyeHeight:custom?(custom.headBottom+parts.head.size[1]*.5)*PX:1.68,
+    focusHeight:custom?(custom.headBottom+parts.head.size[1]*.25)*PX:1.24,
+    seatOffset:legHeight*PX-.34*motionScale,
+    collisionShape:custom?{height:custom.totalHeight*PX+.05,width:parts.head.size[0]*PX/2+.03,depth:parts.head.size[2]*PX/2+.03}:null,
     joints: { pelvis, torso, head, shoulders, elbows, hips, knees },
     dimensions: { height: 2, eyeHeight: 1.79, armWidth: 3 * PX, armDepth: 4 * PX },
     diagnostics: { model: 'slim', textureSize: image.width, meshes: meshes.length, materialCount: 2, textureCount: 1 },

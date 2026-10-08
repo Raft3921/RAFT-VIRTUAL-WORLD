@@ -30,7 +30,7 @@ export class Room extends DurableObject {
     super(ctx, env);
     this.roomContext=ctx;
     this.players = new Map();
-    this.scores={};this.ready=ctx.blockConcurrencyWhile(async()=>{this.scores=await ctx.storage.get('scores')||{};const settings=await ctx.storage.get('settings')||{},characters=await ctx.storage.get('characters')||{},houses=await ctx.storage.get('houses')||{};this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.storage.put('scores',s),settings,s=>ctx.storage.put('settings',s),characters,s=>ctx.storage.put('characters',s),houses,s=>ctx.storage.put('houses',s));});
+    this.scores={};this.ready=ctx.blockConcurrencyWhile(async()=>{this.scores=await ctx.storage.get('scores')||{};const settings=await ctx.storage.get('settings')||{},characters=await ctx.storage.get('characters')||{},houses=await ctx.storage.get('houses')||{};this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.storage.put('scores',s),settings,s=>ctx.storage.put('settings',s),characters,s=>ctx.storage.put('characters',s),houses,s=>ctx.storage.put('houses',s),promise=>ctx.waitUntil(promise));});
   }
 
   async fetch(request) {
@@ -58,7 +58,7 @@ export class Room extends DurableObject {
     this.players.set(server, { player, lastStateAt: 0 });
 
     this.roomContext.waitUntil(this.rules.characters.pending);
-    server.send(json({ type: 'joined', version:SYNC_VERSION, houses:this.rules.houses.snapshots(), characters:this.rules.characters.snapshots(), self: player, players: [...this.players.values()].map(entry => entry.player).filter(other => other.id !== id) }));
+    server.send(json({ type: 'joined', version:SYNC_VERSION, projectiles:this.rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:this.rules.houses.snapshots(), characters:this.rules.characters.snapshots(), self: player, players: [...this.players.values()].map(entry => entry.player).filter(other => other.id !== id) }));
     this.broadcast({ type: 'player-joined', player }, server);
     server.send(json(this.rules.snapshot()));
     server.addEventListener('message', event => this.receive(server, event.data));

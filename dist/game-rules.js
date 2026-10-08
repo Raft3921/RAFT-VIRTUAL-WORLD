@@ -1,9 +1,11 @@
 import { ARENA,insideArena } from './world-layout.js';
 import { ATTACKS } from './combat-motion.js';
 import { CharacterStore,cleanCharacter } from './character-store.js';
-import { GUEST_SKIN,playableSkin } from './player-types.js';
+import { GYOZA_SKIN,GUEST_SKIN,playableSkin } from './player-types.js';
 import { HousingStore } from './housing-store.js';
-export const SYNC_VERSION='2026-10-08-home-guest-6';
+import {BROWN_PROJECTILE,projectileAt,segmentBox,projectileWallFraction} from './projectile-motion.js';
+import {hitShape} from './hit-reaction.js';
+export const SYNC_VERSION='2026-10-08-gyoza-7';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||Math.abs(s.x)>1300||Math.abs(s.z)>1300||s.y<0||s.y>512)return null;
@@ -31,12 +33,13 @@ export function applyPlayerState(player,state){
   state.hitSerial=serial;state.crownEnabled=player.crownEnabled;Object.assign(player,state);
 }
 export class GameRules{
-  constructor(players,broadcast,scores={},save=()=>{},settings={},saveSettings=()=>{},characters={},saveCharacters=()=>{},houses={},saveHouses=()=>{}){
+  constructor(players,broadcast,scores={},save=()=>{},settings={},saveSettings=()=>{},characters={},saveCharacters=()=>{},houses={},saveHouses=()=>{},onAsyncWork=()=>{}){
     this.players=players;this.broadcast=broadcast;this.scores=scores;this.save=save;this.ready=new Map();this.duel=null;this.cooldowns=new Map();this.backdrop='GB';
     settings=settings&&typeof settings==='object'?settings:{};
     const goal=Number(settings.goalDamage);this.settings={...settings,goalDamage:Number.isInteger(goal)&&goal>=1&&goal<=100?goal:11};this.saveSettings=saveSettings;this.settingsQueue=Promise.resolve();
     this.characters=new CharacterStore(characters,scores,saveCharacters,(skin,record)=>this.broadcastCharacter(skin,record),()=>this.broadcast({type:'character-save-error',message:'キャラクターの状態をサーバーに保存できませんでした。'}));
     this.houses=new HousingStore(houses,saveHouses,broadcast);
+    this.projectiles=[];this.projectileTimer=null;this.projectileSequence=0;this.onAsyncWork=onAsyncWork;this.projectileFlight=null;this.finishFlight=null;
   }
   entries(){return [...this.players.values()];}
   character(skin,profile,enabled=false){return skin===GUEST_SKIN?cleanCharacter():this.characters.get(skin,profile,enabled);}
@@ -61,7 +64,7 @@ export class GameRules{
     return this.settingsQueue;
   }
   cancel(){if(this.duel){this.duel=null;this.ready.clear();this.broadcast({type:'duel-cancel',reason:'プレイヤーが闘技場から離れたため終了しました'});}}
-  removed(id){this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();}
+  removed(id){this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
   state(entry){
     const p=entry.player;if(!this.duel?.ids.includes(p.id))return;
     p.flight=false;p.seated=false;
@@ -73,6 +76,49 @@ export class GameRules{
     this.ready.set(p.id,now);const other=entrants.find(q=>q.id!==p.id);
     if(now-(this.ready.get(other.id)||0)<=1000){this.duel={ids:[p.id,other.id],damage:{[p.id]:0,[other.id]:0},goalDamage:this.settings.goalDamage,startedAt:now};this.ready.clear();this.broadcast({type:'duel-start',...this.duel});}
     else this.broadcast({type:'duel-ready',id:p.id});return true;
+  }
+  endProjectile(projectile,reason,position){this.broadcast({type:'projectile-impact',id:projectile.id,owner:projectile.owner,reason,position});}
+  stopProjectileTimer(){if(this.projectiles.length||!this.projectileTimer)return;clearInterval(this.projectileTimer);this.projectileTimer=null;this.finishFlight?.();this.finishFlight=null;this.projectileFlight=null;}
+  throwBrown(entry,message,now){
+    const p=entry.player,serial=Number(message.serial??p.attackSerial);
+    if(p.ragdoll||!Number.isInteger(serial)||serial<0||serial<=(entry.lastBrownSerial??-1)||this.projectiles.length>=32)return;
+    entry.lastBrownSerial=serial;const vx=Math.sin(p.yaw)*BROWN_PROJECTILE.speed,vz=Math.cos(p.yaw)*BROWN_PROJECTILE.speed;
+    const projectile={id:'brown-'+(++this.projectileSequence)+'-'+now,owner:p.id,serial,x:p.x+vx/BROWN_PROJECTILE.speed*.65,y:p.y+.9,z:p.z+vz/BROWN_PROJECTILE.speed*.65,vx,vy:BROWN_PROJECTILE.up,vz,born:now,match:this.duel?.ids.includes(p.id)?this.duel.startedAt:null};
+    projectile.previous={x:projectile.x,y:projectile.y,z:projectile.z};this.projectiles.push(projectile);
+    this.broadcast({type:'projectile-spawn',projectile:{id:projectile.id,owner:p.id,serial,x:projectile.x,y:projectile.y,z:projectile.z,vx,vy:projectile.vy,vz,born:now}});
+    if(!this.projectileTimer){this.projectileFlight=new Promise(resolve=>{this.finishFlight=resolve;});this.projectileTimer=setInterval(()=>this.stepProjectiles(Date.now()),33);}
+    return this.projectileFlight;
+  }
+  stepProjectiles(now){
+    const remaining=[],players=this.entries().map(e=>e.player),layouts=this.houses.snapshots();
+    for(const projectile of this.projectiles){
+      const p=players.find(p=>p.id===projectile.owner),point=projectileAt(projectile,now);
+      const currentMatch=p&&this.duel?.ids.includes(p.id)?this.duel.startedAt:null;
+      if(!p||projectile.match!==currentMatch){this.endProjectile(projectile,'cancel',point);continue;}
+      let first=projectileWallFraction(projectile.previous,point,layouts),reason=first===null?null:'wall',victim=null;
+      if(projectile.match!==null&&Math.hypot(point.x-ARENA.x,point.y-.24,point.z-ARENA.z)>ARENA.radius-.35){first=0;reason='wall';}
+      for(const q of players){
+        if(q.id===p.id||this.duel?.ids.includes(q.id)&&!this.duel.ids.includes(p.id)||projectile.match!==null&&!this.duel?.ids.includes(q.id))continue;
+        const shape=q.ragdoll?hitShape({phase:q.hitPhase,recovery:q.hitRecovery},q.yaw):null,height=Math.min(shape?.height||1.9,q.skin===GYOZA_SKIN?1.42:1.9),offset=shape?.offset||0;
+        const fraction=segmentBox(projectile.previous,point,{x:q.x-Math.sin(q.yaw)*offset,y:q.y+height/2,z:q.z-Math.cos(q.yaw)*offset,w:q.skin===GYOZA_SKIN?1.18:shape?shape.width*2:.64,h:height,d:shape?shape.depth*2:.64,yaw:q.yaw},BROWN_PROJECTILE.radius);
+        if(fraction!==null&&(first===null||fraction<first)){first=fraction;victim=q;reason='hit';}
+      }
+      if(first!==null){const position={x:projectile.previous.x+(point.x-projectile.previous.x)*first,y:projectile.previous.y+(point.y-projectile.previous.y)*first,z:projectile.previous.z+(point.z-projectile.previous.z)*first};this.endProjectile(projectile,reason,position);if(victim){const pending=this.hit(p,victim,BROWN_PROJECTILE.damage,now,{projectile});if(pending?.then)this.onAsyncWork(pending);}continue;}
+      if(now-projectile.born>=BROWN_PROJECTILE.life*1000){this.endProjectile(projectile,'expired',point);continue;}
+      projectile.previous=point;remaining.push(projectile);
+    }
+    this.projectiles=remaining;this.stopProjectileTimer();
+  }
+  hit(p,q,level,now,{projectile=null,held=0}={}){
+    const dx=projectile?.vx??q.x-p.x,dz=projectile?.vz??q.z-p.z,d=Math.hypot(dx,dz)||1,range=held<1?8:level*100;
+    const fighting=this.duel?.ids.includes(p.id)&&this.duel.ids.includes(q.id);
+    const speed=projectile?13:Math.min(fighting?18+level*2.2:84,Math.sqrt(range*18/Math.sin(48*Math.PI/180)));
+    const velocity={x:dx/d*speed*Math.cos(24*Math.PI/180),y:Math.min(30,speed*Math.sin(24*Math.PI/180)),z:dz/d*speed*Math.cos(24*Math.PI/180)},freeze=.12+(level-1)*.018;
+    p.impactUntil=q.impactUntil=now+freeze*1000;if(!projectile)p.attackProgress=ATTACKS[p.attackKind||0].impact;p.vx=p.vy=p.vz=p.speed=0;
+    q.hitSerial=(q.hitSerial||0)+1;q.ragdoll=true;q.hitPhase='impact';q.hitTime=0;q.hitDownTime=0;q.hitRecovery=0;q.hitStrength=Math.min(1,speed/65);q.yaw=Math.atan2(-velocity.x,-velocity.z);q.vx=q.vy=q.vz=0;
+    this.broadcast({type:'punch',target:q.id,attacker:p.id,velocity,freeze,hitSerial:q.hitSerial,strength:q.hitStrength,targetPosition:{x:q.x,y:q.y,z:q.z},attackerPosition:{x:p.x,y:p.y,z:p.z},damage:fighting?level:0,projectile:!!projectile});
+    if(!fighting)return;this.duel.damage[q.id]+=level;this.broadcast({type:'duel-damage',...this.duel});if(this.duel.damage[q.id]<this.duel.goalDamage)return;
+    const saved=this.characters.result(p.skin,q.skin);this.broadcast({type:'duel-result',winner:p.id,loser:q.id,practice:p.guest||q.guest,scores:{[p.id]:p.score,[q.id]:q.score}});this.duel=null;this.ready.clear();return saved;
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
@@ -91,7 +137,9 @@ export class GameRules{
     if(m.type==='ready'){this.prepare(p,now);return;}
     if(m.type!=='swing'||now-(this.cooldowns.get(p.id)||0)<260)return;
     this.cooldowns.set(p.id,now);
-    if(this.prepare(p,now))return;
+    const throwing=p.skin===GYOZA_SKIN&&Number(m.held)<1&&Number(m.kind??p.attackKind)===3;
+    if(this.prepare(p,now)){if(throwing)this.broadcast({type:'projectile-cancel',owner:p.id,serial:m.serial});return;}
+    if(throwing)return this.throwBrown(entry,m,now);
     const level=clamp(Math.floor(Number(m.held)||0)+1,1,10);
     const facing={x:Math.sin(p.yaw),z:Math.cos(p.yaw)};
     const targets=this.entries().map(e=>e.player).filter(q=>{
@@ -101,23 +149,6 @@ export class GameRules{
       return d<=3.6&&Math.abs(q.y-p.y)<2.2&&(m.target||dx*facing.x+dz*facing.z>.1)&&(!this.duel?.ids.includes(p.id)||this.duel.ids.includes(q.id));
     }).sort((a,b)=>Math.hypot(a.x-p.x,a.z-p.z)-Math.hypot(b.x-p.x,b.z-p.z));
     const q=targets[0];if(!q)return;
-    const d=Math.hypot(q.x-p.x,q.z-p.z)||1,range=Number(m.held)<1?8:level*100;
-    const fighting=this.duel?.ids.includes(p.id)&&this.duel.ids.includes(q.id);
-    const speed=Math.min(fighting?18+level*2.2:84,Math.sqrt(range*18/Math.sin(48*Math.PI/180)));
-    const velocity={x:(q.x-p.x)/d*speed*Math.cos(24*Math.PI/180),y:Math.min(30,speed*Math.sin(24*Math.PI/180)),z:(q.z-p.z)/d*speed*Math.cos(24*Math.PI/180)};
-    const freeze=.12+(level-1)*.018;
-    p.impactUntil=q.impactUntil=now+freeze*1000;
-    p.attackProgress=ATTACKS[p.attackKind||0].impact;
-    p.vx=p.vy=p.vz=p.speed=0;
-    q.hitSerial=(q.hitSerial||0)+1;q.ragdoll=true;q.hitPhase='impact';q.hitTime=0;q.hitDownTime=0;q.hitRecovery=0;q.hitStrength=Math.min(1,speed/65);q.yaw=Math.atan2(-velocity.x,-velocity.z);q.vx=q.vy=q.vz=0;
-    this.broadcast({type:'punch',target:q.id,attacker:p.id,velocity,freeze,hitSerial:q.hitSerial,strength:q.hitStrength,targetPosition:{x:q.x,y:q.y,z:q.z},attackerPosition:{x:p.x,y:p.y,z:p.z},damage:fighting?level:0});
-    if(!fighting)return;
-    this.duel.damage[q.id]+=level;
-    this.broadcast({type:'duel-damage',...this.duel});
-    if(this.duel.damage[q.id]<this.duel.goalDamage)return;
-    const saved=this.characters.result(p.skin,q.skin);
-    this.broadcast({type:'duel-result',winner:p.id,loser:q.id,practice:p.guest||q.guest,scores:{[p.id]:p.score,[q.id]:q.score}});
-    this.duel=null;this.ready.clear();
-    return saved;
+    return this.hit(p,q,level,now,{held:Number(m.held)});
   }
 }

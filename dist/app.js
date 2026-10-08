@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js';
+import { createAvatar } from './avatar.js?v=20261008-gyoza7';
 import { createEnvironment } from './environment.js';
 import { createWorld } from './world.js?v=20261008-home3';
 import { ARENA,insideArena } from './world-layout.js';
@@ -7,8 +7,9 @@ import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
-import { SYNC_VERSION } from './game-rules.js?v=20261008-guest6';
-import {GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
+import { createBrownProjectiles } from './brown-projectiles.js';
+import { SYNC_VERSION } from './game-rules.js?v=20261008-gyoza7';
+import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
 import { createHousingRenderer } from './housing-renderer.js?v=20261008-home3';
 // Versioned URL prevents a previously cached editor module from blocking startup.
@@ -19,20 +20,28 @@ const clamp = THREE.MathUtils.clamp;
 const angleDelta = (a,b) => Math.atan2(Math.sin(b-a),Math.cos(b-a));
 const safeRead = key => {try{return localStorage.getItem(key)}catch{return null}};
 const safeSave = (key,value) => {try{localStorage.setItem(key,value);return true}catch{return false}};
-const skinDefs = [['ウィーク','week.png'],['もろん','moron.png'],['やんさん','やんさん.png'],['ラフト','raft.png'],['ムート','muto.png'],['まい','maiのコピー.png'],['たぬつな','1000001207.png'],['近日公開',null],['ゲスト',null]];
+const skinDefs = [['ウィーク','week.png'],['もろん','moron.png'],['やんさん','やんさん.png'],['ラフト','raft.png'],['ムート','muto.png'],['まい','maiのコピー.png'],['たぬつな','1000001207.png'],['ギョーザ','gyoza'],['ゲスト',null]];
+let gyozaModelPromise=null;
+async function playerAvatar(index,url=skinURL(index)){
+  if(index!==GYOZA_SKIN)return createAvatar(url);
+  gyozaModelPromise??=fetch(new URL('./models/gyoza/gyoza.jem?v=20261008',import.meta.url)).then(response=>{if(!response.ok)throw new Error('ギョーザのモデルを読み込めませんでした');return response.json();});
+  return createAvatar(url,{model:await gyozaModelPromise});
+}
+function actorShape(actor,hit=null,yaw=0){const own=actor.collisionShape;if(!hit)return own?{...own,yaw:actor.root.rotation.y}:null;const shape=hitShape(hit,yaw);return own?{...shape,width:Math.max(shape.width,own.width),height:Math.min(shape.height,own.height)}:shape;}
 let whiteSkinURL='';
 function skinURL(index){
+  if(index===GYOZA_SKIN)return new URL('./models/gyoza/texture.png?v=20261008',import.meta.url).href;
   if(index!==GUEST_SKIN)return 'skins/'+skinDefs[index][1];
   if(!whiteSkinURL){const image=document.createElement('canvas');image.width=image.height=64;const ctx=image.getContext('2d');ctx.fillStyle='#ffffff';for(const [x,y,w,h]of [[0,0,32,16],[16,16,24,16],[40,16,14,16],[32,48,14,16],[0,16,16,16],[16,48,16,16]])ctx.fillRect(x,y,w,h);whiteSkinURL=image.toDataURL('image/png');}
   return whiteSkinURL;
 }
-const castOrder=[3,5,6,2,4,1,0];
+const castOrder=[3,5,6,2,4,1,0,GYOZA_SKIN];
 const initialCharacter=Number(shareSource().get('c')??safeRead('raft-studio-character')??3);
 let selected=playableSkin(initialCharacter), inStudio=false, clean=false;
 let guestState=cleanCharacter();
-let characterCache={};try{const saved=JSON.parse(safeRead('raft-character-state')||'{}');for(let skin=0;skin<7;skin++)if(saved?.[skin])characterCache[skin]=cleanCharacter(saved[skin]);}catch{}
+let characterCache={};try{const saved=JSON.parse(safeRead('raft-character-state')||'{}');for(let skin=0;skin<8;skin++)if(saved?.[skin])characterCache[skin]=cleanCharacter(saved[skin]);}catch{}
 if(selected!==GUEST_SKIN&&!characterCache[selected])characterCache[selected]=cleanCharacter({crownEnabled:safeRead('raft-crown')==='true'});
-let pendingCrown={};try{const pending=JSON.parse(safeRead('raft-character-crown-pending')||'{}');for(let skin=0;skin<7;skin++)if(typeof pending?.[skin]==='boolean')pendingCrown[skin]=pending[skin];}catch{}
+let pendingCrown={};try{const pending=JSON.parse(safeRead('raft-character-crown-pending')||'{}');for(let skin=0;skin<8;skin++)if(typeof pending?.[skin]==='boolean')pendingCrown[skin]=pending[skin];}catch{}
 let touch = matchMedia('(pointer:coarse)').matches;
 let cameraMode='follow',yaw=0,pitch=-.14,lobbyYaw=.35;
 let distance=5.5,fov=55,smoothing=.14,flySpeed=4,moveSpeed=2.8,gesture='none',showCast=false;
@@ -112,7 +121,7 @@ matchMedia('(pointer:coarse)').addEventListener('change',e=>mobileUI(e.matches))
 function clearInput(){keys.clear();queuedAttack=null;chainRemaining=0;targetLock=null;attackRushing=false;if(pendingAttack)pendingAttack.targetId=null;stick.x=stick.y=0;stickId=lookId=null;jumpRequested=false;flightAscend=flightDescend=false;cancelCharge();$('stickKnob').style.transform='';clearTimeout(cleanTimer)}
 function punchLevel(time){return clamp(Math.floor(Math.max(0,time)*10/PUNCH.maxCharge)+1,1,10)}
 function punchDistance(time){return time<1?PUNCH.tapRange:punchLevel(time)*(PUNCH.maxRange/10)}
-function updateChargeHud(){const hud=$('chargeHud');if(!hud)return;const active=charging||punchSwing>0;hud.hidden=!inStudio||paused()||!active&&chargeTime<=0;const t=charging?chargeTime:0;const level=punchLevel(t);hud.dataset.level=String(level);hud.style.setProperty('--charge',String(clamp(t/PUNCH.maxCharge,0,1)));hud.style.setProperty('--charge-color',level>=8?'#ff7048':level>=4?'#ffd45e':'#9ce889');$('chargeFill').style.width=`${clamp(t/PUNCH.maxCharge,0,1)*100}%`;$('chargeLabel').textContent=charging?`溜め ${level} · ${ATTACKS[chargeAttack(level)].name}`:ATTACKS[attackKind].name;if(charging&&level!==chargeLevelShown)chargeLevelShown=level}
+function updateChargeHud(){const hud=$('chargeHud');if(!hud)return;const active=charging||punchSwing>0;hud.hidden=!inStudio||paused()||!active&&chargeTime<=0;const t=charging?chargeTime:0;const level=punchLevel(t);hud.dataset.level=String(level);hud.style.setProperty('--charge',String(clamp(t/PUNCH.maxCharge,0,1)));hud.style.setProperty('--charge-color',level>=8?'#ff7048':level>=4?'#ffd45e':'#9ce889');$('chargeFill').style.width=`${clamp(t/PUNCH.maxCharge,0,1)*100}%`;$('chargeLabel').textContent=charging?`溜め ${level} · ${ATTACKS[chargeAttack(level)].name}`:(selected===GYOZA_SKIN&&attackKind===3?'回転投げ · 2ダメージ':ATTACKS[attackKind].name);if(charging&&level!==chargeLevelShown)chargeLevelShown=level}
 function cancelCharge(){charging=false;chargeTime=0;chargeLevelShown=-1;updateChargeHud()}
 function updateJumpButton(){$('jumpBtn').textContent=airWalk?'✈':'↑';$('jumpBtn').setAttribute('aria-label',airWalk?'飛行中。連続2回タップで解除':'ジャンプ。連続2回タップで飛行');$('flightControls').hidden=!airWalk&&cameraMode!=='free'}
 function requestJump(){
@@ -163,7 +172,12 @@ function applyPunch(held,targetId=null){
   const facing=new THREE.Vector3(Math.sin(attackYaw),0,Math.cos(attackYaw));
   const origin=p.position.clone();origin.y+=1.05;
   const board=!targetId&&world?.boardHit(origin,facing);if(board){openWorldMenu(board);return;}
-  if(roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify({type:'swing',target:targetId?.startsWith('cast:')?null:targetId,held:held*10/PUNCH.maxCharge}));
+  const throwing=selected===GYOZA_SKIN&&held<1&&attackKind===3;
+  if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId){
+    if(throwing)brownProjectiles.launch(p.position,attackYaw,{predicted:true,owner:roomSelfId,serial:attackSerial});
+    roomSocket.send(JSON.stringify({type:'swing',target:targetId?.startsWith('cast:')?null:targetId,held:held*10/PUNCH.maxCharge,kind:attackKind,serial:attackSerial}));
+  }else if(throwing)brownProjectiles.launch(p.position,attackYaw);
+  if(throwing)return;
   const aimedTarget=attackTarget(targetId);
   if(aimedTarget){const aimed=aimedTarget.clone().sub(origin);aimed.y=0;if(aimed.lengthSq()>.001)facing.copy(aimed.normalize())}
   for(let i=0;i<actors.length;i++){
@@ -211,12 +225,11 @@ function stopCourse(){if(!athleticActive||duelActive)return;if(athleticCheckpoin
 function placeActors(){courseAwaitingSave=false;athleticActive=false;athleticCheckpoint=null;seated=false;seat=null;standingOn=null;localImpact=null;localRagdoll=false;localHit=null;restoreHitCamera=null;localImpulse.set(0,0,0);actors.forEach((a,i)=>{if(a){if(i===selected){a.root.position.set(0,0,0);a.root.rotation.set(0,0,0)}else{const angle=i*2.399+.4,radius=3.4+(i%3)*.85;a.root.position.set(Math.sin(angle)*radius,0,Math.cos(angle)*radius+1.2);a.root.rotation.set(0,Math.atan2(-a.root.position.x,-a.root.position.z),0)}}if(a&&world)a.root.position.y=world.floorAt(a.root.position,.5).y;bodies[i].vel.set(0,0,0);bodies[i].grounded=true;bodies[i].ragdoll=false;bodies[i].hit=null;bodies[i].travelRemaining=0});velocity.set(0,0,0);verticalSpeed=0;grounded=true;airWalk=false;lastJumpTapAt=-Infinity;updateJumpButton();cancelCharge();punchSwing=0;pendingAttack=null;queuedAttack=null;comboIndex=0;attackRushing=false;chainRemaining=0;targetLock=null}
 function enterStudio(){if(!actors[selected])return;const query=shareSource();inStudio=true;showCast=false;$('showCast').checked=false;document.body.dataset.screen='studio';$('lobby').hidden=true;$('hud').hidden=false;placeActors();focus.set(0,1.25,0);const sharedYaw=Number(query.get('yaw')),sharedPitch=Number(query.get('pitch'));yaw=query.has('yaw')&&Number.isFinite(sharedYaw)?angleDelta(0,sharedYaw):0;pitch=query.has('pitch')&&Number.isFinite(sharedPitch)?clamp(sharedPitch,-1.15,1.1):-.14;setCameraMode(query.get('cam')||'follow');updateVisibility();canvas.focus();notify(touch?'左スティックで移動。パンチを長押しで溜め':'ドラッグで視点 / 右下の✊を長押しで溜めパンチ',3500);connectRoom();scheduleShare()}
 function returnLobby(){leaveRoom();if(selected===GUEST_SKIN)guestState=cleanCharacter();unlocked();setClean(false);inStudio=false;document.body.dataset.screen='lobby';$('hud').hidden=true;$('lobby').hidden=false;$('menu').hidden=$('master').hidden=$('worldMenu').hidden=true;gesture='none';$('gesture').value='idle';placeActors();updateSelection();updateVisibility();$('enter').focus()}
-function makeFace(url,el){const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=c.height=32;c.className='face';c.setAttribute('aria-hidden','true');const q=c.getContext('2d');q.imageSmoothingEnabled=false;const s=img.width/64;q.drawImage(img,8*s,8*s,8*s,8*s,0,0,32,32);q.drawImage(img,40*s,8*s,8*s,8*s,0,0,32,32);el.replaceChildren(c)};img.src=url}
+function makeFace(url,el){const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=c.height=32;c.className='face';c.setAttribute('aria-hidden','true');const q=c.getContext('2d');q.imageSmoothingEnabled=false;const s=img.width/64;if(url.includes('models/gyoza/')){q.drawImage(img,8*s,8*s,18*s,9*s,0,8,32,16);q.drawImage(img,20*s,55*s,18*s,9*s,0,8,32,16);}else{q.drawImage(img,8*s,8*s,8*s,8*s,0,0,32,32);q.drawImage(img,40*s,8*s,8*s,8*s,0,0,32,32);}el.replaceChildren(c)};img.src=url}
 const faces=[],characterButtons=[];
-castOrder.forEach(i=>{const [name,file]=skinDefs[i],b=document.createElement('button');b.className='character';b.dataset.index=i;b.setAttribute('aria-label',name+' を選択');b.setAttribute('aria-pressed',String(i===selected));const holder=document.createElement('span');holder.className='face';holder.textContent='＋';faces[i]=holder;characterButtons[i]=b;const label=document.createElement('span');label.textContent=name;b.append(holder,label);b.onclick=()=>setSelected(i);$('characters').append(b);$('actorSelect').add(new Option(name,String(i)));if(file)makeFace('skins/'+file,holder)});
-const secret=document.createElement('button');secret.className='character secret-character';secret.disabled=true;secret.textContent='🔒 近日公開';secret.setAttribute('aria-label','シークレット・近日公開');$('characters').append(secret);
+castOrder.forEach(i=>{const [name,file]=skinDefs[i],b=document.createElement('button');b.className='character';b.dataset.index=i;b.setAttribute('aria-label',name+' を選択');b.setAttribute('aria-pressed',String(i===selected));const holder=document.createElement('span');holder.className='face';holder.textContent='＋';faces[i]=holder;characterButtons[i]=b;const label=document.createElement('span');label.textContent=name;b.append(holder,label);b.onclick=()=>setSelected(i);$('characters').append(b);$('actorSelect').add(new Option(name,String(i)));if(file)makeFace(skinURL(i),holder)});
 const guestButton=document.createElement('button');guestButton.className='character guest-character';guestButton.dataset.index=String(GUEST_SKIN);guestButton.setAttribute('aria-label','ゲスト · 保存データを変更しない白いキャラクター');const guestFace=document.createElement('span');guestFace.className='face';const guestLabel=document.createElement('span');guestLabel.textContent='ゲスト';guestButton.append(guestFace,guestLabel);guestButton.onclick=()=>setSelected(GUEST_SKIN);$('characters').append(guestButton);faces[GUEST_SKIN]=guestFace;characterButtons[GUEST_SKIN]=guestButton;$('actorSelect').add(new Option('ゲスト（保存なし）',String(GUEST_SKIN)));makeFace(skinURL(GUEST_SKIN),guestFace);
-async function replaceSkin(i,url){const actor=await createAvatar(url);const old=actors[i];if(old){actor.root.position.copy(old.root.position);actor.root.rotation.copy(old.root.rotation);scene.remove(old.root);old.dispose()}actors[i]=actor;const appearance=cachedCharacter(i);actor.setAppearance(appearance.score,appearance.crownEnabled);scene.add(actor.root);makeFace(url,faces[i]);updateSelection();updateVisibility()}
+async function replaceSkin(i,url){const actor=await playerAvatar(i,url);const old=actors[i];if(old){actor.root.position.copy(old.root.position);actor.root.rotation.copy(old.root.rotation);scene.remove(old.root);old.dispose()}actors[i]=actor;const appearance=cachedCharacter(i);actor.setAppearance(appearance.score,appearance.crownEnabled);scene.add(actor.root);makeFace(url,faces[i]);updateSelection();updateVisibility()}
 $('enter').onclick=enterStudio;$('resume').onclick=()=>{$('menu').hidden=true;clearInput();canvas.focus()};$('changeCharacter').onclick=$('masterCharacter').onclick=returnLobby;
 $('openMaster').onclick=openMaster;$('closeMaster').onclick=()=>{$('master').hidden=true;clearInput();canvas.focus()};$('cleanView').onclick=$('cleanMaster').onclick=enterClean;
 $('studioBoard').onclick=()=>openWorldMenu();$('closeWorldMenu').onclick=closeWorldMenu;
@@ -256,7 +269,8 @@ punchBtn.onpointerdown=e=>{e.preventDefault();punchBtn.setPointerCapture(e.point
 addEventListener('keydown',e=>{if(housingEditor?.key(e))return;if(e.code==='F1'){e.preventDefault();if(!e.repeat)openMaster();return}if(e.code==='Escape'){e.preventDefault();if(clean){setClean(false);unlocked()}else if(!$('worldMenu').hidden){closeWorldMenu()}else if(!$('master').hidden){$('master').hidden=true;unlocked();canvas.focus()}else if(!$('menu').hidden){$('menu').hidden=true;clearInput();canvas.focus()}else if(inStudio)openMenu();return}if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(e.code==='KeyH'&&inStudio&&!e.repeat){e.preventDefault();if(clean)setClean(false);else enterClean();return}if(!inStudio||paused())return;if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight'].includes(e.code)){e.preventDefault();keys.add(e.code)}});
 addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',clearInput);document.addEventListener('visibilitychange',()=>{clearInput();lastTime=0});
 function updateRoomStatus(message){$('roomStatus').textContent=message}
-function clearRemoteActors(){remoteActors.forEach(entry=>entry.actor.dispose());remoteActors.clear();remoteLoading.clear()}
+const brownProjectiles=createBrownProjectiles(scene,{world:()=>world,targets:()=>actors.flatMap((actor,index)=>actor&&index!==selected&&actor.root.visible?[{index,position:actor.root.position,height:actor.collisionShape?.height||1.9}]:[]),onLocalHit:(index,shot)=>{const body=bodies[index];body.vel.set(shot.vx*.8,4,shot.vz*.8);body.ragdoll=true;body.hit=createHit(.2);body.grounded=false;body.inArena=insideArena(actors[index].root.position);actors[index].root.rotation.y=Math.atan2(-shot.vx,-shot.vz);},onImpact:position=>{particleOrigin.set(position.x,position.y,position.z);emitParticles(particleOrigin,'#ad7844',10,2,5);}});
+function clearRemoteActors(){remoteActors.forEach(entry=>entry.actor.dispose());remoteActors.clear();remoteLoading.clear();brownProjectiles.clear()}
 function removeRemotePlayer(id){remoteLoading.delete(id);const entry=remoteActors.get(id);if(entry){entry.actor.dispose();remoteActors.delete(id)}}
 function updateRemotePlayer(player){
   if(!player?.id||player.id===roomSelfId||!roomSocket)return;
@@ -266,7 +280,7 @@ function updateRemotePlayer(player){
   if(remoteLoading.has(player.id)){remoteLoading.set(player.id,player);return}
   remoteLoading.set(player.id,player);
   const loadingSocket=roomSocket,index=playableSkin(player.skin);
-  createAvatar(skinURL(index)).then(actor=>{
+  playerAvatar(index).then(actor=>{
     const latest=remoteLoading.get(player.id);
     if(!latest||roomSocket!==loadingSocket){actor.dispose();return}
     remoteLoading.delete(player.id);actor.root.position.set(latest.x,latest.y,latest.z);actor.root.rotation.y=latest.yaw;scene.add(actor.root);
@@ -277,10 +291,13 @@ function updateRemotePlayer(player){
 }
 function handleRoomMessage(socket,event){
   let message;try{message=JSON.parse(event.data)}catch{return}
+  if(message.type==='projectile-spawn'){brownProjectiles.spawn(message.projectile);return;}
+  if(message.type==='projectile-impact'){brownProjectiles.finish(message);return;}
+  if(message.type==='projectile-cancel'){brownProjectiles.cancelPrediction(message.owner,message.serial);return;}
   if(message.type==='guest-denied'){if(message.id===roomSelfId)notify(message.message);return;}
   if(message.type==='house-state'){housingEditor?.receive(message);return;}
   if(message.type==='world'){world?.setBackdrop(message.backdrop);if(Number.isInteger(message.goalDamage)){goalDamage=message.goalDamage;updateDuelSettings();}if(message.duel)receiveDuel(message.duel);return;}
-  if(message.type==='character-state'){const skin=Number(message.skin);if(Number.isInteger(skin)&&skin>=0&&skin<7){receiveCharacter(skin,message.character);for(const remote of remoteActors.values())if(remote.skin===skin){remote.crownEnabled=message.character.crownEnabled;remote.actor.setAppearance(message.character.score,remote.crownEnabled);}}return;}
+  if(message.type==='character-state'){const skin=Number(message.skin);if(Number.isInteger(skin)&&skin>=0&&skin<8){receiveCharacter(skin,message.character);for(const remote of remoteActors.values())if(remote.skin===skin){remote.crownEnabled=message.character.crownEnabled;remote.actor.setAppearance(message.character.score,remote.crownEnabled);}}return;}
   if(message.type==='character-save-error'){notify(message.message,8000);return;}
   if(message.type==='character-select-rejected'&&message.id===roomSelfId){selected=message.skin;crownScore=cachedCharacter().score;crownEnabled=cachedCharacter().crownEnabled;updateSelection();updateVisibility();updateCrown();notify(message.reason||'試合・被弾中はキャラクターを変更できません');return;}
   if(message.type==='settings-saved'){goalDamage=message.goalDamage;updateDuelSettings();$('saveDuelGoal').disabled=selected===GUEST_SKIN;notify(`次の試合：${goalDamage}ダメージ · サーバーに保存しました`);return;}
@@ -314,6 +331,7 @@ function handleRoomMessage(socket,event){
     if(message.version!==SYNC_VERSION){roomFailure='ページと同期サーバーの版が一致しません';notify('ページと同期サーバーの版が違います。サーバーを更新・再起動し、ページを再読み込みしてください。',12000);roomSocket?.close(1000,'update server');updateRoomStatus(roomFailure);return;}
     roomSelfId=message.self.id;localHitSerial=message.self.hitSerial||0;
     housingEditor?.hydrate(message.houses);
+    for(const projectile of message.projectiles||[])brownProjectiles.spawn(projectile);
     for(const [skin,record]of Object.entries(message.characters||{}))receiveCharacter(Number(skin),record);receiveCharacter(selected,message.self);
     const own=actors[selected]?.root;if(own){own.position.set(message.self.x,message.self.y,message.self.z);own.rotation.y=message.self.yaw}
     if(athleticActive&&courseAwaitingSave){athleticCheckpoint=world.athletic.checkpoints[cachedCharacter().checkpoint-1];respawnCourse();}courseAwaitingSave=false;
@@ -378,7 +396,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
           const q=attackTarget(targetLock);if(attacking&&q){const dx=q.x-p.position.x,dz=q.z-p.position.z,d=Math.hypot(dx,dz);attackYaw=Math.atan2(dx,dz);p.rotation.y+=angleDelta(p.rotation.y,attackYaw)*(1-Math.exp(-dt*24));if(attackRushing&&d>1.95){const rush=Math.min(athleticActive?moveSpeed*1.65:18,Math.max(0,(d-1.85)/dt*.7));velocity.set(dx/d*rush,0,dz/d*rush);}else velocity.set(0,0,0);if(attackRushing&&grounded&&q.y-p.position.y>1.0){verticalSpeed=athleticActive?7.95:7.3;grounded=false;standingOn=null;}}
         }else velocity.set(0,0,0);
         if(seated){
-          p.position.set(seat.x,seat.y-.4,seat.z);p.rotation.y=seat.yaw;verticalSpeed=0;grounded=true;
+          p.position.set(seat.x,seat.y-actors[selected].seatOffset,seat.z);p.rotation.y=seat.yaw;verticalSpeed=0;grounded=true;
         }else{
           const oldY=p.position.y;
           if(standingOn&&grounded&&!standingOn.disabled){p.position.x+=standingOn.deltaX||0;p.position.y+=standingOn.deltaY||0;p.position.z+=standingOn.deltaZ||0;}
@@ -387,11 +405,11 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
           const dash=ATTACKS[attackKind].dash||0;if(!targetLock&&punchSwing>.08&&punchSwing<.60&&dash&&!localRagdoll){const forward=Math.min(dash,athleticActive?moveSpeed*1.65:6)*Math.sin((punchSwing-.08)/.52*Math.PI);velocity.x=Math.sin(attackYaw)*forward+movement.x*.25;velocity.z=Math.cos(attackYaw)*forward+movement.z*.25;}
           if(airWalk){
             verticalSpeed=((flightAscend||keys.has('Space')?1:0)-(flightDescend||keys.has('ShiftLeft')||keys.has('ShiftRight')?1:0))*moveSpeed*2.4;
-            physicsVelocity.set(velocity.x,verticalSpeed,velocity.z);world.move(p.position,physicsVelocity,dt,{lockedInArena:duelActive});p.position.y=clamp(p.position.y,0,510);grounded=false;
+            physicsVelocity.set(velocity.x,verticalSpeed,velocity.z);world.move(p.position,physicsVelocity,dt,{lockedInArena:duelActive,shape:actorShape(actors[selected])});p.position.y=clamp(p.position.y,0,510);grounded=false;
           }else{
             if(localRagdoll){localImpulse.y-=PUNCH.gravity*dt;physicsVelocity.copy(localImpulse);}
             else{verticalSpeed-=15*dt;physicsVelocity.set(velocity.x,verticalSpeed,velocity.z);}
-            const result=world.move(p.position,physicsVelocity,dt,{ragdoll:localRagdoll,insideArena:knockbackInArena,lockedInArena:duelActive,shape:localRagdoll?hitShape(localHit,p.rotation.y):null});
+            const result=world.move(p.position,physicsVelocity,dt,{ragdoll:localRagdoll,insideArena:knockbackInArena,lockedInArena:duelActive,shape:actorShape(actors[selected],localRagdoll?localHit:null,p.rotation.y)});
             grounded=result.grounded;standingOn=result.body;verticalSpeed=physicsVelocity.y;
             if(localRagdoll){
               localImpulse.copy(physicsVelocity);
@@ -399,7 +417,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
             }
             if(!localRagdoll&&time>seatCooldown){
               const found=world.seatAt(p.position,oldY,verticalSpeed);
-              if(found){seated=true;seat=found;velocity.set(0,0,0);p.position.set(seat.x,seat.y-.4,seat.z);notify('着席 · ジャンプで立つ');}
+              if(found){seated=true;seat=found;velocity.set(0,0,0);p.position.set(seat.x,seat.y-actors[selected].seatOffset,seat.z);notify('着席 · ジャンプで立つ');}
             }
           }
           speed=velocity.length();
@@ -416,7 +434,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
           const body=bodies[i];if(!body.ragdoll)continue;
           if(body.impact)continue;
           body.vel.y-=18*dt;
-          const result=world.move(actors[i].root.position,body.vel,dt,{ragdoll:true,insideArena:body.inArena,shape:hitShape(body.hit,actors[i].root.rotation.y)});
+          const result=world.move(actors[i].root.position,body.vel,dt,{ragdoll:true,insideArena:body.inArena,shape:actorShape(actors[i],body.hit,actors[i].root.rotation.y)});
           body.grounded=result.grounded;const event=stepHit(body.hit,dt,body.grounded,body.vel);if(event==='spring')body.grounded=false;else if(event==='done'){body.ragdoll=false;body.hit=null;}
         }
       }
@@ -429,8 +447,8 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
     }else{
       if(camera.fov!==fov){camera.fov=fov;camera.updateProjectionMatrix()}
       if(cameraMode==='free'){camera.position.copy(freePosition);direction.set(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));target.copy(camera.position).add(direction);camera.lookAt(target)}
-      else if(cameraMode==='first'){camera.position.copy(p.position);camera.position.y+=1.68;direction.set(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));target.copy(camera.position).add(direction);camera.lookAt(target)}
-      else{target.copy(cameraMode==='orbit'?orbitTarget:p.position);if(cameraMode!=='orbit'){const prone=proneWeight(localHit);target.y+=1.24-prone*.85;target.x-=Math.sin(p.rotation.y)*prone*.7;target.z-=Math.cos(p.rotation.y)*prone*.7;}focus.lerp(target,smoothing<=.001?1:1-Math.exp(-dt/(localRagdoll?Math.min(.055,smoothing):smoothing)));focus.copy(world.cameraPosition(target,focus,.12));const d=distance*(camera.aspect<.8?1.12:1);desired.set(-Math.sin(yaw)*Math.cos(pitch)*d,-Math.sin(pitch)*d,-Math.cos(yaw)*Math.cos(pitch)*d).add(focus);desired.y=Math.max(.2,desired.y);camera.position.copy(world.cameraPosition(focus,desired));camera.lookAt(focus)}
+      else if(cameraMode==='first'){camera.position.copy(p.position);camera.position.y+=actors[selected].eyeHeight;direction.set(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));target.copy(camera.position).add(direction);camera.lookAt(target)}
+      else{target.copy(cameraMode==='orbit'?orbitTarget:p.position);if(cameraMode!=='orbit'){const prone=proneWeight(localHit);target.y+=actors[selected].focusHeight-prone*.85;target.x-=Math.sin(p.rotation.y)*prone*.7;target.z-=Math.cos(p.rotation.y)*prone*.7;}focus.lerp(target,smoothing<=.001?1:1-Math.exp(-dt/(localRagdoll?Math.min(.055,smoothing):smoothing)));focus.copy(world.cameraPosition(target,focus,.12));const d=distance*(camera.aspect<.8?1.12:1);desired.set(-Math.sin(yaw)*Math.cos(pitch)*d,-Math.sin(pitch)*d,-Math.cos(yaw)*Math.cos(pitch)*d).add(focus);desired.y=Math.max(.2,desired.y);camera.position.copy(world.cameraPosition(focus,desired));camera.lookAt(focus)}
     }
   }
   if(roomSocket?.readyState===WebSocket.OPEN&&p&&inStudio&&now-lastRoomStateAt>=33){lastRoomStateAt=now;roomSocket.send(JSON.stringify({type:'state',state:{x:p.position.x,y:p.position.y,z:p.position.z,yaw:p.rotation.y,headYaw:clamp(angleDelta(p.rotation.y,yaw),-.95,.95),headPitch:clamp(-pitch,-.65,.7),vx:localImpact?0:localRagdoll?localImpulse.x:velocity.x,vy:localImpact?0:localRagdoll?localImpulse.y:verticalSpeed,vz:localImpact?0:localRagdoll?localImpulse.z:velocity.z,skin:playableSkin(selected),gesture,speed:velocity.length(),grounded,verticalSpeed,flight:airWalk,ragdoll:localRagdoll,seated,crownEnabled,hitSerial:localHitSerial,hitPhase:localHit?.phase||'none',hitTime:localHit?.elapsed||0,hitDownTime:localHit?.downTime||0,hitRecovery:localHit?.recovery||0,hitStrength:localHit?.strength||0,punchCharge:charging?chargeTime/PUNCH.maxCharge:0,attackDuration,attackRushing,attackKind,attackProgress:punchSwing,attackStrength,attackSerial}}))}
@@ -450,7 +468,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
   });
   const locked=attackTarget(targetLock),showLock=locked&&p&&inStudio&&!clean&&performance.now()-lastComboAt<3000;lockMarker.visible=!!showLock;if(showLock){lockMarker.position.copy(locked).y+=.04;const index=targetLock.startsWith('cast:')?Number(targetLock.slice(5)):remoteActors.get(targetLock)?.skin;$('targetHud').textContent='LOCK ON · '+(skinDefs[index]?.[0]||'PLAYER')+' · '+p.position.distanceTo(locked).toFixed(1)+'m';}$('targetHud').hidden=!showLock;
   if(p&&inStudio)combatEffects.attack(actors[selected],attackKind,localRagdoll?0:punchSwing,attackSerial,attackStrength,attackRushing,dt);
-  combatEffects.update(dt);updateParticles(dt);updateShockwaves(dt);world.cull(camera.position);housingView?.cull(camera.position,touch);environment.update(time,inStudio?(cameraMode==='free'?camera.position:p?.position||focus):focus.set(0,0,0));renderer.render(scene,camera);
+  combatEffects.update(dt);brownProjectiles.update();updateParticles(dt);updateShockwaves(dt);world.cull(camera.position);housingView?.cull(camera.position,touch);environment.update(time,inStudio?(cameraMode==='free'?camera.position:p?.position||focus):focus.set(0,0,0));renderer.render(scene,camera);
   if(now-metricsAt>=1000){fps=fpsFrames*1000/Math.max(1,now-metricsAt);fpsFrames=0;metricsAt=now;$('performance').textContent=`${Math.round(fps)} fps · ${activeQuality==='high'?'高画質':activeQuality==='medium'?'標準':'軽量'} · 描画 ${renderer.info.render.calls} 回`;if(qualityChoice==='auto'&&fps<34){slowSeconds++;if(slowSeconds>=5&&activeQuality!=='low'){quality(activeQuality==='high'?'medium':'low');slowSeconds=0}}else slowSeconds=0;
     canvas.dataset.telemetry=JSON.stringify({selected,screen:inStudio?'studio':'lobby',touch,clean,cameraMode,athleticActive,checkpoint:athleticCheckpoint?.id,seated,duelActive,duelDamage,hitPhase:localHit?.phase||'none',hitRecovery:localHit?.recovery||0,attackRushing,targetLock,chainRemaining,attackKind,attackProgress:punchSwing,attackSerial,attackStrength,crownScore,crownEnabled,position:p?.position.toArray(),bodyYaw:p?.rotation.y,yaw,pitch,speed,grounded,camera:camera.position.toArray(),room:roomCode,roomPlayers:roomSelfId?remoteActors.size+1:remoteActors.size,remotePositions:[...remoteActors.values()].map(remote=>remote.target.toArray()),fps:Math.round(fps),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,quality:activeQuality});
   }
@@ -489,7 +507,7 @@ async function start(){try{
     onClose(){if(houseCameraState){const saved=houseCameraState;houseCameraState=null;setCameraMode(saved.mode);yaw=saved.yaw;pitch=saved.pitch;distance=saved.distance;if(saved.mode==='free')freePosition.copy(saved.free);}clearInput();canvas.focus();}
   });
   let loadedCount=0;const skinFailures=[];
-  const skinLoads=skinDefs.map(async([name,file],i)=>{if(i===7)return;await replaceSkin(i,skinURL(i))}).map((load,i)=>load.catch(error=>{skinFailures.push({index:i,error})}).finally(()=>{if(i!==7)loadedCount++;if(!actors[selected])$('selectedName').textContent=`スキン読込 ${loadedCount}/8`}));
+  const skinLoads=skinDefs.map(async([name,file],i)=>{await replaceSkin(i,skinURL(i))}).map((load,i)=>load.catch(error=>{skinFailures.push({index:i,error})}).finally(()=>{loadedCount++;if(!actors[selected])$('selectedName').textContent=`スキン読込 ${loadedCount}/9`}));
   const firstReady=Promise.any(skinLoads.map((load,index)=>load.then(()=>actors[index]?index:Promise.reject(new Error('No avatar')))));
   const preferredReady=skinLoads[selected].then(()=>actors[selected]?selected:firstReady,()=>firstReady);
   const readyIndex=await Promise.race([preferredReady,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Skin loading timed out')),10000))]);

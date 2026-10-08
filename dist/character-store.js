@@ -1,4 +1,4 @@
-export const characterIndex=value=>Number.isInteger(Number(value))&&Number(value)>=0&&Number(value)<7?Number(value):null;
+export const characterIndex=value=>Number.isInteger(Number(value))&&Number(value)>=0&&Number(value)<8?Number(value):null;
 export function cleanCharacter(value={}){
   const score=Number(value?.score),checkpoint=Number(value?.checkpoint);
   return {score:Number.isFinite(score)?Math.max(-10000,Math.min(10000,Math.trunc(score))):0,crownEnabled:value?.crownEnabled===true,checkpoint:Number.isInteger(checkpoint)?Math.max(1,Math.min(100,checkpoint)):1};
@@ -9,7 +9,7 @@ export function cleanCharacter(value={}){
 export class CharacterStore{
   constructor(data,legacyScores,save,onChange,onError){
     this.data={version:1,characters:{},migratedProfiles:{...(data?.migratedProfiles||{})}};
-    for(let skin=0;skin<7;skin++)if(data?.characters?.[skin])this.data.characters[skin]=cleanCharacter(data.characters[skin]);
+    for(let skin=0;skin<8;skin++)if(data?.characters?.[skin])this.data.characters[skin]=cleanCharacter(data.characters[skin]);
     this.legacyScores=legacyScores||{};this.save=save;this.onChange=onChange;this.onError=onError;this.pending=Promise.resolve();
   }
   get(skin,profile,initialEnabled=false){
@@ -23,7 +23,7 @@ export class CharacterStore{
     }
     return {...this.data.characters[skin]};
   }
-  snapshots(){const result={};for(let skin=0;skin<7;skin++)result[skin]=cleanCharacter(this.data.characters[skin]);return result;}
+  snapshots(){const result={};for(let skin=0;skin<8;skin++)result[skin]=cleanCharacter(this.data.characters[skin]);return result;}
   change(skin,patch,persist=true){
     if(characterIndex(skin)===null)return this.pending;
     const previous=this.get(skin),next=cleanCharacter({...previous,...patch});

@@ -1,5 +1,5 @@
 export const GRID=.25,MAX_FURNITURE=64,ROOM={x:7.4,z:6.9,height:5.25,floor:.245};
-export const OWNER_SKINS=[3,5,6,2,4,1,0,null];
+export const OWNER_SKINS=[3,5,6,2,4,1,0,7];
 export const HOUSE_COLORS=['#d84a42','#52a96d','#48b8d4','#e88a38','#87929a','#9a70c5','#e4c84d','#9a6748'];
 export const FURNITURE_COLORS=[...HOUSE_COLORS,'#f4eee2','#354353','#bd9166','#8fbac9'];
 export const HOUSES=OWNER_SKINS.map((owner,index)=>({index,owner,x:-39+(index%4)*26,z:index<4?45:80,front:index<4?1:-1,color:HOUSE_COLORS[index]}));

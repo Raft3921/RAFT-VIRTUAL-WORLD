@@ -9,7 +9,8 @@ const lampFill=STREET_LAMPS.map(([x,z])=>`raftLamp=max(raftLamp,pow(max(0.0,1.0-
 const MAX_LIGHTS=12,fixtures=new Map(),lampPositions={value:Array.from({length:MAX_LIGHTS},()=>new THREE.Vector4())},lampRooms={value:Array.from({length:MAX_LIGHTS},()=>new THREE.Vector2())};
 const lampFamilies=new Set(['lamp','sconce','pendant','chandelier','fan','ceiling-light','light-bar']);
 const sourceTransform=new THREE.Object3D(),sourcePoint=new THREE.Vector3(),lastView=new THREE.Vector3(Infinity,Infinity,Infinity);
-let lightsDirty=true,lastLightUpdate=-Infinity;
+let lightsDirty=true,lastLightUpdate=-Infinity;const disabledFixtures=new Set();
+export function setFurnitureEnabled(index,id,enabled){const key=index+':'+id;if(enabled)disabledFixtures.delete(key);else disabledFixtures.add(key);lightsDirty=true;}
 export function setHouseLighting(index,layout){
   const home=HOUSES[index];if(!home)return;
   const sources=[];
@@ -27,7 +28,7 @@ export function setHouseLighting(index,layout){
 export function updateFurnitureLighting(camera,time){
   if(!lightsDirty&&(time-lastLightUpdate<.2||lastView.distanceToSquared(camera)<1))return;
   lastView.copy(camera);lastLightUpdate=time;lightsDirty=false;
-  const nearby=[...fixtures.values()].flat().filter(l=>Math.hypot(l.x-camera.x,l.y-camera.y,l.z-camera.z)<35).sort((a,b)=>(a.x-camera.x)**2+(a.y-camera.y)**2+(a.z-camera.z)**2-((b.x-camera.x)**2+(b.y-camera.y)**2+(b.z-camera.z)**2)).slice(0,MAX_LIGHTS);
+  const nearby=[...fixtures.values()].flat().filter(l=>!disabledFixtures.has(l.home.index+':'+l.id)&&Math.hypot(l.x-camera.x,l.y-camera.y,l.z-camera.z)<35).sort((a,b)=>(a.x-camera.x)**2+(a.y-camera.y)**2+(a.z-camera.z)**2-((b.x-camera.x)**2+(b.y-camera.y)**2+(b.z-camera.z)**2)).slice(0,MAX_LIGHTS);
   for(let i=0;i<MAX_LIGHTS;i++){const l=nearby[i];lampPositions.value[i].set(l?.x||0,l?.y||0,l?.z||0,l?.range||0);lampRooms.value[i].set(l?.home.x||0,l?.home.z||0);}
 }
 

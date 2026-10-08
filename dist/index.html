@@ -8,9 +8,9 @@
 <link rel="stylesheet" href="studio.css">
 <link rel="stylesheet" href="room.css">
 <link rel="stylesheet" href="world.css">
-<link rel="stylesheet" href="pixel.css?v=20261008-furniture18">
+<link rel="stylesheet" href="pixel.css?v=20261008-play20">
 <script defer src="ui-guard.js?v=20261008-ui11"></script>
-<script type="importmap">{"imports":{"./furniture-catalogue.js":"./furniture-catalogue.js?v=20261008-furniture18","./furniture-shapes.js":"./furniture-shapes.js?v=20261008-furniture18","./local-lighting.js":"./local-lighting.js?v=20261008-furniture18","three":"./vendor/three.module.js","./world-clock.js":"./world-clock.js?v=20261008-day13","./environment.js":"./environment.js?v=20261008-fixture15","./district.js":"./district.js?v=20261008-fixture15","./furniture-effects.js":"./furniture-effects.js?v=20261008-day13","./record-audio.js":"./record-audio.js?v=20261008-day13","./combat-policy.js":"./combat-policy.js?v=20261008-day13","./combat-motion.js":"./combat-motion.js?v=20261008-day13","./hit-reaction.js":"./hit-reaction.js?v=20261008-day13","./player-types.js":"./player-types.js?v=20261008-day13","./character-store.js":"./character-store.js?v=20261008-record19","./housing-data.js":"./housing-data.js?v=20261008-record19","./housing-mirror.js":"./housing-mirror.js?v=20261008-furniture18","./furniture-models.js":"./furniture-models.js?v=20261008-furniture18","./housing-store.js":"./housing-store.js?v=20261008-day13","./game-rules.js":"./game-rules.js?v=20261008-record19"}}</script>
+<script type="importmap">{"imports":{"./furniture-catalogue.js":"./furniture-catalogue.js?v=20261008-furniture18","./furniture-shapes.js":"./furniture-shapes.js?v=20261008-play20","./furniture-actions.js":"./furniture-actions.js?v=20261008-play20","./furniture-geometry.js":"./furniture-geometry.js?v=20261008-play20","./world-guide.js":"./world-guide.js?v=20261008-play20","./local-lighting.js":"./local-lighting.js?v=20261008-play20","three":"./vendor/three.module.js","./world-clock.js":"./world-clock.js?v=20261008-day13","./environment.js":"./environment.js?v=20261008-fixture15","./district.js":"./district.js?v=20261008-fixture15","./furniture-effects.js":"./furniture-effects.js?v=20261008-play20","./record-audio.js":"./record-audio.js?v=20261008-day13","./combat-policy.js":"./combat-policy.js?v=20261008-day13","./combat-motion.js":"./combat-motion.js?v=20261008-day13","./hit-reaction.js":"./hit-reaction.js?v=20261008-day13","./player-types.js":"./player-types.js?v=20261008-day13","./character-store.js":"./character-store.js?v=20261008-record19","./housing-data.js":"./housing-data.js?v=20261008-record19","./housing-mirror.js":"./housing-mirror.js?v=20261008-furniture18","./furniture-models.js":"./furniture-models.js?v=20261008-play20","./housing-store.js":"./housing-store.js?v=20261008-day13","./game-rules.js":"./game-rules.js?v=20261008-play20"}}</script>
 </head>
 <body data-screen="lobby">
 <canvas id="scene" aria-label="3D草原スタジオ" tabindex="0"></canvas>
@@ -82,6 +82,7 @@
   <p class="help">ボードをパンチして開く · 自由・周回カメラは1秒以内に5回クリックで操作に戻る（パンチボタンのタップも可）</p>
   <button id="boardSession">キャラクター・撮影表示・オンライン設定</button>
   <button id="boardMaster">マスターモード（カメラ・草原・プレイヤー）</button>
+  <button id="boardGuide">ワールドガイドを開く</button>
   <label>スタジオ背景</label><div class="button-pair"><button data-bg="GB">GB</button><button data-bg="RB">RB</button><button data-bg="BB">BB</button></div>
   <button id="crownToggle">王冠・ハゲ表現：OFF</button>
   <p id="duelRecord" class="help">0勝 0敗 · 勝率 --（今後の試合から集計）</p>
@@ -97,6 +98,11 @@
   <p id="worldStatus" class="help">闘技場：2人がほぼ同時にパンチすると開始</p>
 </aside>
 <div id="toast" role="status" aria-live="polite" hidden></div>
+<button id="guidePrompt" class="home-edit-prompt" hidden>ガイドを開く <small>操作方法・各ゾーンの遊び方</small></button>
+<aside id="worldGuide" class="world-guide surface" role="dialog" aria-modal="true" aria-labelledby="worldGuideTitle" hidden>
+  <div class="panel-title"><div><span class="eyebrow">WORLD GUIDE</span><h2 id="worldGuideTitle">ワールドガイド</h2></div><button id="closeWorldGuide" class="icon-button" aria-label="ガイドを閉じる">×</button></div>
+  <div class="world-guide-layout"><nav id="guideSections" role="tablist" aria-label="ガイドの項目"></nav><section class="world-guide-reading" role="tabpanel" aria-labelledby="guideSectionTitle"><h3 id="guideSectionTitle"></h3><div id="guideContent"></div></section></div>
+</aside>
 <button id="homeEditPrompt" class="home-edit-prompt" hidden>⌂ 自分の家を編集 <small>玄関のHOMEボードをタップでも開けます</small></button>
 <div id="housePlacementHUD" class="house-placement-hud" hidden><strong id="housePlacementLabel"></strong><small id="housePlacementCoords"></small></div>
 <aside id="houseEditor" class="house-editor surface" aria-label="家のカスタマイズ" hidden>
@@ -129,6 +135,6 @@
   <p id="houseSaveStatus" class="house-save-status" role="status">サーバーに保存済み</p>
   </footer>
 </aside>
-<script type="module" src="app.js?v=20261008-record19"></script>
+<script type="module" src="app.js?v=20261008-play20"></script>
 </body>
 </html>

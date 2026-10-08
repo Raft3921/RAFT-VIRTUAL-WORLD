@@ -8,7 +8,7 @@ export function expandedParts(f,paint,box,motion,parts){
   const face=(shape,x,y,z,w,h,d,c=paint,mirror=false)=>{for(let i=0;i<9;i++){const a=(i+.5)/9*2-1;let width=w;if(['round','oval'].includes(shape))width*=Math.sqrt(1-a*a);else if(shape==='hex')width*=1-Math.abs(a)*.4;else if(shape==='arch'&&a>0)width*=Math.sqrt(1-a*a);B(x,y+a*h/2,z,width,h/9,d,c);if(mirror&&i===4)Object.assign(parts[parts.length-1],{mirror:true,portalHeight:9});}};
   const fourLegs=(top=.88,c=WOOD)=>{for(const x of [-.4,.4])for(const z of [-.37,.37])B(x,top/2,z,.07,top,.07,c);};
   const shelf=(rows=4,columns=1)=>{B(0,.5,-.46,1,1,.07,WOOD);for(const x of [-.46,.46])B(x,.5,0,.08,1,1,WOOD);for(let i=0;i<=rows;i++)B(0,i/rows,0,1,.035,1,WOOD);for(let i=1;i<columns;i++)B(-.5+i/columns,.5,0,.04,1,1,WOOD);};
-  const screen=(x=0,y=.7,z=0,w=.9,h=.5)=>{B(x,y,z,w,h,.09,DARK);B(x,y,z+.055,w*.9,h*.82,.025,paint);B(x-w*.2,y+h*.17,z+.071,w*.4,h*.045,.009,WHITE,true);};
+  const screen=(x=0,y=.7,z=0,w=.9,h=.5)=>{B(x,y,z,w,h,.09,DARK);B(x,y,z+.055,w*.9,h*.82,.025,paint);parts[parts.length-1].role='screen';B(x-w*.2,y+h*.17,z+.071,w*.4,h*.045,.009,WHITE,true);parts[parts.length-1].role='screen';};
   const wheels=()=>{for(const x of [-.35,.35])for(const z of [-.32,.32])B(x,.06,z,.12,.12,.12,DARK);};
   const stand=()=>{B(0,.035,0,.65,.07,.6,METAL);B(0,.36,0,.05,.65,.05,METAL);};
   const flower=(x,y,z,size=.15)=>{B(x,y-.16,z,.025,.3,.025,LEAF);for(const [dx,dy]of [[-1,0],[1,0],[0,-1],[0,1]])B(x+dx*size*.5,y+dy*size*.5,z,size*.55,size*.55,.065,paint);B(x,y,z+.04,size*.35,size*.35,.025,'#e4c84d',true);};
@@ -34,8 +34,9 @@ export function expandedParts(f,paint,box,motion,parts){
       if(['pedestal','drum','laptop','tray'].includes(s)){disk(0,.06,0,.72,.12,.72,METAL);B(0,.46,0,s==='drum'?.65:.1,.8,s==='drum'?.65:.1,s==='drum'?paint:METAL);}
       else if(s==='c-side'){B(0,.05,0,.85,.1,.85,METAL);B(-.41,.48,0,.08,.86,.85,METAL);}
       else if(s==='standing'){for(const x of [-.38,.38]){B(x,.05,0,.12,.1,.95,METAL);B(x,.47,0,.1,.85,.12,METAL);}}
+      else if(s==='corner'){for(const [x,z]of [[-.39,-.39],[.32,-.39],[-.39,.32]])B(x,.45,z,.07,.9,.07,WOOD);B(-.39,.72,-.035,.065,.055,.70,WOOD);B(-.035,.72,-.39,.70,.055,.065,WOOD);}
       else if(s==='l-shape'){for(const [x,z]of [[-.4,-.4],[.4,-.4],[-.4,.4],[-.14,.4]])B(x,.45,z,.07,.9,.07,WOOD);}else fourLegs(.9,s==='glass'||s==='folding'?METAL:WOOD);
-      if(round)disk(0,top,0,1,.1,1);else if(s==='l-shape'){B(0,top,-.28,1,.1,.44);B(-.3,top,.2,.4,.1,.6);}else if(s==='corner'){for(let i=0;i<7;i++)B(-.42+i*.14,top,-.21+i*.07,.14,.1,.58-i*.085);}
+      if(round)disk(0,top,0,1,.1,1);else if(s==='l-shape'){B(0,top,-.28,1,.1,.44);B(-.3,top,.2,.4,.1,.6);}else if(s==='corner'){B(0,top,0,1,.1,1);parts[parts.length-1].shape='triangle';}
       else{B(0,top,0,1,.1,1,s==='glass'?GLASS:paint);if(s==='drafting')rotate(-.18,0,0);}
       if(s==='nest'){B(.25,.69,.22,.5,.06,.55);for(const x of [.05,.45])B(x,.34,.25,.035,.66,.4,METAL);}
       if(['writing','vanity','workbench'].includes(s)){B(-.27,.57,0,.35,.58,.83,WOOD);for(const y of [.38,.58,.78])B(-.27,y,.43,.15,.02,.02,DARK,true);}
@@ -158,7 +159,7 @@ export function expandedParts(f,paint,box,motion,parts){
       if(['acoustic','electric','bass','ukulele','violin'].includes(s)){B(0,.07,0,.8,.14,.85,METAL);B(0,.21,-.22,.04,.32,.04,METAL);disk(0,.35,0,.78,.26,.5,s==='acoustic'||s==='ukulele'?WOOD:paint);B(0,.48,0,.46,.26,.26);B(0,.73,0,.13,.45,.13,WOOD);B(0,.97,0,.24,.1,.16,paint);for(const x of [-.035,0,.035])B(x,.66,.145,.008,.55,.014,WHITE,true);if(s==='acoustic'||s==='ukulele')B(0,.38,.27,.14,.12,.035,DARK);break;}
       if(['drums','e-drums','snare'].includes(s)){for(const [x,z,y,w]of s==='snare'?[[0,0,.65,.9]]:[[-.29,-.1,.65,.34],[.22,-.1,.7,.32],[0,.28,.35,.5]]){B(x,y-.17,z,w,.3,w,paint);disk(x,y, z,w,.035,w,WHITE,5);B(x,y/2-.08,z,.025,y-.17,.025,METAL);}if(s!=='snare')for(const x of [-.42,.42]){B(x,.47,-.28,.02,.88,.025,METAL);disk(x,.9,-.28,.31,.035,.31,'#d3ac58',5);}break;}
       if(s==='harp'){B(0,.04,0,.95,.08,.8,WOOD);B(-.4,.5,0,.11,1,.13,WOOD);B(.35,.5,0,.07,1,.1,WOOD);B(0,.93,0,.85,.12,.18,WOOD);for(let j=0;j<7;j++)B(-.28+j*.085,.52,0,.008,.82,.012,WHITE);break;}
-      if(s==='keyboard'){fourLegs(.7,METAL);B(0,.81,0,1,.16,1,DARK);for(let j=0;j<12;j++)B(-.45+j*.082,.9,.12,.07,.025,.5,WHITE,true);break;}
+      if(s==='keyboard'){fourLegs(.7,METAL);B(0,.81,0,1,.16,1,DARK);for(let j=0;j<12;j++){B(-.45+j*.082,.9,.12,.07,.025,.5,WHITE,true);motion('key',{key:j,keySpan:12});}break;}
       if(s==='easel'){for(const x of [-.36,.36])B(x,.5,-.1,.055,1,.065,WOOD);B(0,.35,-.35,.05,.7,.06,WOOD);B(0,.6,0,.85,.64,.055,WOOD);B(0,.6,.04,.78,.56,.025,WHITE);B(-.12,.63,.057,.22,.12,.01,paint,true);B(0,.29,.045,1,.035,.14,WOOD);break;}
       if(s==='canvas'){B(0,.5,0,1,1,.55,WOOD);B(0,.5,.32,.94,.94,.03,WHITE);for(let j=0;j<4;j++)B(-.3+j*.2,.3+j%2*.3,.345,.14,.2,.012,paint,true);break;}
       if(s==='bike'){B(0,.07,0,.8,.14,.95,METAL);B(0,.37,0,.35,.5,.5,DARK);B(0,.74,-.26,.05,.7,.07,METAL);B(0,.95,-.26,.65,.05,.06,DARK);B(0,.61,.18,.06,.4,.07,METAL);B(0,.8,.18,.4,.08,.24,paint);break;}

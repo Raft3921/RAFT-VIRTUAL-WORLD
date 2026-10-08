@@ -1,5 +1,6 @@
 import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js';
 import {expandedParts} from './furniture-shapes.js';
+import {furnitureAction} from './furniture-actions.js';
 const WOOD='#bd9166',DARK='#354353',METAL='#87929a',WHITE='#f4eee2',LEAF='#52a96d';
 export function furnitureParts(item){
   const f=furnitureDefinition(item),paint=FURNITURE_COLORS[item.c],parts=[];
@@ -64,7 +65,15 @@ export function furnitureParts(item){
     case 'ceiling-light':box(0,.72,0,1,.56,1,METAL);box(0,.24,0,.9,.48,.9,WHITE);break;
     case 'light-bar':for(const x of [-.36,.36])box(x,.72,0,.025,.56,.025,METAL);box(0,.26,0,1,.45,1,paint);box(0,.035,0,.9,.035,.8,WHITE);break;
   }
-  const shift=f.mount==='wall'?-f.h*.44:f.mount==='ceiling'?-f.h*.88:0,light=f.light||['lamp','sconce','pendant','chandelier','fan','ceiling-light','light-bar'].includes(f.family);for(const p of parts){p.y+=shift;if(p.pivot)p.pivot[1]+=shift;if(p.detail&&f.family!=='rug'&&f.solid!==false)p.z+=.001;p.glow=light&&p.c===WHITE;}
+  const shift=f.mount==='wall'?-f.h*.44:f.mount==='ceiling'?-f.h*.88:0,light=f.light||['lamp','sconce','pendant','chandelier','fan','ceiling-light','light-bar'].includes(f.family),action=furnitureAction(f);for(const p of parts){
+    if(action.kind==='screen'&&p.d<f.d*.18&&(p.c===paint||p.c==='#8fbac9'||['vr','projector'].includes(f.design)&&p.z>f.d*.2))p.role='screen';
+    if(action.kind==='door'&&p.z>f.d*.30&&p.d<f.d*.20)p.role='door';
+    if(action.kind==='door'&&['rice','trash','recycle','trunk','suitcase'].includes(f.design)&&p.y>f.h*.72&&p.h<f.h*.18&&p.w>f.w*.4)p.role='lid';
+    if(action.kind==='curtain'&&p.h>f.h*.3&&p.c!==METAL)p.role='curtain';
+    p.y+=shift;if(p.pivot)p.pivot[1]+=shift;if(p.detail&&f.family!=='rug'&&f.solid!==false)p.z+=.001;p.glow=light&&p.c===WHITE;
+  }
+  const doors=parts.filter(p=>p.role==='door'&&p.w>f.w*.15&&p.h>f.h*.2),lids=parts.filter(p=>p.role==='lid');
+  for(const p of parts){if(p.role==='door'&&doors.length){const panel=[...doors].sort((a,b)=>Math.abs(a.x-p.x)+Math.abs(a.y-p.y)-Math.abs(b.x-p.x)-Math.abs(b.y-p.y))[0],sign=panel.x<0?-1:1;p.doorPivot=[panel.x+sign*panel.w/2,panel.y,panel.z];p.doorSign=sign;}if(p.role==='lid'){p.lidPivot=[p.x,p.y,p.z-p.d/2];}}
   // Separate remaining exposed co-planar box faces across every furniture
   // family. Do this once when building, not during animation/render updates.
   const axes=[['x','w'],['y','h'],['z','d']];
@@ -94,7 +103,8 @@ export function furnitureThumbnail(def,color=10){
   let svg='<svg viewBox="0 0 64 64" aria-hidden="true">';
   for(const p of [...parts].sort((a,b)=>a.x+a.z-b.x-b.z)){
     const x=-p.w/2,X=p.w/2,y=-p.h/2,Y=p.h/2,z=-p.d/2,Z=p.d/2;
-    svg+=poly(p,[[x,y,Z],[X,y,Z],[X,Y,Z],[x,Y,Z]])+poly(p,[[X,y,z],[X,y,Z],[X,Y,Z],[X,Y,z]])+poly(p,[[x,Y,z],[X,Y,z],[X,Y,Z],[x,Y,Z]]);
+    if(p.shape==='triangle')svg+=poly(p,[[x,y,Z],[X,y,z],[X,Y,z],[x,Y,Z]])+poly(p,[[x,Y,z],[X,Y,z],[x,Y,Z]]);
+    else svg+=poly(p,[[x,y,Z],[X,y,Z],[X,Y,Z],[x,Y,Z]])+poly(p,[[X,y,z],[X,y,Z],[X,Y,Z],[X,Y,z]])+poly(p,[[x,Y,z],[X,Y,z],[X,Y,Z],[x,Y,Z]]);
   }
   svg+='</svg>';if(thumbnailCache.size>=160)thumbnailCache.delete(thumbnailCache.keys().next().value);thumbnailCache.set(key,svg);return svg;
 }

@@ -1,21 +1,22 @@
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261008-light14';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261008-light14';
+import { createWorld } from './world.js?v=20261008-play20';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION } from './game-rules.js?v=20261008-record19';
+import { SYNC_VERSION } from './game-rules.js?v=20261008-play20';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261008-furniture18';
+import { createHousingRenderer } from './housing-renderer.js?v=20261008-play20';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261008-furniture18';
+import { createHouseEditor } from './house-editor.js?v=20261008-play20';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
-import {cleanCycle,dayPhase,clockLabel,PIANO_MELODY} from './world-clock.js';
+import {cleanCycle,dayPhase,clockLabel} from './world-clock.js';
+import {createWorldGuide} from './world-guide.js';
 
 const $ = id => document.getElementById(id);
 const clamp = THREE.MathUtils.clamp;
@@ -59,6 +60,7 @@ function requestCameraReturn(){
 let distance=5.5,fov=55,smoothing=.14,flySpeed=4,moveSpeed=2.8,gesture='none',showCast=false;
 let renderer,environment,world,requestId,lastTime=0,time=0,metricsAt=0,fpsFrames=0,fps=60;
 let housingView=null,housingEditor=null,houseCameraState=null;
+let worldGuide=null;
 let activeQuality=touch?'low':'high',qualityChoice='auto',slowSeconds=0,cleanTimer=0,pendingClean=0;
 const PUNCH={maxCharge:10,maxRange:1000,tapRange:8,reach:2.25,radius:1.2,gravity:18,angle:24*Math.PI/180};
 const canvas=$('scene'),scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(55,1,.05,2600);
@@ -99,7 +101,7 @@ function freezeImpact(duration,strength){
 }
 let crownEnabled=cachedCharacter().crownEnabled,crownScore=cachedCharacter().score,athleticCheckpoint=null,athleticActive=false,seated=false,duelActive=false,duelDamage=0;
 let courseAwaitingSave=false;
-let standingOn=null,seat=null,seatCooldown=0,sleeping=false,bed=null,pianoNote=0,knockbackInArena=false,duelIds=[],openBoard=null,athleticPeak=0;
+let standingOn=null,seat=null,seatCooldown=0,sleeping=false,bed=null,knockbackInArena=false,duelIds=[],openBoard=null,athleticPeak=0;
 let goalDamage=11,matchGoalDamage=11;
 let dayCycle=cleanCycle(),serverOffset=0,flashlightEnabled=safeRead('raft-flashlight-enabled')!=='false',flashlightPending=safeRead('raft-flashlight-pending')==='true',clockHudAt=0;
 const serverNow=()=>Date.now()+serverOffset;
@@ -195,7 +197,7 @@ function applyPunch(held,targetId=null){
   const facing=new THREE.Vector3(Math.sin(attackYaw),0,Math.cos(attackYaw));
   const origin=p.position.clone();origin.y+=1.05;
   const board=!targetId&&world?.boardHit(origin,facing);if(board){openWorldMenu(board);return;}
-  const instrument=!targetId&&housingView?.instrumentHit(origin,facing);if(instrument){const record=instrument.family==='record',message={type:record?'record-toggle':'piano-play',index:instrument.index,itemId:instrument.itemId,note:record?undefined:PIANO_MELODY[pianoNote++%PIANO_MELODY.length],serial:attackSerial};if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));else if(record)housingView.recordAudio.toggle(instrument.index,instrument.itemId);else housingView.playPiano(message,p.position);return;}
+  const instrument=!targetId&&housingView?.instrumentHit(origin,facing);if(instrument){const message={type:instrument.kind==='record'?'record-toggle':instrument.kind==='piano'?'piano-play':'furniture-hit',index:instrument.index,itemId:instrument.itemId,serial:attackSerial};if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));else housingView.interactOffline(message,p.position);return;}
   const throwing=selected===GYOZA_SKIN&&held<1&&attackKind===3;
   if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId){
     if(throwing)brownProjectiles.launch(p.position,attackYaw,{predicted:true,owner:roomSelfId,serial:attackSerial});
@@ -217,8 +219,8 @@ function applyPunch(held,targetId=null){
 
 }
 function unlocked(){if(document.pointerLockElement)document.exitPointerLock();clearInput()}
-function paused(){return !inStudio||housingEditor?.active||!$('menu').hidden||!$('master').hidden||!$('worldMenu').hidden}
-function setClean(value){const wasClean=clean;clearTimeout(pendingClean);pendingClean=0;clean=value;document.body.dataset.clean=String(value);$('menu').hidden=$('master').hidden=$('worldMenu').hidden=true;clearInput();if(wasClean&&!value)notify('操作表示に戻りました',1700)}
+function paused(){return !inStudio||housingEditor?.active||worldGuide?.active||!$('menu').hidden||!$('master').hidden||!$('worldMenu').hidden}
+function setClean(value){const wasClean=clean;clearTimeout(pendingClean);pendingClean=0;clean=value;document.body.dataset.clean=String(value);$('menu').hidden=$('master').hidden=$('worldMenu').hidden=true;worldGuide?.close(false);clearInput();if(wasClean&&!value)notify('操作表示に戻りました',1700)}
 function enterClean(){if(pendingClean){clearTimeout(pendingClean);pendingClean=0;$('toast').hidden=true;return}notify(touch?'画面を長押しすると操作表示に戻れます':'H・Escで戻る / F1でマスターモード',2200);$('menu').hidden=$('master').hidden=true;canvas.focus();pendingClean=setTimeout(()=>{pendingClean=0;if(inStudio&&$('menu').hidden&&$('master').hidden)setClean(true)},1500)}
 function openMenu(){if(housingEditor?.active)housingEditor.close();setClean(false);unlocked();$('worldMenu').hidden=true;$('master').hidden=true;$('menu').hidden=false;$('resume').focus()}
 function openMaster(){if(!inStudio)return;if(housingEditor?.active)housingEditor.close();$('worldMenu').hidden=true;const wasOpen=!$('master').hidden;setClean(false);unlocked();$('menu').hidden=true;$('master').hidden=wasOpen;if(!wasOpen)$('cameraMode').focus();else canvas.focus()}
@@ -261,6 +263,7 @@ async function replaceSkin(i,url){const actor=await playerAvatar(i,url);const ol
 $('enter').onclick=enterStudio;$('resume').onclick=()=>{$('menu').hidden=true;clearInput();canvas.focus()};$('changeCharacter').onclick=$('masterCharacter').onclick=returnLobby;
 $('openMaster').onclick=openMaster;$('closeMaster').onclick=()=>{$('master').hidden=true;clearInput();canvas.focus()};$('cleanView').onclick=$('cleanMaster').onclick=enterClean;
 $('studioBoard').onclick=()=>openWorldMenu();$('closeWorldMenu').onclick=closeWorldMenu;
+$('boardGuide').onclick=()=>worldGuide?.open();
 document.querySelectorAll('[data-bg]').forEach(button=>button.onclick=()=>{if(selected===GUEST_SKIN)return;const value=button.dataset.bg;world.setBackdrop(value);if(roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify({type:'backdrop',value}));notify(value+' 背景に切替');});
 $('crownToggle').onclick=()=>{if(selected===GUEST_SKIN)return;cacheCharacter(selected,{...cachedCharacter(),crownEnabled:!crownEnabled});pendingCrown[selected]=crownEnabled;safeSave('raft-character-crown-pending',JSON.stringify(pendingCrown));if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'crown-toggle',enabled:crownEnabled}));};
 $('saveDuelGoal').onclick=()=>{if(selected===GUEST_SKIN)return;const value=Number($('duelGoal').value);if(!Number.isInteger(value)||value<1||value>100){notify('合計ダメージは1〜100の整数にしてください');return;}if(roomSocket?.readyState!==WebSocket.OPEN||!roomSelfId){notify('設定を保存するにはサーバーに接続してください');return;}$('saveDuelGoal').disabled=true;$('duelSettingsStatus').textContent='サーバーに保存中…';roomSocket.send(JSON.stringify({type:'duel-settings',goalDamage:value}));};
@@ -296,11 +299,11 @@ document.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat&&!/INPUT|
 const punchBtn=$('punchBtn');
 punchBtn.onpointerdown=e=>{e.preventDefault();punchBtn.setPointerCapture(e.pointerId);beginCharge()};
 ['pointerup','pointercancel','lostpointercapture'].forEach(type=>punchBtn.addEventListener(type,()=>{if(cameraReturnMode()){if(type==='pointerup')requestCameraReturn();return;}launchPunch();}));
-addEventListener('keydown',e=>{if(housingEditor?.key(e))return;if(e.code==='F1'){e.preventDefault();if(!e.repeat)openMaster();return}if(e.code==='Escape'){e.preventDefault();if(clean){setClean(false);unlocked()}else if(!$('worldMenu').hidden){closeWorldMenu()}else if(!$('master').hidden){$('master').hidden=true;unlocked();canvas.focus()}else if(!$('menu').hidden){$('menu').hidden=true;clearInput();canvas.focus()}else if(inStudio)openMenu();return}if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(e.code==='KeyH'&&inStudio&&!e.repeat){e.preventDefault();if(clean)setClean(false);else enterClean();return}if(!inStudio||paused())return;if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight'].includes(e.code)){e.preventDefault();keys.add(e.code)}});
+addEventListener('keydown',e=>{if(housingEditor?.key(e))return;if(e.code==='F1'){e.preventDefault();if(!e.repeat)openMaster();return}if(e.code==='Escape'){e.preventDefault();if(worldGuide?.active){worldGuide.close()}else if(clean){setClean(false);unlocked()}else if(!$('worldMenu').hidden){closeWorldMenu()}else if(!$('master').hidden){$('master').hidden=true;unlocked();canvas.focus()}else if(!$('menu').hidden){$('menu').hidden=true;clearInput();canvas.focus()}else if(inStudio)openMenu();return}if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(e.code==='KeyH'&&inStudio&&!e.repeat){e.preventDefault();if(clean)setClean(false);else enterClean();return}if(!inStudio||paused())return;if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight'].includes(e.code)){e.preventDefault();keys.add(e.code)}});
 addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',clearInput);document.addEventListener('visibilitychange',()=>{clearInput();lastTime=0});
 function updateRoomStatus(message){$('roomStatus').textContent=message}
 const brownProjectiles=createBrownProjectiles(scene,{world:()=>world,targets:()=>actors.flatMap((actor,index)=>actor&&index!==selected&&actor.root.visible&&!protectedFromHit(bodies[index],time)?[{index,position:actor.root.position,height:actor.collisionShape?.height||1.9}]:[]),onLocalHit:(index,shot)=>{const body=bodies[index];if(protectedFromHit(body,time))return;body.vel.set(shot.vx*.8,4,shot.vz*.8);body.ragdoll=true;body.hit=createHit(.2);body.grounded=false;body.inArena=insideArena(actors[index].root.position);actors[index].root.rotation.y=Math.atan2(-shot.vx,-shot.vz);},onImpact:position=>{particleOrigin.set(position.x,position.y,position.z);emitParticles(particleOrigin,'#ad7844',10,2,5);}});
-function clearRemoteActors(){remoteActors.forEach(entry=>entry.actor.dispose());remoteActors.clear();remoteLoading.clear();brownProjectiles.clear();housingView?.recordAudio.clear()}
+function clearRemoteActors(){remoteActors.forEach(entry=>entry.actor.dispose());remoteActors.clear();remoteLoading.clear();brownProjectiles.clear();housingView?.recordAudio.clear();housingView?.hydrateFurnitureStates([])}
 function removeRemotePlayer(id){remoteLoading.delete(id);const entry=remoteActors.get(id);if(entry){entry.actor.dispose();remoteActors.delete(id)}}
 function updateRemotePlayer(player){
   if(!player?.id||player.id===roomSelfId||!roomSocket)return;
@@ -326,9 +329,10 @@ function handleRoomMessage(socket,event){
   if(message.type==='projectile-cancel'){brownProjectiles.cancelPrediction(message.owner,message.serial);return;}
   if(message.type==='guest-denied'){if(message.id===roomSelfId)notify(message.message);return;}
   if(message.type==='house-state'){housingEditor?.receive(message);return;}
-  if(message.type==='piano-play'){housingView?.playPiano(message,actors[selected]?.root.position);return;}
+  if(message.type==='piano-play'||message.type==='instrument-play'){housingView?.playInstrument(message,actors[selected]?.root.position);return;}
+  if(message.type==='furniture-event'){housingView?.receiveFurnitureEvent(message,actors[selected]?.root.position);return;}
   if(message.type==='record-state'){housingView?.recordAudio.receive(message);return;}
-  if(message.type==='world'){world?.setBackdrop(message.backdrop);if(message.cycle){dayCycle=cleanCycle(message.cycle);if(Number.isFinite(message.serverNow))serverOffset=message.serverNow-Date.now();updateClockControls();}if(message.records)housingView?.recordAudio.hydrate(message.records);if(Number.isInteger(message.goalDamage)){goalDamage=message.goalDamage;updateDuelSettings();}if(message.duel)receiveDuel(message.duel);return;}
+  if(message.type==='world'){world?.setBackdrop(message.backdrop);if(message.cycle){dayCycle=cleanCycle(message.cycle);if(Number.isFinite(message.serverNow))serverOffset=message.serverNow-Date.now();updateClockControls();}if(message.records)housingView?.recordAudio.hydrate(message.records);if(message.furnitureStates)housingView?.hydrateFurnitureStates(message.furnitureStates);if(Number.isInteger(message.goalDamage)){goalDamage=message.goalDamage;updateDuelSettings();}if(message.duel)receiveDuel(message.duel);return;}
   if(message.type==='cycle-saved'){updateClockControls();notify('昼夜設定をサーバーに保存しました');return;}
   if(message.type==='cycle-error'){updateClockControls();notify(message.message);return;}
   if(message.type==='flashlight-state'&&message.id===roomSelfId){flashlightEnabled=message.enabled;flashlightPending=false;if(selected!==GUEST_SKIN){safeSave('raft-flashlight-enabled',String(flashlightEnabled));safeSave('raft-flashlight-pending','false');}updateClockControls();return;}
@@ -402,6 +406,7 @@ bindFlightControl('flightUp','ascend');bindFlightControl('flightDown','descend')
 function resize(){if(!renderer)return;renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()};addEventListener('resize',resize);visualViewport?.addEventListener('resize',resize);
 function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFrame(tick);if(document.hidden&&!backgroundDt){lastTime=0;return}const dt=backgroundDt||(lastTime?Math.min((now-lastTime)/1000,.05):.016);lastTime=now;time+=dt;fpsFrames++;
   housingEditor?.update(dt,inStudio&&!paused()&&!localRagdoll&&!duelActive);
+  worldGuide?.update(actors[selected]?.root.position,inStudio&&!paused()&&!clean&&!localRagdoll&&!duelActive&&!athleticActive&&['follow','first'].includes(cameraMode));
   if(localImpact){localImpact.time+=dt;if(localImpact.time>=localImpact.duration){verticalSpeed=localImpact.vertical;velocity.copy(localImpact.velocity);localImpact=null;if(localHit?.phase==='impact'){localHit.phase='air';localHit.elapsed=0;grounded=false;}}}
   for(const body of bodies)if(body.impact){body.impact.time+=dt;if(body.impact.time>=body.impact.duration){body.impact=null;body.hit.phase='air';body.hit.elapsed=0;body.grounded=false;}}
   if(charging){if(!canPunch())cancelCharge();else{chargeTime=Math.min(PUNCH.maxCharge,chargeTime+dt);updateChargeHud();if(now-lastChargeEffectAt>90){lastChargeEffectAt=now;const chargingActor=actors[selected]?.root;if(chargingActor){particleOrigin.copy(chargingActor.position);particleOrigin.y+=1.42;emitParticles(particleOrigin,chargeTime>8?'#ff825c':'#ffe06a',2,.65,0)}}}}
@@ -551,6 +556,7 @@ async function start(){try{
   renderer=new THREE.WebGLRenderer({canvas,antialias:!touch,powerPreference:'high-performance'});renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   environment=createEnvironment(scene,renderer,{mobile:touch});await document.fonts.load('16px DotGothic16').catch(()=>{});world=createWorld(scene);environment.setSettings({wind:.45,grassDensity:.8,sunHeight:50,exposure:1});quality(activeQuality);
   housingView=createHousingRenderer(scene,world);
+  worldGuide=createWorldGuide({world,onOpen(){setClean(false);unlocked();punchSwing=0;pendingAttack=null;clearInput();},onClose(){clearInput();canvas.focus();},isAllowed:()=>inStudio&&!paused()&&!localRagdoll&&!duelActive});
   housingEditor=createHouseEditor({scene,camera,canvas,world,view:housingView,getSkin:()=>selected,getPlayer:()=>actors[selected]?.root.position,isConnected:()=>roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,send:message=>roomSocket.send(JSON.stringify(message)),notify,
     onOpen(){houseCameraState={mode:cameraMode,yaw,pitch,distance,free:freePosition.clone()};setClean(false);unlocked();punchSwing=0;pendingAttack=null;setCameraMode('free');},
     onClose(){if(houseCameraState){const saved=houseCameraState;houseCameraState=null;setCameraMode(saved.mode);yaw=saved.yaw;pitch=saved.pitch;distance=saved.distance;if(saved.mode==='free')freePosition.copy(saved.free);}clearInput();canvas.focus();}

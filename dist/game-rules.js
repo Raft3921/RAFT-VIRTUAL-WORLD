@@ -8,7 +8,8 @@ import {hitShape} from './hit-reaction.js';
 import {HOUSES,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js';
-export const SYNC_VERSION='2026-10-08-duel-record-19';
+import {furnitureAction} from './furniture-actions.js';
+export const SYNC_VERSION='2026-10-08-furniture-play-20';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||Math.abs(s.x)>1300||Math.abs(s.z)>1300||s.y<0||s.y>512)return null;
@@ -43,7 +44,7 @@ export class GameRules{
     this.characters=new CharacterStore(characters,scores,saveCharacters,(skin,record)=>this.broadcastCharacter(skin,record),()=>this.broadcast({type:'character-save-error',message:'キャラクターの状態をサーバーに保存できませんでした。'}));
     this.houses=new HousingStore(houses,saveHouses,broadcast);
     this.projectiles=[];this.projectileTimer=null;this.projectileSequence=0;this.onAsyncWork=onAsyncWork;this.projectileFlight=null;this.finishFlight=null;
-    this.settings.cycle=cleanCycle(settings.cycle);this.pianoSteps=new Map();this.records=new Map();
+    this.settings.cycle=cleanCycle(settings.cycle);this.pianoSteps=new Map();this.records=new Map();this.furnitureStates=new Map();this.furnitureSequence=0;
   }
   entries(){return [...this.players.values()];}
   character(skin,profile,enabled=false){return skin===GUEST_SKIN?cleanCharacter():this.characters.get(skin,profile,enabled);}
@@ -58,7 +59,7 @@ export class GameRules{
     p.skin=skin;p.guest=skin===GUEST_SKIN;Object.assign(p,this.character(skin,p.profile));if(!p.guest)this.broadcastCharacter(skin);this.broadcast({type:'state',player:p});return true;
   }
   inside(p){return insideArena(p);}
-  snapshot(){this.pruneRecords();return {type:'world',version:SYNC_VERSION,backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel,cycle:this.settings.cycle,serverNow:Date.now(),records:[...this.records.values()]};}
+  snapshot(){this.pruneRecords();return {type:'world',version:SYNC_VERSION,backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel,cycle:this.settings.cycle,serverNow:Date.now(),records:[...this.records.values()],furnitureStates:[...this.furnitureStates.values()]};}
   flashlightPreference(profile){return this.settings.flashlights?.[profile]!==false;}
   setFlashlight(p,enabled){
     if(p.guest){p.flashlightEnabled=enabled;this.broadcast({type:'flashlight-state',id:p.id,enabled});return;}
@@ -68,7 +69,7 @@ export class GameRules{
     const duration=Number(value.duration);if(typeof value.enabled!=='boolean'||!Number.isInteger(duration)||duration<60||duration>7200)return;
     this.settingsQueue=this.settingsQueue.then(async()=>{try{const now=Date.now(),phase=dayPhase(this.settings.cycle,now),cycle={enabled:value.enabled,duration,epoch:now,phase},settings={...this.settings,cycle};await this.saveSettings(settings);this.settings=settings;this.broadcast(this.snapshot());this.broadcast({type:'cycle-saved'});}catch{this.broadcast({type:'cycle-error',message:'昼夜設定をサーバーに保存できませんでした'});}});return this.settingsQueue;
   }
-  pruneRecords(){for(const [key,record]of this.records)if(!this.houses.snapshots()[record.index]?.items.some(i=>i.id===record.itemId&&FURNITURE_BY_ID.get(i.t)?.family==='record')){this.records.delete(key);this.broadcast({...record,type:'record-state',playing:false});}}
+  pruneRecords(){const homes=this.houses.snapshots(),itemAt=(index,id)=>homes[index]?.items.find(i=>i.id===id);for(const [key,record]of this.records)if(!homes[record.index]?.items.some(i=>i.id===record.itemId&&FURNITURE_BY_ID.get(i.t)?.family==='record')){this.records.delete(key);this.broadcast({...record,type:'record-state',playing:false});}for(const [key,state]of this.furnitureStates){const item=itemAt(state.index,state.itemId);if(!item||furnitureAction(FURNITURE_BY_ID.get(item.t)).kind!==state.kind)this.furnitureStates.delete(key);}for(const key of this.pianoSteps.keys()){const divider=key.indexOf(':'),index=Number(key.slice(0,divider)),id=key.slice(divider+1);if(!itemAt(index,id))this.pianoSteps.delete(key);}}
   updateSettings(value){
     const goalDamage=Number(value);if(!Number.isInteger(goalDamage)||goalDamage<1||goalDamage>100)return;
     this.settingsQueue=this.settingsQueue.then(async()=>{
@@ -148,14 +149,16 @@ export class GameRules{
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
-    if(m.type==='piano-play'||m.type==='record-toggle'){
+    if(m.type==='piano-play'||m.type==='record-toggle'||m.type==='furniture-hit'){
       if(p.ragdoll||this.duel?.ids.includes(p.id)||now-(entry.lastInstrumentAt||0)<180)return;
-      const family=m.type==='piano-play'?'piano':'record',h=HOUSES[m.index],item=this.houses.snapshots()[m.index]?.items.find(i=>i.id===m.itemId&&FURNITURE_BY_ID.get(i.t)?.family===family);if(!h||!item)return;
+      const h=HOUSES[m.index],item=this.houses.snapshots()[m.index]?.items.find(i=>i.id===m.itemId);if(!h||!item)return;
+      const definition=FURNITURE_BY_ID.get(item.t),action=furnitureAction(definition),family=action.kind;if(m.type==='piano-play'&&family!=='piano'||m.type==='record-toggle'&&family!=='record'||m.type==='furniture-hit'&&(family==='piano'||family==='record'))return;
       const pose=furniturePose(item),x=h.x+pose.x*h.front,z=h.z+pose.z*h.front,dx=x-p.x,dz=z-p.z;
-      if(Math.hypot(dx,dz)>3.8||Math.abs(p.y-ROOM.floor)>2.2||dx*Math.sin(p.yaw)+dz*Math.cos(p.yaw)<-.2)return;
+      if(Math.hypot(dx,dz)>3.8+Math.min(1,Math.max(definition.w,definition.d)*.25)||Math.abs(p.y+1.05-(ROOM.floor+pose.centerY))>2.7||dx*Math.sin(p.yaw)+dz*Math.cos(p.yaw)<-.2)return;
       entry.lastInstrumentAt=now;const key=h.index+':'+item.id;
       if(family==='record'){const playing=!this.records.has(key),record={type:'record-state',index:h.index,itemId:item.id,playing,startedAt:now};if(playing)this.records.set(key,record);else this.records.delete(key);this.broadcast(record);return;}
-      const step=this.pianoSteps.get(key)||0;this.pianoSteps.set(key,(step+1)%PIANO_MELODY.length);this.broadcast({type:'piano-play',index:h.index,itemId:item.id,note:PIANO_MELODY[step],serial:m.serial,playerId:p.id});return;
+      if(family==='piano'||family==='instrument'){const step=this.pianoSteps.get(key)||0,note=PIANO_MELODY[step%PIANO_MELODY.length];this.pianoSteps.set(key,(step+1)%PIANO_MELODY.length);this.broadcast({type:family==='piano'?'piano-play':'instrument-play',index:h.index,itemId:item.id,note,instrument:action.instrument,serial:++this.furnitureSequence,playerId:p.id});return;}
+      const previous=this.furnitureStates.get(key),enabled=action.toggle?!(previous?.enabled??action.defaultEnabled):true,event={type:'furniture-event',index:h.index,itemId:item.id,kind:family,enabled,serial:++this.furnitureSequence,playerId:p.id};if(action.toggle)this.furnitureStates.set(key,event);this.broadcast(event);return;
     }
     if(m.type==='flashlight-toggle'&&typeof m.enabled==='boolean')return this.setFlashlight(p,m.enabled);
     if(p.guest&&['housing-op','crown-toggle','checkpoint','duel-settings','backdrop','cycle-settings'].includes(m.type)){

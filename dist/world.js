@@ -296,9 +296,9 @@ export function createWorld(scene){
     return to.clone().lerp(from,1-fraction);
   }
   function cull(view){
-    for(const mesh of chunks){const sphere=mesh.boundingSphere,d=sphere.center.distanceTo(view);mesh.visible=d<115+sphere.radius;mesh.castShadow=!mesh.userData.noShadow&&mesh.visible&&d<55+sphere.radius;}
-    for(const b of boards)b.label.visible=!b.editorHidden&&Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<65;
-    for(let i=0;i<balls.length;i++){const b=balls[i],visible=Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<100;transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,worldTime,worldTime*.8);transform.scale.setScalar(visible?b.radius:0);transform.updateMatrix();ballMesh.setMatrixAt(i,transform.matrix);}ballMesh.instanceMatrix.needsUpdate=true;
+    for(const mesh of chunks){const sphere=mesh.boundingSphere,d=sphere.center.distanceTo(view);mesh.visible=d<160+sphere.radius;mesh.castShadow=!mesh.userData.noShadow&&mesh.visible&&d<55+sphere.radius;}
+    for(const b of boards)b.label.visible=!b.editorHidden&&Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<85;
+    for(let i=0;i<balls.length;i++){const b=balls[i],visible=Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<130;transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,worldTime,worldTime*.8);transform.scale.setScalar(visible?b.radius:0);transform.updateMatrix();ballMesh.setMatrixAt(i,transform.matrix);}ballMesh.instanceMatrix.needsUpdate=true;
   }
   function update(t,p,clockPhase=.5){
     worldTime=t;

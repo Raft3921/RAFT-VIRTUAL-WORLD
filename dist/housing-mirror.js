@@ -7,7 +7,7 @@ export function createHousingMirrors(scene,world){
   const planeGeometry=new THREE.PlaneGeometry(1,1),boxGeometry=new THREE.BoxGeometry(1,1,1),boardMaterial=new THREE.MeshBasicMaterial({color:'#cad9df',fog:false,toneMapped:false,side:THREE.DoubleSide}),white=new THREE.MeshBasicMaterial({color:'#ffffff',fog:false,toneMapped:false});
   const entries=new Set(),spaces=new Map(),inverse=new THREE.Matrix4(),probe=new THREE.Vector3(),point=new THREE.Vector3(),normal=new THREE.Vector3(),transform=new THREE.Object3D();
   let active=null,cooldownUntil=0;
-  function add(group,id,part){const mesh=new THREE.Mesh(planeGeometry,boardMaterial);mesh.userData.itemId=id;group.add(mesh);const entry={mesh,part,id,house:group.userData.houseIndex};entries.add(entry);return entry;}
+  function add(group,id,part){const mesh=new THREE.Mesh(planeGeometry,boardMaterial);mesh.userData.itemId=id;mesh.userData.portalHeight=part.portalHeight||1;group.add(mesh);const entry={mesh,part,id,house:group.userData.houseIndex};entries.add(entry);return entry;}
   function remove(entry){entries.delete(entry);entry.mesh.removeFromParent();}
   function createSpace(index){
     if(spaces.has(index))return spaces.get(index);
@@ -26,7 +26,7 @@ export function createHousingMirrors(scene,world){
     inverse.copy(mesh.matrixWorld).invert();
     // Check vertical body samples rather than demanding the short/small mirror
     // accommodate an entire skin, including Gyoza's wider head.
-    for(const lift of [.18,height*.5,height-.10]){probe.set(position.x,position.y+lift,position.z).applyMatrix4(inverse);if(Math.abs(probe.x)<.55&&Math.abs(probe.y)<.55)return true;}
+    for(const lift of [.18,height*.5,height-.10]){probe.set(position.x,position.y+lift,position.z).applyMatrix4(inverse);if(Math.abs(probe.x)<.55&&Math.abs(probe.y)<.55*(mesh.userData.portalHeight||1))return true;}
     return false;
   }
   function enter(entry,time){

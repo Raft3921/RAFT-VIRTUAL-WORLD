@@ -14,7 +14,7 @@ export function setHouseLighting(index,layout){
   const home=HOUSES[index];if(!home)return;
   const sources=[];
   for(const item of layout.items){
-    const f=furnitureDefinition(item);if(!lampFamilies.has(f.family))continue;
+    const f=furnitureDefinition(item);if(!f.light&&!lampFamilies.has(f.family))continue;
     const pose=furniturePose(item),parts=furnitureParts(item).filter(part=>part.glow);
     sourcePoint.set(0,0,0);
     if(parts.length){for(const part of parts)sourcePoint.add(new THREE.Vector3(part.x,part.y,part.z));sourcePoint.multiplyScalar(1/parts.length);}

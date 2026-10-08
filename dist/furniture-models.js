@@ -1,4 +1,5 @@
 import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js';
+import {expandedParts} from './furniture-shapes.js';
 const WOOD='#bd9166',DARK='#354353',METAL='#87929a',WHITE='#f4eee2',LEAF='#52a96d';
 export function furnitureParts(item){
   const f=furnitureDefinition(item),paint=FURNITURE_COLORS[item.c],parts=[];
@@ -7,7 +8,7 @@ export function furnitureParts(item){
   const inset=.88,box=(x,y,z,w,h,d,c=paint,detail=false)=>{parts.push({x:x*f.w*inset,y:y*f.h*inset,z:z*f.d*inset,w:w*f.w*inset,h:h*f.h*inset,d:d*f.d*inset,c,detail});};
   const motion=(kind,options={})=>Object.assign(parts[parts.length-1],{motion:kind,...options});
   const legs=(height=.7)=>{for(const x of [-.39,.39])for(const z of [-.36,.36])box(x,height/2,z,.075,height,.085,WOOD);};
-  switch(f.family){
+  if(f.extended)expandedParts(f,paint,box,motion,parts);else switch(f.family){
     case 'chair':legs(.43);box(0,.46,0,1,.11,1);box(0,.75,-.43,1,.5,.14);box(0,.77,-.35,.7,.17,.04,WOOD,true);break;
     case 'sofa':legs(.13);box(0,.26,0,.96,.32,.96,DARK);box(0,.48,.055,.78,.14,.79);box(0,.76,-.43,.98,.48,.14);for(const x of [-.45,.45])box(x,.57,0,.1,.42,1);box(0,.557,.14,.022,.008,.54,WHITE,true);break;
     case 'stool':legs(.85);box(0,.92,0,1,.16,1);break;
@@ -63,7 +64,7 @@ export function furnitureParts(item){
     case 'ceiling-light':box(0,.72,0,1,.56,1,METAL);box(0,.24,0,.9,.48,.9,WHITE);break;
     case 'light-bar':for(const x of [-.36,.36])box(x,.72,0,.025,.56,.025,METAL);box(0,.26,0,1,.45,1,paint);box(0,.035,0,.9,.035,.8,WHITE);break;
   }
-  const shift=f.mount==='wall'?-f.h*.44:f.mount==='ceiling'?-f.h*.88:0,light=['lamp','sconce','pendant','chandelier','fan','ceiling-light','light-bar'].includes(f.family);for(const p of parts){p.y+=shift;if(p.pivot)p.pivot[1]+=shift;if(p.detail&&f.family!=='rug')p.z+=.001;p.glow=light&&p.c===WHITE;}
+  const shift=f.mount==='wall'?-f.h*.44:f.mount==='ceiling'?-f.h*.88:0,light=f.light||['lamp','sconce','pendant','chandelier','fan','ceiling-light','light-bar'].includes(f.family);for(const p of parts){p.y+=shift;if(p.pivot)p.pivot[1]+=shift;if(p.detail&&f.family!=='rug'&&f.solid!==false)p.z+=.001;p.glow=light&&p.c===WHITE;}
   // Separate remaining exposed co-planar box faces across every furniture
   // family. Do this once when building, not during animation/render updates.
   const axes=[['x','w'],['y','h'],['z','d']];
@@ -76,9 +77,24 @@ export function furnitureParts(item){
   }
   return parts;
 }
+const thumbnailCache=new Map();
 export function furnitureThumbnail(def,color=10){
-  const parts=furnitureParts({t:def.id,c:color}),project=(x,y,z)=>[(x-z)*.8,(x+z)*.34-y],points=parts.flatMap(p=>Array.from({length:8},(_,i)=>project(p.x+(i&1?.5:-.5)*p.w,p.y+(i&2?.5:-.5)*p.h,p.z+(i&4?.5:-.5)*p.d)));
-  const minX=Math.min(...points.map(p=>p[0])),maxX=Math.max(...points.map(p=>p[0])),minY=Math.min(...points.map(p=>p[1])),maxY=Math.max(...points.map(p=>p[1])),s=48/Math.max(maxX-minX,maxY-minY),poly=(v,c)=>`<polygon points="${v.map(p=>{const a=project(...p);return ((a[0]-(minX+maxX)/2)*s+32).toFixed(1)+','+((a[1]-(minY+maxY)/2)*s+31).toFixed(1)}).join(' ')}" fill="${c}" stroke="#283b45" stroke-width=".35"/>`;
+  const key=def.id+':'+color;if(thumbnailCache.has(key))return thumbnailCache.get(key);
+  const parts=furnitureParts({t:def.id,c:color}),project=(x,y,z)=>[(x-z)*.8,(x+z)*.34-y];
+  const corner=(p,x,y,z)=>{
+    const Z=p.rz||0,Y=p.ry||0,X=p.rx||0;
+    [x,y]=[x*Math.cos(Z)-y*Math.sin(Z),x*Math.sin(Z)+y*Math.cos(Z)];
+    [x,z]=[x*Math.cos(Y)+z*Math.sin(Y),-x*Math.sin(Y)+z*Math.cos(Y)];
+    [y,z]=[y*Math.cos(X)-z*Math.sin(X),y*Math.sin(X)+z*Math.cos(X)];
+    return [p.x+x,p.y+y,p.z+z];
+  };
+  const points=parts.flatMap(p=>Array.from({length:8},(_,i)=>project(...corner(p,(i&1?.5:-.5)*p.w,(i&2?.5:-.5)*p.h,(i&4?.5:-.5)*p.d))));
+  const minX=Math.min(...points.map(p=>p[0])),maxX=Math.max(...points.map(p=>p[0])),minY=Math.min(...points.map(p=>p[1])),maxY=Math.max(...points.map(p=>p[1])),s=48/Math.max(maxX-minX,maxY-minY);
+  const poly=(p,v)=>'<polygon points="'+v.map(([x,y,z])=>{const a=project(...corner(p,x,y,z));return ((a[0]-(minX+maxX)/2)*s+32).toFixed(1)+','+((a[1]-(minY+maxY)/2)*s+31).toFixed(1)}).join(' ')+'" fill="'+p.c+'" stroke="#283b45" stroke-width=".35"/>';
   let svg='<svg viewBox="0 0 64 64" aria-hidden="true">';
-  for(const p of [...parts].sort((a,b)=>a.x+a.z-b.x-b.z)){const x=p.x-p.w/2,X=p.x+p.w/2,y=p.y-p.h/2,Y=p.y+p.h/2,z=p.z-p.d/2,Z=p.z+p.d/2;svg+=poly([[x,y,Z],[X,y,Z],[X,Y,Z],[x,Y,Z]],p.c)+poly([[X,y,z],[X,y,Z],[X,Y,Z],[X,Y,z]],p.c)+poly([[x,Y,z],[X,Y,z],[X,Y,Z],[x,Y,Z]],p.c);}return svg+'</svg>';
+  for(const p of [...parts].sort((a,b)=>a.x+a.z-b.x-b.z)){
+    const x=-p.w/2,X=p.w/2,y=-p.h/2,Y=p.h/2,z=-p.d/2,Z=p.d/2;
+    svg+=poly(p,[[x,y,Z],[X,y,Z],[X,Y,Z],[x,Y,Z]])+poly(p,[[X,y,z],[X,y,Z],[X,Y,Z],[X,Y,z]])+poly(p,[[x,Y,z],[X,Y,z],[X,Y,Z],[x,Y,Z]]);
+  }
+  svg+='</svg>';if(thumbnailCache.size>=160)thumbnailCache.delete(thumbnailCache.keys().next().value);thumbnailCache.set(key,svg);return svg;
 }

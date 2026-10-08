@@ -1,4 +1,5 @@
-export const GRID=.25,MAX_FURNITURE=64,ROOM={x:7.4,z:6.9,height:5.25,floor:.245};
+import {EXPANDED_FURNITURE} from './furniture-catalogue.js';
+export const GRID=.25,HEIGHT_GRID=.05,MAX_FURNITURE=64,ROOM={x:7.4,z:6.9,height:5.25,floor:.245};
 export const OWNER_SKINS=[3,5,6,2,4,1,0,7];
 export const HOUSE_COLORS=['#d84a42','#52a96d','#48b8d4','#e88a38','#87929a','#9a70c5','#e4c84d','#9a6748'];
 export const FURNITURE_COLORS=[...HOUSE_COLORS,'#f4eee2','#354353','#bd9166','#8fbac9'];
@@ -20,6 +21,7 @@ export const FURNITURE=[
   item('pendant','ペンダントライト','pendant',.8,1.1,.8,'ceiling'),item('chandelier','シャンデリア','chandelier',1.6,1.2,1.6,'ceiling'),item('ceiling-fan','シーリングファン','fan',1.8,.55,1.8,'ceiling'),item('ceiling-light','シーリングライト','ceiling-light',1,.18,1,'ceiling'),item('light-bar','吊り下げバーライト','light-bar',1.8,.7,.35,'ceiling'),
   item('wall-vent','換気グリル','vent',.9,.65,.18,'wall'),item('wall-planter','壁掛けプランター','wall-planter',1.1,.9,.5,'wall'),item('curtain','カーテン','curtain',2,1.8,.3,'wall'),item('wall-speaker','壁掛けスピーカー','wall-speaker',.45,.7,.3,'wall'),item('wide-art','ワイドアート','frame',2.2,.9,.1,'wall'),item('wall-bookshelf','ウォールブックシェルフ','wall-shelf',2.2,.7,.45,'wall'),
   item('hanging-plant','吊り下げグリーン','hanging-plant',.85,1.2,.85,'ceiling'),item('mobile','カラフルモビール','mobile',1.4,1,1.4,'ceiling'),item('projector','天吊りプロジェクター','projector',.65,.65,.65,'ceiling'),item('double-pendant','ワイドペンダント','light-bar',2.3,1,.5,'ceiling'),
+  ...EXPANDED_FURNITURE,
 ];
 export const FURNITURE_BY_ID=new Map(FURNITURE.map(f=>[f.id,f]));
 export function furnitureDefinition(value){const f=FURNITURE_BY_ID.get(value.t);return value.v===1&&['bed','canopy'].includes(f?.family)?{...f,w:f.id==='single-bed'?1.3:f.w,d:f.family==='canopy'?2.3:2.2}:f;}
@@ -34,17 +36,18 @@ export function cleanFurniture(value){
   const def=FURNITURE_BY_ID.get(value?.t);if(!def||typeof value.id!=='string'||!/^[-a-z0-9_]{1,32}$/.test(value.id)||!snap(value.x)||!snap(value.z))return null;
   const r=Number(value.r),c=Number(value.c),y=Number(value.y||0),wall=['back','front','left','right'].includes(value.wall)?value.wall:'back';
   if(!Number.isInteger(r)||r<0||r>=(def.mount==='wall'?4:8)||!Number.isInteger(c)||c<0||c>=FURNITURE_COLORS.length||!snap(y))return null;
-  return {id:value.id,t:def.id,x:value.x,z:value.z,y:def.mount==='wall'?y:0,r,c,...(['bed','canopy'].includes(def.family)?{v:value.v===2?2:1}:{}),...(def.mount==='wall'?{wall}:{}),...(def.seat&&typeof value.pair==='string'&&/^[-a-z0-9_]{1,32}$/.test(value.pair)?{pair:value.pair}:{})};
+  return {id:value.id,t:def.id,x:value.x,z:value.z,y:def.mount==='wall'||def.allowHeight?y:0,r,c,...(['bed','canopy'].includes(def.family)?{v:value.v===2?2:1}:{}),...(def.mount==='wall'?{wall}:{}),...(def.seat&&typeof value.pair==='string'&&/^[-a-z0-9_]{1,32}$/.test(value.pair)?{pair:value.pair}:{})};
 }
 export function furniturePose(item){
   const f=furnitureDefinition(item);let x=item.x*GRID,z=item.z*GRID,y=0,yaw=item.r*Math.PI/4,roll=0,w=f.w,h=f.h,d=f.d;
+  if(f.mount==='floor'&&f.allowHeight)y=(item.y||0)*HEIGHT_GRID;
   if(f.mount==='ceiling')y=ROOM.height;
   if(f.mount==='wall'){
     roll=item.r*Math.PI/2;y=item.y*GRID;yaw={back:0,front:Math.PI,left:Math.PI/2,right:-Math.PI/2}[item.wall];
     if(item.wall==='back')z=-ROOM.z+d/2;if(item.wall==='front')z=ROOM.z-d/2;if(item.wall==='left')x=-ROOM.x+d/2;if(item.wall==='right')x=ROOM.x-d/2;
     if(item.r%2)[w,h]=[h,w];
   }
-  return {x,y,z,yaw,roll,w,h,d,centerY:f.mount==='floor'?h/2:f.mount==='ceiling'?ROOM.height-h/2:y};
+  return {x,y,z,yaw,roll,w,h,d,centerY:f.mount==='floor'?y+h/2:f.mount==='ceiling'?ROOM.height-h/2:y};
 }
 function intersects(a,b){
   if(Math.abs(a.centerY-b.centerY)>=(a.h+b.h)/2-.015)return false;
@@ -59,7 +62,11 @@ export function placementError(item,items){
   if(Math.abs(p.x)+ex>ROOM.x+.002||Math.abs(p.z)+ez>ROOM.z+.002||p.centerY-p.h/2<-.002||p.centerY+p.h/2>ROOM.height+.002)return '部屋の外には配置できません';
   if(f.mount==='floor'&&f.solid!==false&&p.z+ez>4.8&&Math.abs(p.x)<2.55+ex)return '玄関の通路を空けてください';
   if(f.mount==='wall'&&item.wall==='front'&&Math.abs(p.x)-ex<2.3&&p.centerY-p.h/2<3.81)return '玄関の開口部には設置できません';
-  for(const other of items){if(other.id===item.id)continue;const g=FURNITURE_BY_ID.get(other.t);if(f.solid===false||g.solid===false){if(f.solid!==g.solid)continue;}if(intersects(p,furniturePose(other)))return 'ほかの家具と重なっています';}
+  for(const other of items){if(other.id===item.id)continue;const g=FURNITURE_BY_ID.get(other.t),q=furniturePose(other);if(f.solid===false||g.solid===false){if(f.solid!==g.solid)continue;}
+    // Small tabletop objects may rest on the rendered top rather than the
+    // deliberately conservative full-height placement envelope of a desk.
+    if(f.allowHeight&&['table','desk','computer'].includes(g.family)&&p.y>=q.y+g.h*(g.family==='computer'?.555:.88)-.026)continue;
+    if(intersects(p,q))return 'ほかの家具と重なっています';}
   return '';
 }
 // Seats face local +Z; their backrest is on -Z. A nearby desk/table owns
@@ -97,6 +104,7 @@ export function applyHouseOperation(house,op){
   return {house:cleanHouse(next)};
 }
 export function findPlacement(def,items,color=10,wall='back'){
+  if(def.allowHeight)for(const table of items){const g=FURNITURE_BY_ID.get(table.t);if(!['table','desk','computer'].includes(g.family))continue;const p=furniturePose(table),candidate={id:'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),t:def.id,x:table.x,z:table.z,y:Math.round((p.y+g.h*(g.family==='computer'?.555:.88))/HEIGHT_GRID),r:table.r,c:color};if(!placementError(candidate,items))return candidate;}
   for(let radius=0;radius<28;radius+=2)for(let x=-radius;x<=radius;x+=2)for(let z=-radius;z<=radius;z+=2){if(radius&&Math.max(Math.abs(x),Math.abs(z))!==radius)continue;const candidate=pairFurniture({id:'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),t:def.id,x,z,y:def.mount==='wall'?9:0,r:0,c:color,...(['bed','canopy'].includes(def.family)?{v:2}:{}),...(def.mount==='wall'?{wall}:{})},items);if(!placementError(candidate,items))return candidate;}
   return null;
 }

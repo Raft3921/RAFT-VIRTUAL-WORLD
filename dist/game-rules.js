@@ -6,7 +6,8 @@ import { HousingStore } from './housing-store.js';
 import {BROWN_PROJECTILE,projectileAt,segmentBox,projectileWallFraction} from './projectile-motion.js';
 import {hitShape} from './hit-reaction.js';
 import {HOUSES,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js';
-export const SYNC_VERSION='2026-10-08-furniture-8';
+import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
+export const SYNC_VERSION='2026-10-08-combat-9';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||Math.abs(s.x)>1300||Math.abs(s.z)>1300||s.y<0||s.y>512)return null;
@@ -67,13 +68,17 @@ export class GameRules{
   cancel(){if(this.duel){this.duel=null;this.ready.clear();this.broadcast({type:'duel-cancel',reason:'プレイヤーが闘技場から離れたため終了しました'});}}
   removed(id){this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
   state(entry){
-    const p=entry.player;if(!this.duel?.ids.includes(p.id))return;
+    const p=entry.player;
+    // One server-owned window per knockdown, never reset by repeat packets.
+    // The full flight is also protected so attacks cannot restart a juggle.
+    if(p.awaitingDown&&p.ragdoll&&['down','recover'].includes(p.hitPhase)){p.awaitingDown=false;p.protectedUntil=Date.now()+DOWN_PROTECTION_SECONDS*1000;}
+    if(!this.duel?.ids.includes(p.id))return;
     p.flight=false;p.seated=false;p.sleeping=false;
     const dx=p.x-ARENA.x,dy=Math.max(0,p.y+.95-.24),dz=p.z-ARENA.z,r=ARENA.radius-.65,d=Math.hypot(dx,dy,dz);
     if(d>r){p.x=ARENA.x+dx/d*r;p.y=Math.max(.24,.24+dy/d*r-.95);p.z=ARENA.z+dz/d*r;const dot=p.vx*dx/d+p.vy*dy/d+p.vz*dz/d;if(dot>0){p.vx-=dot*dx/d;p.vy-=dot*dy/d;p.vz-=dot*dz/d;}}
   }
   prepare(p,now){
-    const entrants=this.entries().map(e=>e.player).filter(p=>this.inside(p));if(this.duel||!this.inside(p)||entrants.length!==2)return false;
+    const entrants=this.entries().map(e=>e.player).filter(p=>this.inside(p)&&!protectedFromHit(p,now));if(this.duel||protectedFromHit(p,now)||!this.inside(p)||entrants.length!==2)return false;
     this.ready.set(p.id,now);const other=entrants.find(q=>q.id!==p.id);
     if(now-(this.ready.get(other.id)||0)<=1000){this.duel={ids:[p.id,other.id],damage:{[p.id]:0,[other.id]:0},goalDamage:this.settings.goalDamage,startedAt:now};this.ready.clear();this.broadcast({type:'duel-start',...this.duel});}
     else this.broadcast({type:'duel-ready',id:p.id});return true;
@@ -99,6 +104,7 @@ export class GameRules{
       let first=projectileWallFraction(projectile.previous,point,layouts),reason=first===null?null:'wall',victim=null;
       if(projectile.match!==null&&Math.hypot(point.x-ARENA.x,point.y-.24,point.z-ARENA.z)>ARENA.radius-.35){first=0;reason='wall';}
       for(const q of players){
+        if(protectedFromHit(q,now))continue;
         if(q.id===p.id||this.duel?.ids.includes(q.id)&&!this.duel.ids.includes(p.id)||projectile.match!==null&&!this.duel?.ids.includes(q.id))continue;
         const shape=q.ragdoll?hitShape({phase:q.hitPhase,recovery:q.hitRecovery},q.yaw):null,height=Math.min(shape?.height||1.9,q.skin===GYOZA_SKIN?1.42:1.9),offset=shape?.offset||0;
         const fraction=segmentBox(projectile.previous,point,{x:q.x-Math.sin(q.yaw)*offset,y:q.y+height/2,z:q.z-Math.cos(q.yaw)*offset,w:q.skin===GYOZA_SKIN?1.18:shape?shape.width*2:.64,h:height,d:shape?shape.depth*2:.64,yaw:q.yaw},BROWN_PROJECTILE.radius);
@@ -110,14 +116,21 @@ export class GameRules{
     }
     this.projectiles=remaining;this.stopProjectileTimer();
   }
-  hit(p,q,level,now,{projectile=null,held=0}={}){
+  hit(p,q,level,now,{projectile=null,held=0,kind=p.attackKind||0}={}){
+    if(protectedFromHit(q,now))return;
+    const knockdown=knocksDown(kind,held,!!projectile);
     const dx=projectile?.vx??q.x-p.x,dz=projectile?.vz??q.z-p.z,d=Math.hypot(dx,dz)||1,range=held<1?8:level*100;
     const fighting=this.duel?.ids.includes(p.id)&&this.duel.ids.includes(q.id);
     const speed=projectile?13:Math.min(fighting?18+level*2.2:84,Math.sqrt(range*18/Math.sin(48*Math.PI/180)));
-    const velocity={x:dx/d*speed*Math.cos(24*Math.PI/180),y:Math.min(30,speed*Math.sin(24*Math.PI/180)),z:dz/d*speed*Math.cos(24*Math.PI/180)},freeze=.12+(level-1)*.018;
-    p.impactUntil=q.impactUntil=now+freeze*1000;if(!projectile)p.attackProgress=ATTACKS[p.attackKind||0].impact;p.vx=p.vy=p.vz=p.speed=0;
-    q.hitSerial=(q.hitSerial||0)+1;q.ragdoll=true;q.seated=false;q.sleeping=false;q.hitPhase='impact';q.hitTime=0;q.hitDownTime=0;q.hitRecovery=0;q.hitStrength=Math.min(1,speed/65);q.yaw=Math.atan2(-velocity.x,-velocity.z);q.vx=q.vy=q.vz=0;
-    this.broadcast({type:'punch',target:q.id,attacker:p.id,velocity,freeze,hitSerial:q.hitSerial,strength:q.hitStrength,targetPosition:{x:q.x,y:q.y,z:q.z},attackerPosition:{x:p.x,y:p.y,z:p.z},damage:fighting?level:0,projectile:!!projectile});
+    const strength=Math.min(1,speed/65),velocity=knockdown?{x:dx/d*speed*Math.cos(24*Math.PI/180),y:Math.min(30,speed*Math.sin(24*Math.PI/180)),z:dz/d*speed*Math.cos(24*Math.PI/180)}:{x:0,y:0,z:0},freeze=knockdown ? .12+(level-1)*.018 : 0;
+    if(knockdown){
+      p.impactUntil=q.impactUntil=now+freeze*1000;if(!projectile)p.attackProgress=ATTACKS[kind].impact;p.vx=p.vy=p.vz=p.speed=0;
+      q.hitSerial=(q.hitSerial||0)+1;q.ragdoll=true;q.awaitingDown=true;q.protectedUntil=0;q.seated=false;q.sleeping=false;q.hitPhase='impact';q.hitTime=0;q.hitDownTime=0;q.hitRecovery=0;q.hitStrength=strength;q.yaw=Math.atan2(-velocity.x,-velocity.z);q.vx=q.vy=q.vz=0;
+    }else{
+      // No hit-stop, movement lock, impulse or cancelled attack for light taps.
+      q.flinchSerial=(q.flinchSerial||0)+1;q.flinchAt=now;q.flinchStrength=strength;
+    }
+    this.broadcast({type:'punch',knockdown,target:q.id,attacker:p.id,velocity,freeze,hitSerial:q.hitSerial,flinchSerial:q.flinchSerial,strength,targetPosition:{x:q.x,y:q.y,z:q.z},attackerPosition:{x:p.x,y:p.y,z:p.z},damage:fighting?level:0,projectile:!!projectile});
     if(!fighting)return;this.duel.damage[q.id]+=level;this.broadcast({type:'duel-damage',...this.duel});if(this.duel.damage[q.id]<this.duel.goalDamage)return;
     const saved=this.characters.result(p.skin,q.skin);this.broadcast({type:'duel-result',winner:p.id,loser:q.id,practice:p.guest||q.guest,scores:{[p.id]:p.score,[q.id]:q.score}});this.duel=null;this.ready.clear();return saved;
   }
@@ -143,7 +156,7 @@ export class GameRules{
       this.backdrop=m.value;this.broadcast(this.snapshot());return;
     }
     if(m.type==='ready'){this.prepare(p,now);return;}
-    if(m.type!=='swing'||now-(this.cooldowns.get(p.id)||0)<260)return;
+    if(m.type!=='swing'||protectedFromHit(p,now)||now-(this.cooldowns.get(p.id)||0)<260)return;
     this.cooldowns.set(p.id,now);
     const throwing=p.skin===GYOZA_SKIN&&Number(m.held)<1&&Number(m.kind??p.attackKind)===3;
     if(this.prepare(p,now)){if(throwing)this.broadcast({type:'projectile-cancel',owner:p.id,serial:m.serial});return;}
@@ -151,12 +164,14 @@ export class GameRules{
     const level=clamp(Math.floor(Number(m.held)||0)+1,1,10);
     const facing={x:Math.sin(p.yaw),z:Math.cos(p.yaw)};
     const targets=this.entries().map(e=>e.player).filter(q=>{
+      if(protectedFromHit(q,now))return false;
       if(q.id===p.id||(m.target&&m.target!==q.id))return false;
       if(this.duel?.ids.includes(q.id)&&!this.duel.ids.includes(p.id))return false;
       const dx=q.x-p.x,dz=q.z-p.z,d=Math.hypot(dx,dz);
       return d<=3.6&&Math.abs(q.y-p.y)<2.2&&(m.target||dx*facing.x+dz*facing.z>.1)&&(!this.duel?.ids.includes(p.id)||this.duel.ids.includes(q.id));
     }).sort((a,b)=>Math.hypot(a.x-p.x,a.z-p.z)-Math.hypot(b.x-p.x,b.z-p.z));
     const q=targets[0];if(!q)return;
-    return this.hit(p,q,level,now,{held:Number(m.held)});
+    const kind=clamp(Math.floor(Number(m.kind??p.attackKind)||0),0,ATTACKS.length-1);
+    return this.hit(p,q,level,now,{held:Number(m.held)||0,kind});
   }
 }

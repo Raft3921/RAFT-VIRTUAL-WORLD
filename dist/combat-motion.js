@@ -5,7 +5,7 @@ export const ATTACKS=[
   {name:'右ストレート',duration:.34,impact:.42},
   {name:'左クロス',duration:.38,impact:.42},
   {name:'上段蹴り',duration:.52,impact:.46},
-  {name:'回転蹴り',duration:.66,impact:.56},
+  {name:'回転蹴り',duration:.66,impact:.78},
   {name:'衝撃波',duration:.76,impact:.48},
   {name:'ジャンプフィニッシュ',duration:1.55,impact:.90},
   {name:'踏み込み正拳',duration:.68,impact:.52,dash:6},

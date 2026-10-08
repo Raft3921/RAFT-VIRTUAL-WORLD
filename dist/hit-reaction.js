@@ -1,3 +1,4 @@
+import {DOWN_REST_SECONDS,RECOVERY_SECONDS} from './combat-policy.js';
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const smooth=v=>{v=clamp(v);return v*v*(3-2*v);};
 export function createHit(strength=.5){return {phase:'air',elapsed:0,downTime:0,recovery:0,strength:clamp(strength),groundTime:0};}
@@ -10,9 +11,9 @@ export function stepHit(hit,dt,grounded,velocity){
   if(hit.phase==='air'&&grounded){hit.phase='down';hit.downTime=0;}
   if(hit.phase==='down'){
     hit.downTime+=dt;velocity.x*=Math.exp(-dt*12);velocity.z*=Math.exp(-dt*12);
-    if(hit.downTime>.65){hit.phase='recover';hit.recovery=0;velocity.x=velocity.z=0;velocity.y=4.6;return 'spring';}
+    if(hit.downTime>=DOWN_REST_SECONDS){hit.phase='recover';hit.recovery=0;velocity.x=velocity.z=0;velocity.y=4.6;return 'spring';}
   }else if(hit.phase==='recover'){
-    hit.recovery+=dt/1.02;
+    hit.recovery+=dt/RECOVERY_SECONDS;
     if(hit.recovery>=1&&grounded){hit.phase='none';velocity.x=velocity.y=velocity.z=0;return 'done';}
   }else{velocity.x*=Math.exp(-dt*.22);velocity.z*=Math.exp(-dt*.22);}
   return null;

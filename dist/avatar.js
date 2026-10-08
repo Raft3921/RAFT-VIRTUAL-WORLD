@@ -249,7 +249,7 @@ export async function createAvatar(url,{model=null}={}) {
     crownTips.forEach(t=>t.position.y=crownFloor+height+.07);
   }
   setAppearance();
-  let sitWeight=0,sleepWeight=0;
+  let sitWeight=0,sleepWeight=0,flinchStart=-Infinity,flinchStrength=0,flinchSerial=0;
   let phase = 0;
   let elapsed = 0;
   let motion = 0;
@@ -395,6 +395,8 @@ export async function createAvatar(url,{model=null}={}) {
         gestureJoint(knees[side], .58 + Math.max(0, stroke) * .32, 0, 0, flying);
       }
     }
+    const flinchAge=elapsed-flinchStart;
+    if(!state.ragdoll&&flinchAge>=0&&flinchAge<.24){const recoil=Math.sin(Math.PI*flinchAge/.24)*(.5+flinchStrength*.5);torso.rotation.x-=recoil*.13;torso.rotation.z+=recoil*.035*(flinchSerial%2?1:-1);pelvis.position.z-=recoil*.025;}
     if (state.ragdoll) {
       const pose=sampleHit({phase:['impact','air','down','recover'].includes(state.hitPhase)?state.hitPhase:'air',elapsed:state.hitTime||0,downTime:state.hitDownTime||0,recovery:state.hitRecovery||0,strength:state.hitStrength||.5}),w=pose.weight;
       pelvis.rotation.x=pose.tilt*w;pelvis.rotation.y=0;pelvis.rotation.z=pose.roll*w;pelvis.position.y=THREE.MathUtils.lerp(pelvis.position.y,pose.height,w);
@@ -451,6 +453,8 @@ export async function createAvatar(url,{model=null}={}) {
 
   return {
     root, update, dispose, head, setAppearance,
+    reactHit(serial,strength=.2,age=0){if(!Number.isFinite(serial)||serial<=flinchSerial)return;flinchSerial=serial;if(age>=.24)return;flinchStart=elapsed-Math.max(0,age);flinchStrength=clamp(strength,0,1);},
+    resetHitReaction(){flinchSerial=0;flinchStart=-Infinity;},
     eyeHeight:custom?(custom.headBottom+parts.head.size[1]*.5)*PX:1.68,
     focusHeight:custom?(custom.headBottom+parts.head.size[1]*.25)*PX:1.24,
     seatOffset:legHeight*PX-.34*motionScale,

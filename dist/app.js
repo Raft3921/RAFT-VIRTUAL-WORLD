@@ -1,19 +1,19 @@
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261008-gyoza7';
+import { createAvatar } from './avatar.js?v=20261008-furniture8';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261008-home3';
+import { createWorld } from './world.js?v=20261008-furniture8';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION } from './game-rules.js?v=20261008-gyoza7';
+import { SYNC_VERSION } from './game-rules.js?v=20261008-furniture8';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261008-home3';
+import { createHousingRenderer } from './housing-renderer.js?v=20261008-furniture8';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261008-home3';
+import { createHouseEditor } from './house-editor.js?v=20261008-furniture8';
 
 const $ = id => document.getElementById(id);
 const clamp = THREE.MathUtils.clamp;
@@ -87,7 +87,7 @@ function freezeImpact(duration,strength){
 }
 let crownEnabled=cachedCharacter().crownEnabled,crownScore=cachedCharacter().score,athleticCheckpoint=null,athleticActive=false,seated=false,duelActive=false,duelDamage=0;
 let courseAwaitingSave=false;
-let standingOn=null,seat=null,seatCooldown=0,knockbackInArena=false,duelIds=[],openBoard=null,athleticPeak=0;
+let standingOn=null,seat=null,seatCooldown=0,sleeping=false,bed=null,pianoNote=0,knockbackInArena=false,duelIds=[],openBoard=null,athleticPeak=0;
 let goalDamage=11,matchGoalDamage=11;
 const profile=safeRead('raft-world-profile')||(crypto.randomUUID?.()||'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const n=Math.floor(Math.random()*16);return (c==='x'?n:(n&3)|8).toString(16);}));safeSave('raft-world-profile',profile);
 function cachedCharacter(skin=selected){return skin===GUEST_SKIN?guestState:characterCache[skin]||cleanCharacter();}
@@ -126,7 +126,8 @@ function cancelCharge(){charging=false;chargeTime=0;chargeLevelShown=-1;updateCh
 function updateJumpButton(){$('jumpBtn').textContent=airWalk?'✈':'↑';$('jumpBtn').setAttribute('aria-label',airWalk?'飛行中。連続2回タップで解除':'ジャンプ。連続2回タップで飛行');$('flightControls').hidden=!airWalk&&cameraMode!=='free'}
 function requestJump(){
   if(!inStudio||paused()||localRagdoll||!['follow','first'].includes(cameraMode))return;
-  if(seated){actors[selected].root.position.y=seat.y;seated=false;seat=null;seatCooldown=time+1;jumpRequested=true;return;}
+  if(sleeping){wakeFromBed();seatCooldown=time+1.5;jumpRequested=true;return;}
+  if(seated){actors[selected].root.position.y=seat.y;seated=false;seat=null;sleeping=false;bed=null;seatCooldown=time+1;jumpRequested=true;return;}
   if(duelActive){lastJumpTapAt=-Infinity;if(grounded)jumpRequested=true;return;}
   if(athleticActive||world?.inAthletic(actors[selected].root.position)){lastJumpTapAt=-Infinity;if(grounded)jumpRequested=true;return;}
   const now=performance.now();
@@ -150,15 +151,18 @@ function chooseTarget(requested){
 function beginCharge(){if(inStudio&&(cameraMode==='free'||cameraMode==='orbit')){setCameraMode('follow');notify('パンチ操作でプレイヤー操作に戻りました');return}if(!canPunch()||charging)return;charging=true;chargeTime=0;chargeLevelShown=-1;updateChargeHud()}
 function startAttack(held,targetId){
   if(!canPunch())return;
+  if(sleeping)wakeFromBed();
   const now=performance.now();if(now-lastComboAt>1300)comboIndex=0;
   attackStrength=clamp(held/PUNCH.maxCharge,0,1);attackKind=held>=1?chargeAttack(punchLevel(held)):!grounded&&!airWalk?8:comboIndex++%4;
   const spec=ATTACKS[attackKind];attackDuration=spec.duration;attackYaw=yaw;
-  const picked=chooseTarget(targetId);lastComboAt=now;attackSerial++;punchSwing=.001;pendingAttack={held,targetId,hit:false,jumpStarted:false};
+  const interactionOrigin=actors[selected].root.position.clone();interactionOrigin.y+=1.05;
+  const playingPiano=!targetId&&housingView?.pianoHit(interactionOrigin,new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw)));
+  const picked=playingPiano?null:chooseTarget(targetId);lastComboAt=now;attackSerial++;punchSwing=.001;pendingAttack={held,targetId,hit:false,jumpStarted:false};
   targetLock=picked;pendingAttack.targetId=targetLock;attackRushing=!!targetLock;rushTime=0;
   const p=actors[selected].root,q=attackTarget(targetLock);if(q)attackYaw=Math.atan2(q.x-p.position.x,q.z-p.position.z);p.rotation.y=attackYaw;
-  if(seated){p.position.y=seat.y;seated=false;seat=null;seatCooldown=time+2;}
+  if(seated){p.position.y=seat.y;seated=false;seat=null;sleeping=false;bed=null;seatCooldown=time+2;}
   if(spec.jump&&grounded&&!airWalk&&(!q||Math.hypot(q.x-p.position.x,q.z-p.position.z)<2.25)){const jump=Math.min(spec.jump,athleticActive?7.95:10.4);attackDuration*=jump/spec.jump;verticalSpeed=jump;grounded=false;standingOn=null;pendingAttack.jumpStarted=true;}else if(!grounded&&!airWalk&&held<1)attackDuration=.58;
-  const origin=p.position.clone();origin.y+=1.05;if(!world.boardHit(origin,new THREE.Vector3(Math.sin(attackYaw),0,Math.cos(attackYaw)))&&roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify({type:'ready'}));
+  const origin=p.position.clone();origin.y+=1.05;if(!playingPiano&&!world.boardHit(origin,new THREE.Vector3(Math.sin(attackYaw),0,Math.cos(attackYaw)))&&roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify({type:'ready'}));
 }
 function launchPunch(targetId=null){if(!charging)return;const held=chargeTime;charging=false;chargeLevelShown=-1;if(punchSwing>0){queuedAttack={held,targetId};if(targetLock&&held<1)chainRemaining=Math.max(chainRemaining,2);}else startAttack(held,targetId);chargeTime=0;updateChargeHud()}
 function attackImpact(held,targetId){
@@ -172,6 +176,7 @@ function applyPunch(held,targetId=null){
   const facing=new THREE.Vector3(Math.sin(attackYaw),0,Math.cos(attackYaw));
   const origin=p.position.clone();origin.y+=1.05;
   const board=!targetId&&world?.boardHit(origin,facing);if(board){openWorldMenu(board);return;}
+  const piano=!targetId&&housingView?.pianoHit(origin,facing);if(piano){const sequence=[0,2,4,7,9,12,9,7,4,2],message={type:'piano-play',index:piano.index,itemId:piano.itemId,note:sequence[pianoNote++%sequence.length],serial:attackSerial};if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));else housingView.playPiano(message,p.position);return;}
   const throwing=selected===GYOZA_SKIN&&held<1&&attackKind===3;
   if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId){
     if(throwing)brownProjectiles.launch(p.position,attackYaw,{predicted:true,owner:roomSelfId,serial:attackSerial});
@@ -198,12 +203,13 @@ function openMenu(){if(housingEditor?.active)housingEditor.close();setClean(fals
 function openMaster(){if(!inStudio)return;if(housingEditor?.active)housingEditor.close();$('worldMenu').hidden=true;const wasOpen=!$('master').hidden;setClean(false);unlocked();$('menu').hidden=true;$('master').hidden=wasOpen;if(!wasOpen)$('cameraMode').focus();else canvas.focus()}
 function setCameraMode(mode){if(!['follow','first','orbit','free'].includes(mode))return;const p=actors[selected]?.root;if(mode==='orbit'&&p)orbitTarget.copy(p.position).add(new THREE.Vector3(0,1.15,0));if(mode==='free'){freePosition.copy(camera.position);camera.getWorldDirection(direction);yaw=Math.atan2(direction.x,direction.z);pitch=Math.asin(clamp(direction.y,-1,1))}cameraMode=mode;$('cameraMode').value=mode;$('cameraHelp').textContent=cameraDescriptions[mode];$('distance').disabled=mode==='first'||mode==='free';clearInput();updateJumpButton();updateVisibility()}
 function updateVisibility(){actors.forEach((a,i)=>{if(a)a.root.visible=(i===selected&&(!inStudio||cameraMode!=='first'))||(inStudio&&showCast&&i!==selected)})}
+function wakeFromBed(){if(!sleeping)return;const p=actors[selected]?.root;if(p&&bed){p.position.set(bed.x,bed.y+.04,bed.z);p.rotation.y=bed.yaw;}sleeping=false;bed=null;seatCooldown=time+1.5;velocity.set(0,0,0);verticalSpeed=0;grounded=true;}
 function setSelected(index){
   if(!actors[index]){$('actorSelect').value=String(selected);return;}if(index===selected)return;
   if(inStudio&&selected===GUEST_SKIN){$('actorSelect').value=String(selected);notify('ゲストからの変更はキャラクター選択画面に戻ってください');return;}
   if(duelActive||localRagdoll||localImpact){$('actorSelect').value=String(selected);notify('試合・被弾中はキャラクターを変更できません');return;}
   if(housingEditor?.active)housingEditor.close();
-  if(athleticCheckpoint)saveCheckpoint(athleticCheckpoint.id);athleticActive=false;athleticCheckpoint=null;athleticPeak=0;courseAwaitingSave=false;standingOn=null;seated=false;seat=null;
+  if(athleticCheckpoint)saveCheckpoint(athleticCheckpoint.id);athleticActive=false;athleticCheckpoint=null;athleticPeak=0;courseAwaitingSave=false;standingOn=null;seated=false;seat=null;sleeping=false;bed=null;
   selected=index;velocity.set(0,0,0);verticalSpeed=0;grounded=true;bodies[index].vel.set(0,0,0);bodies[index].grounded=true;bodies[index].travelRemaining=0;actors[index].root.position.y=0;safeSave('raft-studio-character',String(index));
   crownScore=cachedCharacter().score;crownEnabled=cachedCharacter().crownEnabled;
   if(inStudio){setCameraMode('follow');focus.copy(actors[index].root.position).add(new THREE.Vector3(0,1.25,0));yaw=actors[index].root.rotation.y;pitch=-.14;}
@@ -218,11 +224,11 @@ function openWorldMenu(board=null){setClean(false);unlocked();openBoard=board;$(
 function closeWorldMenu(){$('worldMenu').hidden=true;canvas.focus();}
 function respawnCourse(){
   const cp=athleticCheckpoint||world.athletic.checkpoints[0];
-  actors[selected].root.position.set(cp.x,cp.y,cp.z);verticalSpeed=0;velocity.set(0,0,0);localImpulse.set(0,0,0);localImpact=null;localHit=null;localRagdoll=false;grounded=true;seated=false;seat=null;standingOn=null;athleticPeak=cp.y;focus.copy(actors[selected].root.position).y+=1.25;notify('CHECK '+cp.id+' から再開');
+  actors[selected].root.position.set(cp.x,cp.y,cp.z);verticalSpeed=0;velocity.set(0,0,0);localImpulse.set(0,0,0);localImpact=null;localHit=null;localRagdoll=false;grounded=true;seated=false;seat=null;sleeping=false;bed=null;standingOn=null;athleticPeak=cp.y;focus.copy(actors[selected].root.position).y+=1.25;notify('CHECK '+cp.id+' から再開');
 }
-function stopCourse(){if(!athleticActive||duelActive)return;if(athleticCheckpoint)saveCheckpoint(athleticCheckpoint.id);courseAwaitingSave=false;athleticActive=false;athleticCheckpoint=null;athleticPeak=0;seated=false;seat=null;airWalk=false;localImpact=null;localHit=null;localRagdoll=false;localImpulse.set(0,0,0);verticalSpeed=0;velocity.set(0,0,0);actors[selected].root.position.set(world.athletic.exit.x,.16,world.athletic.exit.z);grounded=true;setCameraMode('follow');closeWorldMenu();updateJumpButton();notify('アスレチックを終了 · CHECK '+cachedCharacter().checkpoint+(selected===GUEST_SKIN?'（今回の入室中のみ）':' を保存'));}
+function stopCourse(){if(!athleticActive||duelActive)return;if(athleticCheckpoint)saveCheckpoint(athleticCheckpoint.id);courseAwaitingSave=false;athleticActive=false;athleticCheckpoint=null;athleticPeak=0;seated=false;seat=null;sleeping=false;bed=null;airWalk=false;localImpact=null;localHit=null;localRagdoll=false;localImpulse.set(0,0,0);verticalSpeed=0;velocity.set(0,0,0);actors[selected].root.position.set(world.athletic.exit.x,.16,world.athletic.exit.z);grounded=true;setCameraMode('follow');closeWorldMenu();updateJumpButton();notify('アスレチックを終了 · CHECK '+cachedCharacter().checkpoint+(selected===GUEST_SKIN?'（今回の入室中のみ）':' を保存'));}
 
-function placeActors(){courseAwaitingSave=false;athleticActive=false;athleticCheckpoint=null;seated=false;seat=null;standingOn=null;localImpact=null;localRagdoll=false;localHit=null;restoreHitCamera=null;localImpulse.set(0,0,0);actors.forEach((a,i)=>{if(a){if(i===selected){a.root.position.set(0,0,0);a.root.rotation.set(0,0,0)}else{const angle=i*2.399+.4,radius=3.4+(i%3)*.85;a.root.position.set(Math.sin(angle)*radius,0,Math.cos(angle)*radius+1.2);a.root.rotation.set(0,Math.atan2(-a.root.position.x,-a.root.position.z),0)}}if(a&&world)a.root.position.y=world.floorAt(a.root.position,.5).y;bodies[i].vel.set(0,0,0);bodies[i].grounded=true;bodies[i].ragdoll=false;bodies[i].hit=null;bodies[i].travelRemaining=0});velocity.set(0,0,0);verticalSpeed=0;grounded=true;airWalk=false;lastJumpTapAt=-Infinity;updateJumpButton();cancelCharge();punchSwing=0;pendingAttack=null;queuedAttack=null;comboIndex=0;attackRushing=false;chainRemaining=0;targetLock=null}
+function placeActors(){courseAwaitingSave=false;athleticActive=false;athleticCheckpoint=null;seated=false;seat=null;sleeping=false;bed=null;standingOn=null;localImpact=null;localRagdoll=false;localHit=null;restoreHitCamera=null;localImpulse.set(0,0,0);actors.forEach((a,i)=>{if(a){if(i===selected){a.root.position.set(0,0,0);a.root.rotation.set(0,0,0)}else{const angle=i*2.399+.4,radius=3.4+(i%3)*.85;a.root.position.set(Math.sin(angle)*radius,0,Math.cos(angle)*radius+1.2);a.root.rotation.set(0,Math.atan2(-a.root.position.x,-a.root.position.z),0)}}if(a&&world)a.root.position.y=world.floorAt(a.root.position,.5).y;bodies[i].vel.set(0,0,0);bodies[i].grounded=true;bodies[i].ragdoll=false;bodies[i].hit=null;bodies[i].travelRemaining=0});velocity.set(0,0,0);verticalSpeed=0;grounded=true;airWalk=false;lastJumpTapAt=-Infinity;updateJumpButton();cancelCharge();punchSwing=0;pendingAttack=null;queuedAttack=null;comboIndex=0;attackRushing=false;chainRemaining=0;targetLock=null}
 function enterStudio(){if(!actors[selected])return;const query=shareSource();inStudio=true;showCast=false;$('showCast').checked=false;document.body.dataset.screen='studio';$('lobby').hidden=true;$('hud').hidden=false;placeActors();focus.set(0,1.25,0);const sharedYaw=Number(query.get('yaw')),sharedPitch=Number(query.get('pitch'));yaw=query.has('yaw')&&Number.isFinite(sharedYaw)?angleDelta(0,sharedYaw):0;pitch=query.has('pitch')&&Number.isFinite(sharedPitch)?clamp(sharedPitch,-1.15,1.1):-.14;setCameraMode(query.get('cam')||'follow');updateVisibility();canvas.focus();notify(touch?'左スティックで移動。パンチを長押しで溜め':'ドラッグで視点 / 右下の✊を長押しで溜めパンチ',3500);connectRoom();scheduleShare()}
 function returnLobby(){leaveRoom();if(selected===GUEST_SKIN)guestState=cleanCharacter();unlocked();setClean(false);inStudio=false;document.body.dataset.screen='lobby';$('hud').hidden=true;$('lobby').hidden=false;$('menu').hidden=$('master').hidden=$('worldMenu').hidden=true;gesture='none';$('gesture').value='idle';placeActors();updateSelection();updateVisibility();$('enter').focus()}
 function makeFace(url,el){const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=c.height=32;c.className='face';c.setAttribute('aria-hidden','true');const q=c.getContext('2d');q.imageSmoothingEnabled=false;const s=img.width/64;if(url.includes('models/gyoza/')){q.drawImage(img,8*s,8*s,18*s,9*s,0,8,32,16);q.drawImage(img,20*s,55*s,18*s,9*s,0,8,32,16);}else{q.drawImage(img,8*s,8*s,8*s,8*s,0,0,32,32);q.drawImage(img,40*s,8*s,8*s,8*s,0,0,32,32);}el.replaceChildren(c)};img.src=url}
@@ -276,7 +282,7 @@ function updateRemotePlayer(player){
   if(!player?.id||player.id===roomSelfId||!roomSocket)return;
   let entry=remoteActors.get(player.id);
   if(entry&&entry.skin!==player.skin){removeRemotePlayer(player.id);entry=null;}
-  if(entry){if((player.hitSerial||0)<(entry.hitSerial||0)){player={...player,ragdoll:entry.ragdoll,hitPhase:entry.hitPhase,hitTime:entry.hitTime,hitDownTime:entry.hitDownTime,hitRecovery:entry.hitRecovery,hitStrength:entry.hitStrength,hitSerial:entry.hitSerial};}entry.hitSerial=player.hitSerial||0;entry.target.set(player.x,player.y,player.z);entry.velocity.set(player.vx||0,player.vy||0,player.vz||0);entry.receivedAt=performance.now();entry.yaw=player.yaw;entry.headYaw=player.headYaw;entry.headPitch=player.headPitch;entry.speed=player.speed;entry.grounded=player.grounded;entry.verticalSpeed=player.verticalSpeed;entry.gesture=player.gesture;entry.flight=player.flight;entry.ragdoll=player.ragdoll;entry.seated=player.seated;entry.crownEnabled=player.crownEnabled;entry.attackRushing=player.attackRushing;entry.punchCharge=player.punchCharge;entry.attackDuration=player.attackDuration;entry.hitPhase=player.hitPhase;entry.hitTime=player.hitTime;entry.hitDownTime=player.hitDownTime;entry.hitRecovery=player.hitRecovery;entry.hitStrength=player.hitStrength;entry.attackKind=player.attackKind||0;entry.attackProgress=player.attackProgress||0;entry.attackStrength=player.attackStrength||0;entry.attackSerial=player.attackSerial||0;entry.actor.setAppearance(player.score||0,player.crownEnabled);return}
+  if(entry){if((player.hitSerial||0)<(entry.hitSerial||0)){player={...player,ragdoll:entry.ragdoll,sleeping:entry.sleeping,hitPhase:entry.hitPhase,hitTime:entry.hitTime,hitDownTime:entry.hitDownTime,hitRecovery:entry.hitRecovery,hitStrength:entry.hitStrength,hitSerial:entry.hitSerial};}entry.hitSerial=player.hitSerial||0;entry.target.set(player.x,player.y,player.z);entry.velocity.set(player.vx||0,player.vy||0,player.vz||0);entry.receivedAt=performance.now();entry.yaw=player.yaw;entry.headYaw=player.headYaw;entry.headPitch=player.headPitch;entry.speed=player.speed;entry.grounded=player.grounded;entry.verticalSpeed=player.verticalSpeed;entry.gesture=player.gesture;entry.flight=player.flight;entry.ragdoll=player.ragdoll;entry.seated=player.seated;entry.sleeping=player.sleeping;entry.crownEnabled=player.crownEnabled;entry.attackRushing=player.attackRushing;entry.punchCharge=player.punchCharge;entry.attackDuration=player.attackDuration;entry.hitPhase=player.hitPhase;entry.hitTime=player.hitTime;entry.hitDownTime=player.hitDownTime;entry.hitRecovery=player.hitRecovery;entry.hitStrength=player.hitStrength;entry.attackKind=player.attackKind||0;entry.attackProgress=player.attackProgress||0;entry.attackStrength=player.attackStrength||0;entry.attackSerial=player.attackSerial||0;entry.actor.setAppearance(player.score||0,player.crownEnabled);return}
   if(remoteLoading.has(player.id)){remoteLoading.set(player.id,player);return}
   remoteLoading.set(player.id,player);
   const loadingSocket=roomSocket,index=playableSkin(player.skin);
@@ -285,7 +291,7 @@ function updateRemotePlayer(player){
     if(!latest||roomSocket!==loadingSocket){actor.dispose();return}
     remoteLoading.delete(player.id);actor.root.position.set(latest.x,latest.y,latest.z);actor.root.rotation.y=latest.yaw;scene.add(actor.root);
     actor.setAppearance(latest.score||0,latest.crownEnabled);
-    remoteActors.set(player.id,{actor,hitSerial:latest.hitSerial||0,punchCharge:latest.punchCharge||0,attackRushing:latest.attackRushing,attackDuration:latest.attackDuration,hitPhase:latest.hitPhase,hitTime:latest.hitTime,hitDownTime:latest.hitDownTime,hitRecovery:latest.hitRecovery,hitStrength:latest.hitStrength,attackKind:latest.attackKind||0,attackProgress:latest.attackProgress||0,attackStrength:latest.attackStrength||0,attackSerial:latest.attackSerial||0,effectSerial:0,skin:latest.skin,seated:latest.seated,crownEnabled:latest.crownEnabled,target:new THREE.Vector3(latest.x,latest.y,latest.z),velocity:new THREE.Vector3(latest.vx||0,latest.vy||0,latest.vz||0),renderTarget:new THREE.Vector3(),receivedAt:performance.now(),yaw:latest.yaw,headYaw:latest.headYaw,headPitch:latest.headPitch,speed:latest.speed,grounded:latest.grounded,verticalSpeed:latest.verticalSpeed,gesture:latest.gesture,flight:latest.flight,ragdoll:latest.ragdoll});
+    remoteActors.set(player.id,{actor,hitSerial:latest.hitSerial||0,punchCharge:latest.punchCharge||0,attackRushing:latest.attackRushing,attackDuration:latest.attackDuration,hitPhase:latest.hitPhase,hitTime:latest.hitTime,hitDownTime:latest.hitDownTime,hitRecovery:latest.hitRecovery,hitStrength:latest.hitStrength,attackKind:latest.attackKind||0,attackProgress:latest.attackProgress||0,attackStrength:latest.attackStrength||0,attackSerial:latest.attackSerial||0,effectSerial:0,skin:latest.skin,seated:latest.seated,sleeping:latest.sleeping,crownEnabled:latest.crownEnabled,target:new THREE.Vector3(latest.x,latest.y,latest.z),velocity:new THREE.Vector3(latest.vx||0,latest.vy||0,latest.vz||0),renderTarget:new THREE.Vector3(),receivedAt:performance.now(),yaw:latest.yaw,headYaw:latest.headYaw,headPitch:latest.headPitch,speed:latest.speed,grounded:latest.grounded,verticalSpeed:latest.verticalSpeed,gesture:latest.gesture,flight:latest.flight,ragdoll:latest.ragdoll});
     updateRoomStatus(`${roomCode} · ${remoteActors.size+1}/${MAX_PLAYERS}人`);
   }).catch(error=>{remoteLoading.delete(player.id);console.error('remote skin load failed',error)});
 }
@@ -296,6 +302,7 @@ function handleRoomMessage(socket,event){
   if(message.type==='projectile-cancel'){brownProjectiles.cancelPrediction(message.owner,message.serial);return;}
   if(message.type==='guest-denied'){if(message.id===roomSelfId)notify(message.message);return;}
   if(message.type==='house-state'){housingEditor?.receive(message);return;}
+  if(message.type==='piano-play'){housingView?.playPiano(message,actors[selected]?.root.position);return;}
   if(message.type==='world'){world?.setBackdrop(message.backdrop);if(Number.isInteger(message.goalDamage)){goalDamage=message.goalDamage;updateDuelSettings();}if(message.duel)receiveDuel(message.duel);return;}
   if(message.type==='character-state'){const skin=Number(message.skin);if(Number.isInteger(skin)&&skin>=0&&skin<8){receiveCharacter(skin,message.character);for(const remote of remoteActors.values())if(remote.skin===skin){remote.crownEnabled=message.character.crownEnabled;remote.actor.setAppearance(message.character.score,remote.crownEnabled);}}return;}
   if(message.type==='character-save-error'){notify(message.message,8000);return;}
@@ -318,12 +325,12 @@ function handleRoomMessage(socket,event){
       const r=remoteActors.get(id);if(r){if(position){r.target.set(position.x,position.y,position.z);r.actor.root.position.copy(r.target);}r.impact={start:performance.now(),duration:freeze,strength};r.velocity.set(0,0,0);r.receivedAt=performance.now();}
       if(id===roomSelfId){if(position)actors[selected].root.position.set(position.x,position.y,position.z);freezeImpact(freeze,strength);}
     }
-    const remote=remoteActors.get(message.target);if(remote){remote.ragdoll=true;remote.hitPhase='impact';remote.hitTime=0;remote.hitDownTime=0;remote.hitRecovery=0;remote.hitStrength=strength;remote.hitSerial=message.hitSerial||0;remote.yaw=Math.atan2(-impulse.x,-impulse.z);remote.receivedAt=performance.now();particleOrigin.copy(remote.actor.root.position);particleOrigin.y+=1;combatEffects.impact(particleOrigin,remote.hitStrength);}
+    const remote=remoteActors.get(message.target);if(remote){remote.ragdoll=true;remote.sleeping=false;remote.seated=false;remote.hitPhase='impact';remote.hitTime=0;remote.hitDownTime=0;remote.hitRecovery=0;remote.hitStrength=strength;remote.hitSerial=message.hitSerial||0;remote.yaw=Math.atan2(-impulse.x,-impulse.z);remote.receivedAt=performance.now();particleOrigin.copy(remote.actor.root.position);particleOrigin.y+=1;combatEffects.impact(particleOrigin,remote.hitStrength);}
     if(message.target===roomSelfId){
       if(housingEditor?.active)housingEditor.close();
       localHitSerial=message.hitSerial??localHitSerial;
       const p=actors[selected].root;knockbackInArena=Math.hypot(p.position.x-ARENA.x,p.position.z-ARENA.z)<ARENA.radius;
-      seated=false;seat=null;seatCooldown=time+2;pendingAttack=null;queuedAttack=null;punchSwing=0;cancelCharge();localImpulse.set(clamp(impulse.x,-84,84),clamp(impulse.y,-30,30),clamp(impulse.z,-84,84));localRagdoll=true;localLandedAt=0;localHit=createHit(localImpulse.length()/65);localHit.phase='impact';p.rotation.y=Math.atan2(-impulse.x,-impulse.z);if(cameraMode==='first'){restoreHitCamera='first';setCameraMode('follow');}airWalk=false;updateJumpButton();velocity.set(0,0,0);
+      seated=false;seat=null;sleeping=false;bed=null;seatCooldown=time+2;pendingAttack=null;queuedAttack=null;punchSwing=0;cancelCharge();localImpulse.set(clamp(impulse.x,-84,84),clamp(impulse.y,-30,30),clamp(impulse.z,-84,84));localRagdoll=true;localLandedAt=0;localHit=createHit(localImpulse.length()/65);localHit.phase='impact';p.rotation.y=Math.atan2(-impulse.x,-impulse.z);if(cameraMode==='first'){restoreHitCamera='first';setCameraMode('follow');}airWalk=false;updateJumpButton();velocity.set(0,0,0);
       particleOrigin.copy(p.position);particleOrigin.y+=1;combatEffects.impact(particleOrigin,localHit.strength);
     }return;
   }
@@ -390,12 +397,14 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
       if((!paused()||localRagdoll)&&!localImpact){
         if(cameraMode==='free'){
           desired.copy(freePosition).addScaledVector(movement,dt*flySpeed*(run?2.5:1));desired.y=clamp(desired.y+((flightAscend||keys.has('Space')?1:0)-(flightDescend||keys.has('ShiftLeft')||keys.has('ShiftRight')?1:0))*dt*flySpeed,.25,510);freePosition.copy(world.cameraPosition(freePosition,desired));
-        }else if(cameraMode!=='orbit'&&!seated){
+        }else if(cameraMode!=='orbit'&&!seated&&!sleeping){
           if(targetLock&&movement.lengthSq()>.16){attackRushing=false;targetLock=null;chainRemaining=0;if(pendingAttack)pendingAttack.targetId=null;}
           const attacking=punchSwing>0;movement.multiplyScalar(moveSpeed*(run?1.65:1)*(airWalk?2.4:1)*(attacking?.25:charging?.6:1));velocity.lerp(movement,1-Math.exp(-dt*(movement.lengthSq()<.01?26:18)));
           const q=attackTarget(targetLock);if(attacking&&q){const dx=q.x-p.position.x,dz=q.z-p.position.z,d=Math.hypot(dx,dz);attackYaw=Math.atan2(dx,dz);p.rotation.y+=angleDelta(p.rotation.y,attackYaw)*(1-Math.exp(-dt*24));if(attackRushing&&d>1.95){const rush=Math.min(athleticActive?moveSpeed*1.65:18,Math.max(0,(d-1.85)/dt*.7));velocity.set(dx/d*rush,0,dz/d*rush);}else velocity.set(0,0,0);if(attackRushing&&grounded&&q.y-p.position.y>1.0){verticalSpeed=athleticActive?7.95:7.3;grounded=false;standingOn=null;}}
         }else velocity.set(0,0,0);
-        if(seated){
+        if(sleeping){
+          const current=world.bedById(bed?.id);if(!current){wakeFromBed();}else{bed=current;const offset=(actors[selected].collisionShape?.height||2)*.45;p.position.set(bed.x+Math.sin(bed.yaw)*offset,bed.y+.07,bed.z+Math.cos(bed.yaw)*offset);p.rotation.y=bed.yaw;verticalSpeed=0;velocity.set(0,0,0);grounded=true;airWalk=false;jumpRequested=false;}
+        }else if(seated){
           p.position.set(seat.x,seat.y-actors[selected].seatOffset,seat.z);p.rotation.y=seat.yaw;verticalSpeed=0;grounded=true;
         }else{
           const oldY=p.position.y;
@@ -416,8 +425,9 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
               const event=stepHit(localHit,dt,grounded,localImpulse);if(event==='spring'){grounded=false;standingOn=null;}else if(event==='done'){localRagdoll=false;localHit=null;localImpulse.set(0,0,0);if(restoreHitCamera){setCameraMode(restoreHitCamera);restoreHitCamera=null;}}
             }
             if(!localRagdoll&&time>seatCooldown){
-              const found=world.seatAt(p.position,oldY,verticalSpeed);
-              if(found){seated=true;seat=found;velocity.set(0,0,0);p.position.set(seat.x,seat.y-actors[selected].seatOffset,seat.z);notify('着席 · ジャンプで立つ');}
+              const sleepingBed=punchSwing===0?world.bedAt(p.position,oldY,verticalSpeed):null,found=sleepingBed?null:world.seatAt(p.position,oldY,verticalSpeed);
+              if(sleepingBed){sleeping=true;bed=sleepingBed;seated=false;seat=null;velocity.set(0,0,0);verticalSpeed=0;standingOn=null;grounded=true;const offset=(actors[selected].collisionShape?.height||2)*.45;p.position.set(bed.x+Math.sin(bed.yaw)*offset,bed.y+.07,bed.z+Math.cos(bed.yaw)*offset);p.rotation.y=bed.yaw;if(cameraMode==='first')setCameraMode('follow');notify('ベッドで休憩 · ジャンプで起きる');}
+              else if(found){seated=true;seat=found;velocity.set(0,0,0);p.position.set(seat.x,seat.y-actors[selected].seatOffset,seat.z);notify('着席 · ジャンプで立つ');}
             }
           }
           speed=velocity.length();
@@ -440,7 +450,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
       }
     }
     if(inStudio&&now-lastDashEffectAt>100){if(airWalk&&speed>.25){lastDashEffectAt=now;particleOrigin.copy(p.position);particleOrigin.y+=.9;particleOrigin.x-=velocity.x*.06;particleOrigin.z-=velocity.z*.06;emitParticles(particleOrigin,'#c9f0ff',2,.45,0)}else if(run&&speed>moveSpeed*1.2){lastDashEffectAt=now;particleOrigin.copy(p.position);emitParticles(particleOrigin,'#d8e7bc',2,.8,5)}}
-    for(let i=0;i<actors.length;i++){const a=actors[i];if(!a||(!a.root.visible&&i!==selected))continue;const active=i===selected,body=bodies[i],fly=Math.hypot(body.vel.x,body.vel.z);a.update((active?localImpact:body.impact)?0:dt,{impactTime:(active?localImpact:body.impact)?.time||0,impactDuration:(active?localImpact:body.impact)?.duration||0,impactStrength:(active?localImpact:body.impact)?.strength||0,seated:active&&seated,speed:active?speed:fly,run:active&&(run||attackRushing),grounded:active?grounded:body.grounded,verticalSpeed:active?verticalSpeed:body.vel.y,flight:active&&airWalk,ragdoll:active?localRagdoll:body.ragdoll,hitPhase:(active?localHit:body.hit)?.phase,hitTime:(active?localHit:body.hit)?.elapsed,hitDownTime:(active?localHit:body.hit)?.downTime,hitRecovery:(active?localHit:body.hit)?.recovery,hitStrength:(active?localHit:body.hit)?.strength,lookYaw:active&&punchSwing===0&&inStudio&&(cameraMode==='follow'||cameraMode==='first')?angleDelta(p.rotation.y,yaw):0,lookPitch:active&&inStudio&&(cameraMode==='follow'||cameraMode==='first')?-pitch:0,gesture:active?gesture:'none',attackRushing:active&&attackRushing,attackKind:active?attackKind:0,punchCharge:active&&charging&&punchSwing===0?chargeTime/PUNCH.maxCharge:0,punchSwing:active?punchSwing:0,time:time+i*.7})}
+    for(let i=0;i<actors.length;i++){const a=actors[i];if(!a||(!a.root.visible&&i!==selected))continue;const active=i===selected,body=bodies[i],fly=Math.hypot(body.vel.x,body.vel.z);a.update((active?localImpact:body.impact)?0:dt,{impactTime:(active?localImpact:body.impact)?.time||0,impactDuration:(active?localImpact:body.impact)?.duration||0,impactStrength:(active?localImpact:body.impact)?.strength||0,seated:active&&seated,sleeping:active&&sleeping,speed:active?speed:fly,run:active&&(run||attackRushing),grounded:active?grounded:body.grounded,verticalSpeed:active?verticalSpeed:body.vel.y,flight:active&&airWalk,ragdoll:active?localRagdoll:body.ragdoll,hitPhase:(active?localHit:body.hit)?.phase,hitTime:(active?localHit:body.hit)?.elapsed,hitDownTime:(active?localHit:body.hit)?.downTime,hitRecovery:(active?localHit:body.hit)?.recovery,hitStrength:(active?localHit:body.hit)?.strength,lookYaw:active&&punchSwing===0&&inStudio&&(cameraMode==='follow'||cameraMode==='first')?angleDelta(p.rotation.y,yaw):0,lookPitch:active&&inStudio&&(cameraMode==='follow'||cameraMode==='first')?-pitch:0,gesture:active?gesture:'none',attackRushing:active&&attackRushing,attackKind:active?attackKind:0,punchCharge:active&&charging&&punchSwing===0?chargeTime/PUNCH.maxCharge:0,punchSwing:active?punchSwing:0,time:time+i*.7})}
     if(housingEditor?.active){housingEditor.updateCamera(dt);}
     else if(!inStudio){
       const portrait=innerWidth<=600&&innerHeight>=580;camera.fov=45;target.set(0,1.08,0);desired.set(3,1.8,5.6);if(portrait){target.y=.22;desired.set(.15,1.4,5.1)}else{target.x=-1.25;desired.set(1.75,1.9,5.3)}camera.position.lerp(desired,1-Math.exp(-dt*7));camera.lookAt(target);camera.updateProjectionMatrix();
@@ -448,10 +458,10 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
       if(camera.fov!==fov){camera.fov=fov;camera.updateProjectionMatrix()}
       if(cameraMode==='free'){camera.position.copy(freePosition);direction.set(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));target.copy(camera.position).add(direction);camera.lookAt(target)}
       else if(cameraMode==='first'){camera.position.copy(p.position);camera.position.y+=actors[selected].eyeHeight;direction.set(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));target.copy(camera.position).add(direction);camera.lookAt(target)}
-      else{target.copy(cameraMode==='orbit'?orbitTarget:p.position);if(cameraMode!=='orbit'){const prone=proneWeight(localHit);target.y+=actors[selected].focusHeight-prone*.85;target.x-=Math.sin(p.rotation.y)*prone*.7;target.z-=Math.cos(p.rotation.y)*prone*.7;}focus.lerp(target,smoothing<=.001?1:1-Math.exp(-dt/(localRagdoll?Math.min(.055,smoothing):smoothing)));focus.copy(world.cameraPosition(target,focus,.12));const d=distance*(camera.aspect<.8?1.12:1);desired.set(-Math.sin(yaw)*Math.cos(pitch)*d,-Math.sin(pitch)*d,-Math.cos(yaw)*Math.cos(pitch)*d).add(focus);desired.y=Math.max(.2,desired.y);camera.position.copy(world.cameraPosition(focus,desired));camera.lookAt(focus)}
+      else{target.copy(cameraMode==='orbit'?orbitTarget:p.position);if(cameraMode!=='orbit'){const prone=proneWeight(localHit);if(sleeping&&bed){target.set(bed.x,bed.y+.4,bed.z);}else target.y+=actors[selected].focusHeight-prone*.85;target.x-=Math.sin(p.rotation.y)*prone*.7;target.z-=Math.cos(p.rotation.y)*prone*.7;}focus.lerp(target,smoothing<=.001?1:1-Math.exp(-dt/(localRagdoll?Math.min(.055,smoothing):smoothing)));focus.copy(world.cameraPosition(target,focus,.12));const d=distance*(camera.aspect<.8?1.12:1);desired.set(-Math.sin(yaw)*Math.cos(pitch)*d,-Math.sin(pitch)*d,-Math.cos(yaw)*Math.cos(pitch)*d).add(focus);desired.y=Math.max(.2,desired.y);camera.position.copy(world.cameraPosition(focus,desired));camera.lookAt(focus)}
     }
   }
-  if(roomSocket?.readyState===WebSocket.OPEN&&p&&inStudio&&now-lastRoomStateAt>=33){lastRoomStateAt=now;roomSocket.send(JSON.stringify({type:'state',state:{x:p.position.x,y:p.position.y,z:p.position.z,yaw:p.rotation.y,headYaw:clamp(angleDelta(p.rotation.y,yaw),-.95,.95),headPitch:clamp(-pitch,-.65,.7),vx:localImpact?0:localRagdoll?localImpulse.x:velocity.x,vy:localImpact?0:localRagdoll?localImpulse.y:verticalSpeed,vz:localImpact?0:localRagdoll?localImpulse.z:velocity.z,skin:playableSkin(selected),gesture,speed:velocity.length(),grounded,verticalSpeed,flight:airWalk,ragdoll:localRagdoll,seated,crownEnabled,hitSerial:localHitSerial,hitPhase:localHit?.phase||'none',hitTime:localHit?.elapsed||0,hitDownTime:localHit?.downTime||0,hitRecovery:localHit?.recovery||0,hitStrength:localHit?.strength||0,punchCharge:charging?chargeTime/PUNCH.maxCharge:0,attackDuration,attackRushing,attackKind,attackProgress:punchSwing,attackStrength,attackSerial}}))}
+  if(roomSocket?.readyState===WebSocket.OPEN&&p&&inStudio&&now-lastRoomStateAt>=33){lastRoomStateAt=now;roomSocket.send(JSON.stringify({type:'state',state:{x:p.position.x,y:p.position.y,z:p.position.z,yaw:p.rotation.y,headYaw:clamp(angleDelta(p.rotation.y,yaw),-.95,.95),headPitch:clamp(-pitch,-.65,.7),vx:localImpact?0:localRagdoll?localImpulse.x:velocity.x,vy:localImpact?0:localRagdoll?localImpulse.y:verticalSpeed,vz:localImpact?0:localRagdoll?localImpulse.z:velocity.z,skin:playableSkin(selected),gesture,speed:velocity.length(),grounded,verticalSpeed,flight:airWalk,ragdoll:localRagdoll,seated,sleeping,crownEnabled,hitSerial:localHitSerial,hitPhase:localHit?.phase||'none',hitTime:localHit?.elapsed||0,hitDownTime:localHit?.downTime||0,hitRecovery:localHit?.recovery||0,hitStrength:localHit?.strength||0,punchCharge:charging?chargeTime/PUNCH.maxCharge:0,attackDuration,attackRushing,attackKind,attackProgress:punchSwing,attackStrength,attackSerial}}))}
   if(document.hidden)return;
   if(p&&inStudio&&!duelIds.length){const own={x:p.position.x,y:p.position.y,z:p.position.z,flight:airWalk,seated};const inRing=insideArena(own);$('duelHud').hidden=!inRing;if(inRing){const count=1+[...remoteActors.values()].filter(r=>insideArena({x:r.target.x,y:r.target.y,z:r.target.z,flight:r.flight,seated:r.seated})).length;$('duelHud').textContent=count===2?'対戦エリア · 2人 · 1秒以内に両者パンチで開始':`対戦エリア · ${count}人 / 2人で開始 · 金色の輪の内側`;}}
   remoteActors.forEach(remote=>{
@@ -463,12 +473,12 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
     remote.actor.root.visible=inStudio&&remote.actor.root.position.distanceToSquared(camera.position)<8100;if(!remote.actor.root.visible)return;
     const spec=ATTACKS[remote.attackKind||0],progress=remote.attackProgress?remote.attackProgress+prediction/(remote.attackDuration||spec.duration):0;
     if(progress>=spec.impact&&remote.effectSerial!==remote.attackSerial){remote.effectSerial=remote.attackSerial;if(remote.attackStrength>=.1)shockwave(remote.actor.root.position,remote.attackStrength);}
-    remote.actor.update(remote.impact?0:dt,{punchCharge:remote.punchCharge,impactTime,impactDuration:remote.impact?.duration||0,impactStrength:remote.impact?.strength||0,attackRushing:remote.attackRushing,attackKind:remote.attackKind,punchSwing:progress<1?progress:0,seated:remote.seated,speed:remote.speed,run:remote.speed>moveSpeed*1.2,grounded:remote.grounded,verticalSpeed:remote.verticalSpeed,flight:remote.flight,ragdoll:remote.ragdoll,hitPhase:remote.hitPhase,hitTime:remote.hitTime+prediction,hitDownTime:(remote.hitDownTime||0)+(remote.hitPhase==='down'?prediction:0),hitRecovery:remote.hitRecovery+(remote.hitPhase==='recover'?prediction/1.02:0),hitStrength:remote.hitStrength,lookYaw:remote.headYaw,lookPitch:remote.headPitch,gesture:remote.gesture,time});
+    remote.actor.update(remote.impact?0:dt,{punchCharge:remote.punchCharge,impactTime,impactDuration:remote.impact?.duration||0,impactStrength:remote.impact?.strength||0,attackRushing:remote.attackRushing,attackKind:remote.attackKind,punchSwing:progress<1?progress:0,seated:remote.seated,sleeping:remote.sleeping,speed:remote.speed,run:remote.speed>moveSpeed*1.2,grounded:remote.grounded,verticalSpeed:remote.verticalSpeed,flight:remote.flight,ragdoll:remote.ragdoll,hitPhase:remote.hitPhase,hitTime:remote.hitTime+prediction,hitDownTime:(remote.hitDownTime||0)+(remote.hitPhase==='down'?prediction:0),hitRecovery:remote.hitRecovery+(remote.hitPhase==='recover'?prediction/1.02:0),hitStrength:remote.hitStrength,lookYaw:remote.headYaw,lookPitch:remote.headPitch,gesture:remote.gesture,time});
     combatEffects.attack(remote.actor,remote.attackKind,remote.ragdoll?0:progress,remote.attackSerial,remote.attackStrength,remote.attackRushing,dt);
   });
   const locked=attackTarget(targetLock),showLock=locked&&p&&inStudio&&!clean&&performance.now()-lastComboAt<3000;lockMarker.visible=!!showLock;if(showLock){lockMarker.position.copy(locked).y+=.04;const index=targetLock.startsWith('cast:')?Number(targetLock.slice(5)):remoteActors.get(targetLock)?.skin;$('targetHud').textContent='LOCK ON · '+(skinDefs[index]?.[0]||'PLAYER')+' · '+p.position.distanceTo(locked).toFixed(1)+'m';}$('targetHud').hidden=!showLock;
   if(p&&inStudio)combatEffects.attack(actors[selected],attackKind,localRagdoll?0:punchSwing,attackSerial,attackStrength,attackRushing,dt);
-  combatEffects.update(dt);brownProjectiles.update();updateParticles(dt);updateShockwaves(dt);world.cull(camera.position);housingView?.cull(camera.position,touch);environment.update(time,inStudio?(cameraMode==='free'?camera.position:p?.position||focus):focus.set(0,0,0));renderer.render(scene,camera);
+  combatEffects.update(dt);brownProjectiles.update();updateParticles(dt);updateShockwaves(dt);world.cull(camera.position);housingView?.cull(camera.position,touch);environment.update(time,inStudio?(cameraMode==='free'?camera.position:p?.position||focus):focus.set(0,0,0));housingView?.update(dt,time,camera,renderer,inStudio?p?.position:null,touch,actors[selected]?.root);renderer.render(scene,camera);
   if(now-metricsAt>=1000){fps=fpsFrames*1000/Math.max(1,now-metricsAt);fpsFrames=0;metricsAt=now;$('performance').textContent=`${Math.round(fps)} fps · ${activeQuality==='high'?'高画質':activeQuality==='medium'?'標準':'軽量'} · 描画 ${renderer.info.render.calls} 回`;if(qualityChoice==='auto'&&fps<34){slowSeconds++;if(slowSeconds>=5&&activeQuality!=='low'){quality(activeQuality==='high'?'medium':'low');slowSeconds=0}}else slowSeconds=0;
     canvas.dataset.telemetry=JSON.stringify({selected,screen:inStudio?'studio':'lobby',touch,clean,cameraMode,athleticActive,checkpoint:athleticCheckpoint?.id,seated,duelActive,duelDamage,hitPhase:localHit?.phase||'none',hitRecovery:localHit?.recovery||0,attackRushing,targetLock,chainRemaining,attackKind,attackProgress:punchSwing,attackSerial,attackStrength,crownScore,crownEnabled,position:p?.position.toArray(),bodyYaw:p?.rotation.y,yaw,pitch,speed,grounded,camera:camera.position.toArray(),room:roomCode,roomPlayers:roomSelfId?remoteActors.size+1:remoteActors.size,remotePositions:[...remoteActors.values()].map(remote=>remote.target.toArray()),fps:Math.round(fps),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,quality:activeQuality});
   }

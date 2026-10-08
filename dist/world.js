@@ -194,9 +194,9 @@ export function createWorld(scene){
   // Broad-phase buckets avoid scanning the 600 platforms during every physics substep.
   const buckets=new Map();
   for(const b of bodies){const extent=Math.hypot(b.w,b.d)/2+1+(b.motionMargin||0);for(let x=Math.floor((b.x-extent)/12);x<=Math.floor((b.x+extent)/12);x++)for(let z=Math.floor((b.z-extent)/12);z<=Math.floor((b.z+extent)/12);z++){const k=x+','+z;if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(b);}}
-  const housingBodies=new Map(),housingBuckets=new Map(),nearbyCache=new Map(),housingSeatLists=new Map();let housingSeats=[];
-  function setHouseBodies(index,list,roomSeats=[]){
-    housingBodies.set(index,list);housingSeatLists.set(index,roomSeats);housingSeats=[...housingSeatLists.values()].flat();housingBuckets.clear();nearbyCache.clear();
+  const housingBodies=new Map(),housingBuckets=new Map(),nearbyCache=new Map(),housingSeatLists=new Map(),housingBedLists=new Map();let housingSeats=[],housingBeds=[];
+  function setHouseBodies(index,list,roomSeats=[],roomBeds=[]){
+    housingBodies.set(index,list);housingSeatLists.set(index,roomSeats);housingBedLists.set(index,roomBeds);housingSeats=[...housingSeatLists.values()].flat();housingBeds=[...housingBedLists.values()].flat();housingBuckets.clear();nearbyCache.clear();
     for(const records of housingBodies.values())for(const b of records){const extent=Math.hypot(b.w,b.d)/2+1;for(let x=Math.floor((b.x-extent)/12);x<=Math.floor((b.x+extent)/12);x++)for(let z=Math.floor((b.z-extent)/12);z<=Math.floor((b.z+extent)/12);z++){const key=x+','+z;if(!housingBuckets.has(key))housingBuckets.set(key,[]);housingBuckets.get(key).push(b);}}
   }
   function nearby(p){const key=Math.floor(p.x/12)+','+Math.floor(p.z/12);if(!nearbyCache.has(key))nearbyCache.set(key,(buckets.get(key)||[]).concat(housingBuckets.get(key)||[]));return nearbyCache.get(key);}
@@ -251,6 +251,8 @@ export function createWorld(scene){
     return {grounded,body:landed};
   }
   function seatAt(p,oldY,vy){if(vy>0)return null;const match=s=>Math.hypot(p.x-s.x,p.z-s.z)<.64&&oldY>s.y+.001&&p.y<=s.y+.12;return seats.find(match)||housingSeats.find(match)||null;}
+  function bedAt(p,oldY,vy){if(vy>0)return null;return housingBeds.find(b=>{const dx=p.x-b.x,dz=p.z-b.z,x=Math.cos(b.yaw)*dx-Math.sin(b.yaw)*dz,z=Math.sin(b.yaw)*dx+Math.cos(b.yaw)*dz;return Math.abs(x)<b.w/2&&Math.abs(z)<b.d/2&&oldY>=b.y-.03&&p.y<=b.y+.12&&p.y>=b.y-.08;})||null;}
+  function bedById(id){return housingBeds.find(b=>b.id===id)||null;}
   function checkpointAt(p){return athletic.checkpoints.find(cp=>Math.abs(p.x-cp.x)<cp.size/2&&Math.abs(p.z-cp.z)<cp.size/2&&Math.abs(p.y-cp.y)<.12);}
   function lethal(p){return hazards.some(h=>{const q=localPoint(p,h);return Math.abs(q.x)<h.w/2+.27&&Math.abs(q.z)<h.d/2+.27&&p.y<h.y+.2&&p.y+1.85>h.y-.2;})||balls.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<b.radius+.3&&p.y<b.y+b.radius&&p.y+1.85>b.y-b.radius);}
   function boardHit(o,f){let best=null,dist=4;for(const b of boards){if(b.kind==='house')continue;const dx=b.x-o.x,dy=b.y-o.y,dz=b.z-o.z,d=Math.hypot(dx,dy,dz);if(d<dist&&(dx*f.x+dz*f.z)/Math.max(.01,Math.hypot(dx,dz))>.45){best=b;dist=d;}}return best;}
@@ -293,5 +295,5 @@ export function createWorld(scene){
     for(const b of balls){const phase=((t+b.phase)*b.speed)%8;b.z=b.originZ+b.side*(4-phase);}
   }
   function setBackdrop(mode){chromaMaterial.color.set(mode==='RB'?'#ff0000':mode==='BB'?'#0000ff':'#00ff00');}
-  return {group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,checkpointAt,lethal,boardHit,update,cull,cameraPosition,setBackdrop,setHouseBodies,cutawayHouse};
+  return {group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,setBackdrop,setHouseBodies,cutawayHouse};
 }

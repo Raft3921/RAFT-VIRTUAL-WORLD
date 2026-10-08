@@ -5,7 +5,8 @@ import { GYOZA_SKIN,GUEST_SKIN,playableSkin } from './player-types.js';
 import { HousingStore } from './housing-store.js';
 import {BROWN_PROJECTILE,projectileAt,segmentBox,projectileWallFraction} from './projectile-motion.js';
 import {hitShape} from './hit-reaction.js';
-export const SYNC_VERSION='2026-10-08-gyoza-7';
+import {HOUSES,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js';
+export const SYNC_VERSION='2026-10-08-furniture-8';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||Math.abs(s.x)>1300||Math.abs(s.z)>1300||s.y<0||s.y>512)return null;
@@ -13,7 +14,7 @@ export function cleanState(s,skin){
   return {x:s.x,y:s.y,z:s.z,yaw:s.yaw,skin:playableSkin(skin),
     headYaw:n('headYaw',-1,1),headPitch:n('headPitch',-.7,.7),vx:n('vx',-200,200),vy:n('vy',-200,200),vz:n('vz',-200,200),
     speed:n('speed',0,20),verticalSpeed:n('verticalSpeed',-200,200),grounded:s.grounded!==false,flight:s.flight===true,
-    ragdoll:s.ragdoll===true,seated:s.seated===true,crownEnabled:s.crownEnabled===true,
+    ragdoll:s.ragdoll===true,seated:s.seated===true,sleeping:s.sleeping===true&&s.ragdoll!==true,crownEnabled:s.crownEnabled===true,
     attackKind:Math.floor(n('attackKind',0,12)),attackProgress:n('attackProgress',0,1),attackDuration:n('attackDuration',0,2),attackStrength:n('attackStrength',0,1),attackSerial:Math.floor(n('attackSerial',0,1e9)),
     attackRushing:s.attackRushing===true,punchCharge:n('punchCharge',0,1),
     hitPhase:['impact','air','down','recover'].includes(s.hitPhase)?s.hitPhase:'none',hitTime:n('hitTime',0,60),hitDownTime:n('hitDownTime',0,10),hitRecovery:n('hitRecovery',0,1),hitStrength:n('hitStrength',0,1),
@@ -24,7 +25,7 @@ export function cleanState(s,skin){
 // upright pose. The server owns the serial; the victim echoes it on updates.
 export function applyPlayerState(player,state){
   const serial=player.hitSerial||0;
-  if(state.hitSerial<serial){for(const key of ['ragdoll','hitPhase','hitTime','hitDownTime','hitRecovery','hitStrength','grounded','yaw','vx','vy','vz'])if(player[key]!==undefined)state[key]=player[key];}
+  if(state.hitSerial<serial){for(const key of ['ragdoll','sleeping','seated','hitPhase','hitTime','hitDownTime','hitRecovery','hitStrength','grounded','yaw','vx','vy','vz'])if(player[key]!==undefined)state[key]=player[key];}
   if(Date.now()<(player.impactUntil||0)){
     for(const key of ['x','y','z','yaw','grounded','attackProgress'])state[key]=player[key];
     state.vx=state.vy=state.vz=state.speed=state.verticalSpeed=0;
@@ -67,7 +68,7 @@ export class GameRules{
   removed(id){this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
   state(entry){
     const p=entry.player;if(!this.duel?.ids.includes(p.id))return;
-    p.flight=false;p.seated=false;
+    p.flight=false;p.seated=false;p.sleeping=false;
     const dx=p.x-ARENA.x,dy=Math.max(0,p.y+.95-.24),dz=p.z-ARENA.z,r=ARENA.radius-.65,d=Math.hypot(dx,dy,dz);
     if(d>r){p.x=ARENA.x+dx/d*r;p.y=Math.max(.24,.24+dy/d*r-.95);p.z=ARENA.z+dz/d*r;const dot=p.vx*dx/d+p.vy*dy/d+p.vz*dz/d;if(dot>0){p.vx-=dot*dx/d;p.vy-=dot*dy/d;p.vz-=dot*dz/d;}}
   }
@@ -115,13 +116,20 @@ export class GameRules{
     const speed=projectile?13:Math.min(fighting?18+level*2.2:84,Math.sqrt(range*18/Math.sin(48*Math.PI/180)));
     const velocity={x:dx/d*speed*Math.cos(24*Math.PI/180),y:Math.min(30,speed*Math.sin(24*Math.PI/180)),z:dz/d*speed*Math.cos(24*Math.PI/180)},freeze=.12+(level-1)*.018;
     p.impactUntil=q.impactUntil=now+freeze*1000;if(!projectile)p.attackProgress=ATTACKS[p.attackKind||0].impact;p.vx=p.vy=p.vz=p.speed=0;
-    q.hitSerial=(q.hitSerial||0)+1;q.ragdoll=true;q.hitPhase='impact';q.hitTime=0;q.hitDownTime=0;q.hitRecovery=0;q.hitStrength=Math.min(1,speed/65);q.yaw=Math.atan2(-velocity.x,-velocity.z);q.vx=q.vy=q.vz=0;
+    q.hitSerial=(q.hitSerial||0)+1;q.ragdoll=true;q.seated=false;q.sleeping=false;q.hitPhase='impact';q.hitTime=0;q.hitDownTime=0;q.hitRecovery=0;q.hitStrength=Math.min(1,speed/65);q.yaw=Math.atan2(-velocity.x,-velocity.z);q.vx=q.vy=q.vz=0;
     this.broadcast({type:'punch',target:q.id,attacker:p.id,velocity,freeze,hitSerial:q.hitSerial,strength:q.hitStrength,targetPosition:{x:q.x,y:q.y,z:q.z},attackerPosition:{x:p.x,y:p.y,z:p.z},damage:fighting?level:0,projectile:!!projectile});
     if(!fighting)return;this.duel.damage[q.id]+=level;this.broadcast({type:'duel-damage',...this.duel});if(this.duel.damage[q.id]<this.duel.goalDamage)return;
     const saved=this.characters.result(p.skin,q.skin);this.broadcast({type:'duel-result',winner:p.id,loser:q.id,practice:p.guest||q.guest,scores:{[p.id]:p.score,[q.id]:q.score}});this.duel=null;this.ready.clear();return saved;
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
+    if(m.type==='piano-play'){
+      if(p.ragdoll||this.duel?.ids.includes(p.id)||now-(entry.lastPianoAt||0)<180)return;
+      const h=HOUSES[m.index],item=this.houses.snapshots()[m.index]?.items.find(i=>i.id===m.itemId&&FURNITURE_BY_ID.get(i.t)?.family==='piano');if(!h||!item)return;
+      const pose=furniturePose(item),x=h.x+pose.x*h.front,z=h.z+pose.z*h.front,dx=x-p.x,dz=z-p.z;
+      if(Math.hypot(dx,dz)>3.8||Math.abs(p.y-ROOM.floor)>2.2||dx*Math.sin(p.yaw)+dz*Math.cos(p.yaw)<-.2)return;
+      entry.lastPianoAt=now;this.broadcast({type:'piano-play',index:h.index,itemId:item.id,note:clamp(Math.floor(Number(m.note)||0),0,23),serial:m.serial,playerId:p.id});return;
+    }
     if(p.guest&&['housing-op','crown-toggle','checkpoint','duel-settings','backdrop'].includes(m.type)){
       this.broadcast({type:'guest-denied',id:p.id,message:'ゲストは家・ワールド設定・メンバーの保存データを変更できません'});return;
     }

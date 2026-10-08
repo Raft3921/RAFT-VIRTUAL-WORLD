@@ -38,8 +38,9 @@ function skinBox(part, overlay = false, start = 0, length = part.size[1]) {
   const pad = overlay ? part.inflate : 0;
   // Keep a joint's touching ends in the same plane. Only the outer ends of
   // a split sleeve/trouser get inflation; this avoids a cuff at every joint.
-  const topPad = start === 0 ? pad : 0;
-  const bottomPad = start + length === fullHeight ? pad : 0;
+  const seamInset=overlay&&part.baseBox&&part.size[1]<8 ? .012 : 0;
+  const topPad = start === 0 ? pad : -seamInset;
+  const bottomPad = start + length === fullHeight ? pad : -seamInset;
   const geometry = new THREE.BoxGeometry(
     (width + pad * 2) * PX,
     (length + topPad + bottomPad) * PX,
@@ -214,12 +215,14 @@ export async function createAvatar(url,{model=null}={}) {
     const elbow = group(`${side}-elbow`, shoulder,custom?arm.center[0]-arm.pivot[0]:sign*.5,custom?-armHalf:-4);
     addPart(shoulder, `${side}Arm`,custom?arm.center[0]-arm.pivot[0]:sign*.5,custom?-armHalf/2:-1.4,0,armHalf);
     addPart(elbow, `${side}Arm`,0,custom?-armHalf/2:-2.6,armHalf,armHalf);
-    addJoint(elbow, `${side}Arm`);
+    // The short JEM limbs already meet at their split ends. An additional
+    // atlas-covered joint cube overlaps both halves and produces striped cuffs.
+    if(!custom)addJoint(elbow, `${side}Arm`);
     const hip = group(`${side}-hip`, pelvis,custom?leg.center[0]:sign*2,legHeight);
     const knee = group(`${side}-knee`, hip,0,-legHalf);
     addPart(hip, `${side}Leg`,0,custom?-legHalf/2:-3.4,0,legHalf);
     addPart(knee, `${side}Leg`,0,custom?-legHalf/2:-2.6,legHalf,legHalf);
-    addJoint(knee, `${side}Leg`);
+    if(!custom)addJoint(knee, `${side}Leg`);
     shoulders[side] = shoulder;
     elbows[side] = elbow;
     hips[side] = hip;
@@ -246,7 +249,7 @@ export async function createAvatar(url,{model=null}={}) {
     crownTips.forEach(t=>t.position.y=crownFloor+height+.07);
   }
   setAppearance();
-  let sitWeight=0;
+  let sitWeight=0,sleepWeight=0;
   let phase = 0;
   let elapsed = 0;
   let motion = 0;
@@ -409,18 +412,29 @@ export async function createAvatar(url,{model=null}={}) {
         gestureJoint(elbows[side],-.55,0,0,sitWeight);
       }
     }
+    sleepWeight=damp(sleepWeight,state.sleeping&&!state.ragdoll?1:0,14,dt);
+    if(sleepWeight>.001){
+      pelvis.rotation.x=THREE.MathUtils.lerp(pelvis.rotation.x,-Math.PI/2,sleepWeight);
+      pelvis.rotation.y*=1-sleepWeight;pelvis.rotation.z*=1-sleepWeight;
+      pelvis.position.y=THREE.MathUtils.lerp(pelvis.position.y,.14,sleepWeight);
+      torso.rotation.x*=1-sleepWeight;torso.rotation.y*=1-sleepWeight;torso.rotation.z*=1-sleepWeight;
+      for(const [side,sign]of [['left',1],['right',-1]]){
+        gestureJoint(hips[side],0,0,sign*.045,sleepWeight);gestureJoint(knees[side],0,0,0,sleepWeight);
+        gestureJoint(shoulders[side],0,0,sign*.12,sleepWeight);gestureJoint(elbows[side],-.08,0,0,sleepWeight);
+      }
+    }
     if(state.impactDuration>0&&state.impactTime<state.impactDuration){
       const t=state.impactTime,u=t/state.impactDuration,amount=(.012+.035*(state.impactStrength||0))*Math.sin(Math.PI*u);
       pelvis.position.x+=Math.sin(t*155)*amount;pelvis.position.z+=Math.sin(t*119+.8)*amount;pelvis.rotation.z+=Math.sin(t*142)*amount*.4;
     }
     // Keep the supporting foot planted after the combat pose has been blended.
-    if(grounded&&airborne<.02&&sitWeight<.01&&ragdollWeight<.01){
+    if(grounded&&airborne<.02&&sitWeight<.01&&sleepWeight<.01&&ragdollWeight<.01){
       let sole=Infinity;for(const side of ['right','left']){const a=hips[side].rotation.x,b=a+knees[side].rotation.x,z=hips[side].rotation.z;const y=legHeight*PX+pelvis.position.y-(legHalf*PX*Math.cos(a)+legHalf*PX*Math.cos(b))*Math.cos(z)-.125*Math.abs(Math.sin(b));sole=Math.min(sole,y);}
       if(sole<0)pelvis.position.y-=sole;
     }
-    if(state.ragdoll&&grounded){root.updateMatrixWorld(true);let lowest=Infinity;for(const mesh of meshes){const b=mesh.geometry.boundingBox;for(let corner=0;corner<8;corner++){groundProbe.set(corner&1?b.max.x:b.min.x,corner&2?b.max.y:b.min.y,corner&4?b.max.z:b.min.z).applyMatrix4(mesh.matrixWorld);lowest=Math.min(lowest,groundProbe.y);}}if(lowest<root.position.y+.015)pelvis.position.y+=root.position.y+.015-lowest;}
-    head.rotation.y = damp(head.rotation.y, state.ragdoll?0:clamp(state.lookYaw || 0, -.95, .95) - torso.rotation.y * .6, 12, dt);
-    head.rotation.x = damp(head.rotation.x, state.ragdoll?0:clamp(state.lookPitch || 0, -.65, .7) - torso.rotation.x * .65, 12, dt);
+    if((state.ragdoll||state.sleeping)&&grounded){root.updateMatrixWorld(true);let lowest=Infinity;for(const mesh of meshes){const b=mesh.geometry.boundingBox;for(let corner=0;corner<8;corner++){groundProbe.set(corner&1?b.max.x:b.min.x,corner&2?b.max.y:b.min.y,corner&4?b.max.z:b.min.z).applyMatrix4(mesh.matrixWorld);lowest=Math.min(lowest,groundProbe.y);}}if(lowest<root.position.y+.015)pelvis.position.y+=root.position.y+.015-lowest;}
+    head.rotation.y = damp(head.rotation.y, state.ragdoll||state.sleeping?0:clamp(state.lookYaw || 0, -.95, .95) - torso.rotation.y * .6, 12, dt);
+    head.rotation.x = damp(head.rotation.x, state.ragdoll||state.sleeping?0:clamp(state.lookPitch || 0, -.65, .7) - torso.rotation.x * .65, 12, dt);
     head.rotation.z = -torso.rotation.z * .4;
     Object.assign(animation, { speed, motion, running, grounded, phase, gesture: gestureName });
   }

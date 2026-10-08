@@ -1,29 +1,37 @@
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js';
+import { createWorld } from './world.js?v=20261008-home3';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
-import { SYNC_VERSION } from './game-rules.js';
+import { SYNC_VERSION } from './game-rules.js?v=20261008-guest6';
+import {GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js';
+import { createHousingRenderer } from './housing-renderer.js?v=20261008-home3';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261008-2';
+import { createHouseEditor } from './house-editor.js?v=20261008-home3';
 
 const $ = id => document.getElementById(id);
 const clamp = THREE.MathUtils.clamp;
 const angleDelta = (a,b) => Math.atan2(Math.sin(b-a),Math.cos(b-a));
 const safeRead = key => {try{return localStorage.getItem(key)}catch{return null}};
 const safeSave = (key,value) => {try{localStorage.setItem(key,value);return true}catch{return false}};
-const skinDefs = [['ウィーク','week.png'],['もろん','moron.png'],['やんさん','やんさん.png'],['ラフト','raft.png'],['ムート','muto.png'],['まい','maiのコピー.png'],['たぬつな','1000001207.png']];
+const skinDefs = [['ウィーク','week.png'],['もろん','moron.png'],['やんさん','やんさん.png'],['ラフト','raft.png'],['ムート','muto.png'],['まい','maiのコピー.png'],['たぬつな','1000001207.png'],['近日公開',null],['ゲスト',null]];
+let whiteSkinURL='';
+function skinURL(index){
+  if(index!==GUEST_SKIN)return 'skins/'+skinDefs[index][1];
+  if(!whiteSkinURL){const image=document.createElement('canvas');image.width=image.height=64;const ctx=image.getContext('2d');ctx.fillStyle='#ffffff';for(const [x,y,w,h]of [[0,0,32,16],[16,16,24,16],[40,16,14,16],[32,48,14,16],[0,16,16,16],[16,48,16,16]])ctx.fillRect(x,y,w,h);whiteSkinURL=image.toDataURL('image/png');}
+  return whiteSkinURL;
+}
 const castOrder=[3,5,6,2,4,1,0];
 const initialCharacter=Number(shareSource().get('c')??safeRead('raft-studio-character')??3);
-let selected=Math.floor(clamp(Number.isFinite(initialCharacter)?initialCharacter:3,0,6)), inStudio=false, clean=false;
+let selected=playableSkin(initialCharacter), inStudio=false, clean=false;
+let guestState=cleanCharacter();
 let characterCache={};try{const saved=JSON.parse(safeRead('raft-character-state')||'{}');for(let skin=0;skin<7;skin++)if(saved?.[skin])characterCache[skin]=cleanCharacter(saved[skin]);}catch{}
-if(!characterCache[selected])characterCache[selected]=cleanCharacter({crownEnabled:safeRead('raft-crown')==='true'});
+if(selected!==GUEST_SKIN&&!characterCache[selected])characterCache[selected]=cleanCharacter({crownEnabled:safeRead('raft-crown')==='true'});
 let pendingCrown={};try{const pending=JSON.parse(safeRead('raft-character-crown-pending')||'{}');for(let skin=0;skin<7;skin++)if(typeof pending?.[skin]==='boolean')pendingCrown[skin]=pending[skin];}catch{}
 let touch = matchMedia('(pointer:coarse)').matches;
 let cameraMode='follow',yaw=0,pitch=-.14,lobbyYaw=.35;
@@ -47,10 +55,10 @@ for(let i=0;i<6;i++){const mat=new THREE.MeshBasicMaterial({color:'#bdfbe8',tran
 function shockwave(position,power){const s=shocks.find(s=>s.life<=0)||shocks[0];s.life=.55;s.power=power;s.mesh.position.copy(position).y+=.06;s.mesh.visible=true;s.mesh.material.color.set(power>.9?'#fff2ab':'#a6fff0');}
 function updateShockwaves(dt){for(const s of shocks){if(s.life<=0)continue;s.life-=dt;const t=1-s.life/.55;s.mesh.scale.setScalar(.4+t*(3+s.power*7));s.mesh.material.opacity=Math.max(0,(1-t)*.85);s.mesh.visible=s.life>0;}}
 camera.rotation.order='YXZ';camera.position.set(1.75,1.9,5.3);
-const actors=new Array(8),velocity=new THREE.Vector3(),focus=new THREE.Vector3(),target=new THREE.Vector3(),desired=new THREE.Vector3(),direction=new THREE.Vector3(),right=new THREE.Vector3(),movement=new THREE.Vector3();
+const actors=new Array(9),velocity=new THREE.Vector3(),focus=new THREE.Vector3(),target=new THREE.Vector3(),desired=new THREE.Vector3(),direction=new THREE.Vector3(),right=new THREE.Vector3(),movement=new THREE.Vector3();
 const orbitTarget=new THREE.Vector3(),freePosition=new THREE.Vector3();
 let verticalSpeed=0,grounded=true,stickId=null,lookId=null,lookX=0,lookY=0,jumpRequested=false;
-const bodies=Array.from({length:8},()=>({vel:new THREE.Vector3(),grounded:true,travelRemaining:0,ragdoll:false,landedAt:0}));
+const bodies=Array.from({length:9},()=>({vel:new THREE.Vector3(),grounded:true,travelRemaining:0,ragdoll:false,landedAt:0}));
 let charging=false,chargeTime=0,punchSwing=0,chargeLevelShown=-1,shareTimer=0;
 let attackKind=0,attackStrength=0,attackSerial=0,comboIndex=0,lastComboAt=-Infinity,pendingAttack=null,queuedAttack=null;
 let attackDuration=.34,attackYaw=0;
@@ -68,15 +76,16 @@ function freezeImpact(duration,strength){
   localImpact={time:0,duration,strength,vertical:verticalSpeed,velocity:velocity.clone()};
   velocity.set(0,0,0);verticalSpeed=0;lastRoomStateAt=0;
 }
-let crownEnabled=characterCache[selected].crownEnabled,crownScore=characterCache[selected].score,athleticCheckpoint=null,athleticActive=false,seated=false,duelActive=false,duelDamage=0;
+let crownEnabled=cachedCharacter().crownEnabled,crownScore=cachedCharacter().score,athleticCheckpoint=null,athleticActive=false,seated=false,duelActive=false,duelDamage=0;
 let courseAwaitingSave=false;
 let standingOn=null,seat=null,seatCooldown=0,knockbackInArena=false,duelIds=[],openBoard=null,athleticPeak=0;
 let goalDamage=11,matchGoalDamage=11;
 const profile=safeRead('raft-world-profile')||(crypto.randomUUID?.()||'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const n=Math.floor(Math.random()*16);return (c==='x'?n:(n&3)|8).toString(16);}));safeSave('raft-world-profile',profile);
-function cachedCharacter(skin=selected){return characterCache[skin]||cleanCharacter();}
-function cacheCharacter(skin,value){const record=cleanCharacter(value);record.checkpoint=Math.max(record.checkpoint,cachedCharacter(skin).checkpoint);characterCache[skin]=record;safeSave('raft-character-state',JSON.stringify(characterCache));actors[skin]?.setAppearance(record.score,record.crownEnabled);if(skin===selected){crownScore=record.score;crownEnabled=record.crownEnabled;updateCrown();}}
-function saveCheckpoint(id){cacheCharacter(selected,{...cachedCharacter(),checkpoint:id});if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'checkpoint',id:cachedCharacter().checkpoint}));}
+function cachedCharacter(skin=selected){return skin===GUEST_SKIN?guestState:characterCache[skin]||cleanCharacter();}
+function cacheCharacter(skin,value){const record=cleanCharacter(value);record.checkpoint=Math.max(record.checkpoint,cachedCharacter(skin).checkpoint);if(skin===GUEST_SKIN){guestState={...record,score:0,crownEnabled:false};return;}characterCache[skin]=record;safeSave('raft-character-state',JSON.stringify(characterCache));actors[skin]?.setAppearance(record.score,record.crownEnabled);if(skin===selected){crownScore=record.score;crownEnabled=record.crownEnabled;updateCrown();}}
+function saveCheckpoint(id){cacheCharacter(selected,{...cachedCharacter(),checkpoint:id});if(selected!==GUEST_SKIN&&roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'checkpoint',id:cachedCharacter().checkpoint}));}
 function receiveCharacter(skin,value){
+  if(skin===GUEST_SKIN)return;
   const wanted=pendingCrown[skin];if(wanted!==undefined&&value.crownEnabled===wanted){delete pendingCrown[skin];safeSave('raft-character-crown-pending',JSON.stringify(pendingCrown));}
   cacheCharacter(skin,{...value,crownEnabled:wanted!==undefined?wanted:value.crownEnabled});
   if(skin===selected&&roomSelfId){if(cachedCharacter().checkpoint>(value.checkpoint||1))saveCheckpoint(cachedCharacter().checkpoint);if(wanted!==undefined&&value.crownEnabled!==wanted&&roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify({type:'crown-toggle',enabled:wanted}));}
@@ -177,6 +186,7 @@ function setCameraMode(mode){if(!['follow','first','orbit','free'].includes(mode
 function updateVisibility(){actors.forEach((a,i)=>{if(a)a.root.visible=(i===selected&&(!inStudio||cameraMode!=='first'))||(inStudio&&showCast&&i!==selected)})}
 function setSelected(index){
   if(!actors[index]){$('actorSelect').value=String(selected);return;}if(index===selected)return;
+  if(inStudio&&selected===GUEST_SKIN){$('actorSelect').value=String(selected);notify('ゲストからの変更はキャラクター選択画面に戻ってください');return;}
   if(duelActive||localRagdoll||localImpact){$('actorSelect').value=String(selected);notify('試合・被弾中はキャラクターを変更できません');return;}
   if(housingEditor?.active)housingEditor.close();
   if(athleticCheckpoint)saveCheckpoint(athleticCheckpoint.id);athleticActive=false;athleticCheckpoint=null;athleticPeak=0;courseAwaitingSave=false;standingOn=null;seated=false;seat=null;
@@ -187,8 +197,8 @@ function setSelected(index){
   updateCrown();updateSelection();updateVisibility();scheduleShare();
 }
 function updateSelection(){$('selectedName').textContent=skinDefs[selected][0];$('sessionName').textContent=skinDefs[selected][0]+' · Meadow';$('enter').disabled=!actors[selected];$('actorSelect').value=String(selected);document.querySelectorAll('.character').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.index===selected)))}
-function updateCrown(){actors[selected]?.setAppearance(crownScore,crownEnabled);$('crownToggle').textContent=skinDefs[selected][0]+' · 王冠・ハゲ表現：'+(crownEnabled?'ON':'OFF');}
-function updateDuelSettings(){$('duelGoal').value=String(goalDamage);$('duelSettingsStatus').textContent=`現在：${goalDamage}ダメージ · サーバー保存 · 次の試合から反映`;}
+function updateCrown(){const guest=selected===GUEST_SKIN;if(guest){crownScore=0;crownEnabled=false;}actors[selected]?.setAppearance(crownScore,crownEnabled);$('crownToggle').disabled=guest;$('saveDuelGoal').disabled=guest;$('duelGoal').disabled=guest;document.querySelectorAll('[data-bg]').forEach(button=>button.disabled=guest);$('crownToggle').textContent=guest?'ゲスト · 王冠・ハゲ表現なし':skinDefs[selected][0]+' · 王冠・ハゲ表現：'+(crownEnabled?'ON':'OFF');}
+function updateDuelSettings(){$('duelGoal').value=String(goalDamage);$('duelSettingsStatus').textContent=selected===GUEST_SKIN?'ゲストはワールド設定を変更できません':`現在：${goalDamage}ダメージ · サーバー保存 · 次の試合から反映`;}
 function receiveDuel(duel,announce=false){duelIds=duel.ids;duelActive=duelIds.includes(roomSelfId);matchGoalDamage=duel.goalDamage||goalDamage;duelDamage=duel.damage?.[roomSelfId]||0;if(duelActive){airWalk=false;updateJumpButton();}if(announce)notify('タイマン開始！',3500);$('duelHud').hidden=false;$('duelHud').textContent=duelActive?`被ダメージ ${duelDamage} / ${matchGoalDamage} · 試合中はバリア封鎖`:`タイマン観戦中 · ${matchGoalDamage}ダメージで決着`;}
 function openWorldMenu(board=null){setClean(false);unlocked();openBoard=board;$('menu').hidden=true;$('master').hidden=true;$('worldMenu').hidden=false;$('stopAthletic').disabled=!athleticActive;updateDuelSettings();$('worldStatus').textContent=athleticActive?'CHECK '+(athleticCheckpoint?.id||1)+' / 100 · ジャンプ力1.5倍':`闘技場：2人が1秒以内にパンチで開始 · ${goalDamage}ダメージで勝利`;}
 function closeWorldMenu(){$('worldMenu').hidden=true;canvas.focus();}
@@ -196,22 +206,23 @@ function respawnCourse(){
   const cp=athleticCheckpoint||world.athletic.checkpoints[0];
   actors[selected].root.position.set(cp.x,cp.y,cp.z);verticalSpeed=0;velocity.set(0,0,0);localImpulse.set(0,0,0);localImpact=null;localHit=null;localRagdoll=false;grounded=true;seated=false;seat=null;standingOn=null;athleticPeak=cp.y;focus.copy(actors[selected].root.position).y+=1.25;notify('CHECK '+cp.id+' から再開');
 }
-function stopCourse(){if(!athleticActive||duelActive)return;if(athleticCheckpoint)saveCheckpoint(athleticCheckpoint.id);courseAwaitingSave=false;athleticActive=false;athleticCheckpoint=null;athleticPeak=0;seated=false;seat=null;airWalk=false;localImpact=null;localHit=null;localRagdoll=false;localImpulse.set(0,0,0);verticalSpeed=0;velocity.set(0,0,0);actors[selected].root.position.set(world.athletic.exit.x,.16,world.athletic.exit.z);grounded=true;setCameraMode('follow');closeWorldMenu();updateJumpButton();notify('アスレチックを終了 · CHECK '+cachedCharacter().checkpoint+' を保存');}
+function stopCourse(){if(!athleticActive||duelActive)return;if(athleticCheckpoint)saveCheckpoint(athleticCheckpoint.id);courseAwaitingSave=false;athleticActive=false;athleticCheckpoint=null;athleticPeak=0;seated=false;seat=null;airWalk=false;localImpact=null;localHit=null;localRagdoll=false;localImpulse.set(0,0,0);verticalSpeed=0;velocity.set(0,0,0);actors[selected].root.position.set(world.athletic.exit.x,.16,world.athletic.exit.z);grounded=true;setCameraMode('follow');closeWorldMenu();updateJumpButton();notify('アスレチックを終了 · CHECK '+cachedCharacter().checkpoint+(selected===GUEST_SKIN?'（今回の入室中のみ）':' を保存'));}
 
 function placeActors(){courseAwaitingSave=false;athleticActive=false;athleticCheckpoint=null;seated=false;seat=null;standingOn=null;localImpact=null;localRagdoll=false;localHit=null;restoreHitCamera=null;localImpulse.set(0,0,0);actors.forEach((a,i)=>{if(a){if(i===selected){a.root.position.set(0,0,0);a.root.rotation.set(0,0,0)}else{const angle=i*2.399+.4,radius=3.4+(i%3)*.85;a.root.position.set(Math.sin(angle)*radius,0,Math.cos(angle)*radius+1.2);a.root.rotation.set(0,Math.atan2(-a.root.position.x,-a.root.position.z),0)}}if(a&&world)a.root.position.y=world.floorAt(a.root.position,.5).y;bodies[i].vel.set(0,0,0);bodies[i].grounded=true;bodies[i].ragdoll=false;bodies[i].hit=null;bodies[i].travelRemaining=0});velocity.set(0,0,0);verticalSpeed=0;grounded=true;airWalk=false;lastJumpTapAt=-Infinity;updateJumpButton();cancelCharge();punchSwing=0;pendingAttack=null;queuedAttack=null;comboIndex=0;attackRushing=false;chainRemaining=0;targetLock=null}
 function enterStudio(){if(!actors[selected])return;const query=shareSource();inStudio=true;showCast=false;$('showCast').checked=false;document.body.dataset.screen='studio';$('lobby').hidden=true;$('hud').hidden=false;placeActors();focus.set(0,1.25,0);const sharedYaw=Number(query.get('yaw')),sharedPitch=Number(query.get('pitch'));yaw=query.has('yaw')&&Number.isFinite(sharedYaw)?angleDelta(0,sharedYaw):0;pitch=query.has('pitch')&&Number.isFinite(sharedPitch)?clamp(sharedPitch,-1.15,1.1):-.14;setCameraMode(query.get('cam')||'follow');updateVisibility();canvas.focus();notify(touch?'左スティックで移動。パンチを長押しで溜め':'ドラッグで視点 / 右下の✊を長押しで溜めパンチ',3500);connectRoom();scheduleShare()}
-function returnLobby(){leaveRoom();unlocked();setClean(false);inStudio=false;document.body.dataset.screen='lobby';$('hud').hidden=true;$('lobby').hidden=false;$('menu').hidden=$('master').hidden=$('worldMenu').hidden=true;gesture='none';$('gesture').value='idle';placeActors();updateSelection();updateVisibility();$('enter').focus()}
+function returnLobby(){leaveRoom();if(selected===GUEST_SKIN)guestState=cleanCharacter();unlocked();setClean(false);inStudio=false;document.body.dataset.screen='lobby';$('hud').hidden=true;$('lobby').hidden=false;$('menu').hidden=$('master').hidden=$('worldMenu').hidden=true;gesture='none';$('gesture').value='idle';placeActors();updateSelection();updateVisibility();$('enter').focus()}
 function makeFace(url,el){const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=c.height=32;c.className='face';c.setAttribute('aria-hidden','true');const q=c.getContext('2d');q.imageSmoothingEnabled=false;const s=img.width/64;q.drawImage(img,8*s,8*s,8*s,8*s,0,0,32,32);q.drawImage(img,40*s,8*s,8*s,8*s,0,0,32,32);el.replaceChildren(c)};img.src=url}
 const faces=[],characterButtons=[];
 castOrder.forEach(i=>{const [name,file]=skinDefs[i],b=document.createElement('button');b.className='character';b.dataset.index=i;b.setAttribute('aria-label',name+' を選択');b.setAttribute('aria-pressed',String(i===selected));const holder=document.createElement('span');holder.className='face';holder.textContent='＋';faces[i]=holder;characterButtons[i]=b;const label=document.createElement('span');label.textContent=name;b.append(holder,label);b.onclick=()=>setSelected(i);$('characters').append(b);$('actorSelect').add(new Option(name,String(i)));if(file)makeFace('skins/'+file,holder)});
 const secret=document.createElement('button');secret.className='character secret-character';secret.disabled=true;secret.textContent='🔒 近日公開';secret.setAttribute('aria-label','シークレット・近日公開');$('characters').append(secret);
+const guestButton=document.createElement('button');guestButton.className='character guest-character';guestButton.dataset.index=String(GUEST_SKIN);guestButton.setAttribute('aria-label','ゲスト · 保存データを変更しない白いキャラクター');const guestFace=document.createElement('span');guestFace.className='face';const guestLabel=document.createElement('span');guestLabel.textContent='ゲスト';guestButton.append(guestFace,guestLabel);guestButton.onclick=()=>setSelected(GUEST_SKIN);$('characters').append(guestButton);faces[GUEST_SKIN]=guestFace;characterButtons[GUEST_SKIN]=guestButton;$('actorSelect').add(new Option('ゲスト（保存なし）',String(GUEST_SKIN)));makeFace(skinURL(GUEST_SKIN),guestFace);
 async function replaceSkin(i,url){const actor=await createAvatar(url);const old=actors[i];if(old){actor.root.position.copy(old.root.position);actor.root.rotation.copy(old.root.rotation);scene.remove(old.root);old.dispose()}actors[i]=actor;const appearance=cachedCharacter(i);actor.setAppearance(appearance.score,appearance.crownEnabled);scene.add(actor.root);makeFace(url,faces[i]);updateSelection();updateVisibility()}
 $('enter').onclick=enterStudio;$('resume').onclick=()=>{$('menu').hidden=true;clearInput();canvas.focus()};$('changeCharacter').onclick=$('masterCharacter').onclick=returnLobby;
 $('openMaster').onclick=openMaster;$('closeMaster').onclick=()=>{$('master').hidden=true;clearInput();canvas.focus()};$('cleanView').onclick=$('cleanMaster').onclick=enterClean;
 $('studioBoard').onclick=()=>openWorldMenu();$('closeWorldMenu').onclick=closeWorldMenu;
-document.querySelectorAll('[data-bg]').forEach(button=>button.onclick=()=>{const value=button.dataset.bg;world.setBackdrop(value);if(roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify({type:'backdrop',value}));notify(value+' 背景に切替');});
-$('crownToggle').onclick=()=>{cacheCharacter(selected,{...cachedCharacter(),crownEnabled:!crownEnabled});pendingCrown[selected]=crownEnabled;safeSave('raft-character-crown-pending',JSON.stringify(pendingCrown));if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'crown-toggle',enabled:crownEnabled}));};
-$('saveDuelGoal').onclick=()=>{const value=Number($('duelGoal').value);if(!Number.isInteger(value)||value<1||value>100){notify('合計ダメージは1〜100の整数にしてください');return;}if(roomSocket?.readyState!==WebSocket.OPEN||!roomSelfId){notify('設定を保存するにはサーバーに接続してください');return;}$('saveDuelGoal').disabled=true;$('duelSettingsStatus').textContent='サーバーに保存中…';roomSocket.send(JSON.stringify({type:'duel-settings',goalDamage:value}));};
+document.querySelectorAll('[data-bg]').forEach(button=>button.onclick=()=>{if(selected===GUEST_SKIN)return;const value=button.dataset.bg;world.setBackdrop(value);if(roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify({type:'backdrop',value}));notify(value+' 背景に切替');});
+$('crownToggle').onclick=()=>{if(selected===GUEST_SKIN)return;cacheCharacter(selected,{...cachedCharacter(),crownEnabled:!crownEnabled});pendingCrown[selected]=crownEnabled;safeSave('raft-character-crown-pending',JSON.stringify(pendingCrown));if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'crown-toggle',enabled:crownEnabled}));};
+$('saveDuelGoal').onclick=()=>{if(selected===GUEST_SKIN)return;const value=Number($('duelGoal').value);if(!Number.isInteger(value)||value<1||value>100){notify('合計ダメージは1〜100の整数にしてください');return;}if(roomSocket?.readyState!==WebSocket.OPEN||!roomSelfId){notify('設定を保存するにはサーバーに接続してください');return;}$('saveDuelGoal').disabled=true;$('duelSettingsStatus').textContent='サーバーに保存中…';roomSocket.send(JSON.stringify({type:'duel-settings',goalDamage:value}));};
 $('stopAthletic').onclick=stopCourse;
 $('boardSession').onclick=()=>{closeWorldMenu();openMenu();};
 $('boardMaster').onclick=()=>{closeWorldMenu();openMaster();};
@@ -254,24 +265,25 @@ function updateRemotePlayer(player){
   if(entry){if((player.hitSerial||0)<(entry.hitSerial||0)){player={...player,ragdoll:entry.ragdoll,hitPhase:entry.hitPhase,hitTime:entry.hitTime,hitDownTime:entry.hitDownTime,hitRecovery:entry.hitRecovery,hitStrength:entry.hitStrength,hitSerial:entry.hitSerial};}entry.hitSerial=player.hitSerial||0;entry.target.set(player.x,player.y,player.z);entry.velocity.set(player.vx||0,player.vy||0,player.vz||0);entry.receivedAt=performance.now();entry.yaw=player.yaw;entry.headYaw=player.headYaw;entry.headPitch=player.headPitch;entry.speed=player.speed;entry.grounded=player.grounded;entry.verticalSpeed=player.verticalSpeed;entry.gesture=player.gesture;entry.flight=player.flight;entry.ragdoll=player.ragdoll;entry.seated=player.seated;entry.crownEnabled=player.crownEnabled;entry.attackRushing=player.attackRushing;entry.punchCharge=player.punchCharge;entry.attackDuration=player.attackDuration;entry.hitPhase=player.hitPhase;entry.hitTime=player.hitTime;entry.hitDownTime=player.hitDownTime;entry.hitRecovery=player.hitRecovery;entry.hitStrength=player.hitStrength;entry.attackKind=player.attackKind||0;entry.attackProgress=player.attackProgress||0;entry.attackStrength=player.attackStrength||0;entry.attackSerial=player.attackSerial||0;entry.actor.setAppearance(player.score||0,player.crownEnabled);return}
   if(remoteLoading.has(player.id)){remoteLoading.set(player.id,player);return}
   remoteLoading.set(player.id,player);
-  const loadingSocket=roomSocket,index=Number.isInteger(player.skin)&&player.skin>=0&&player.skin<7?player.skin:3;
-  createAvatar(`skins/${skinDefs[index][1]}`).then(actor=>{
+  const loadingSocket=roomSocket,index=playableSkin(player.skin);
+  createAvatar(skinURL(index)).then(actor=>{
     const latest=remoteLoading.get(player.id);
     if(!latest||roomSocket!==loadingSocket){actor.dispose();return}
     remoteLoading.delete(player.id);actor.root.position.set(latest.x,latest.y,latest.z);actor.root.rotation.y=latest.yaw;scene.add(actor.root);
     actor.setAppearance(latest.score||0,latest.crownEnabled);
     remoteActors.set(player.id,{actor,hitSerial:latest.hitSerial||0,punchCharge:latest.punchCharge||0,attackRushing:latest.attackRushing,attackDuration:latest.attackDuration,hitPhase:latest.hitPhase,hitTime:latest.hitTime,hitDownTime:latest.hitDownTime,hitRecovery:latest.hitRecovery,hitStrength:latest.hitStrength,attackKind:latest.attackKind||0,attackProgress:latest.attackProgress||0,attackStrength:latest.attackStrength||0,attackSerial:latest.attackSerial||0,effectSerial:0,skin:latest.skin,seated:latest.seated,crownEnabled:latest.crownEnabled,target:new THREE.Vector3(latest.x,latest.y,latest.z),velocity:new THREE.Vector3(latest.vx||0,latest.vy||0,latest.vz||0),renderTarget:new THREE.Vector3(),receivedAt:performance.now(),yaw:latest.yaw,headYaw:latest.headYaw,headPitch:latest.headPitch,speed:latest.speed,grounded:latest.grounded,verticalSpeed:latest.verticalSpeed,gesture:latest.gesture,flight:latest.flight,ragdoll:latest.ragdoll});
-    updateRoomStatus(`${roomCode} · ${remoteActors.size+1}/8人`);
+    updateRoomStatus(`${roomCode} · ${remoteActors.size+1}/${MAX_PLAYERS}人`);
   }).catch(error=>{remoteLoading.delete(player.id);console.error('remote skin load failed',error)});
 }
 function handleRoomMessage(socket,event){
   let message;try{message=JSON.parse(event.data)}catch{return}
+  if(message.type==='guest-denied'){if(message.id===roomSelfId)notify(message.message);return;}
   if(message.type==='house-state'){housingEditor?.receive(message);return;}
   if(message.type==='world'){world?.setBackdrop(message.backdrop);if(Number.isInteger(message.goalDamage)){goalDamage=message.goalDamage;updateDuelSettings();}if(message.duel)receiveDuel(message.duel);return;}
   if(message.type==='character-state'){const skin=Number(message.skin);if(Number.isInteger(skin)&&skin>=0&&skin<7){receiveCharacter(skin,message.character);for(const remote of remoteActors.values())if(remote.skin===skin){remote.crownEnabled=message.character.crownEnabled;remote.actor.setAppearance(message.character.score,remote.crownEnabled);}}return;}
   if(message.type==='character-save-error'){notify(message.message,8000);return;}
-  if(message.type==='character-select-rejected'&&message.id===roomSelfId){selected=message.skin;crownScore=cachedCharacter().score;crownEnabled=cachedCharacter().crownEnabled;updateSelection();updateVisibility();updateCrown();notify('試合・被弾中はキャラクターを変更できません');return;}
-  if(message.type==='settings-saved'){goalDamage=message.goalDamage;updateDuelSettings();$('saveDuelGoal').disabled=false;notify(`次の試合：${goalDamage}ダメージ · サーバーに保存しました`);return;}
+  if(message.type==='character-select-rejected'&&message.id===roomSelfId){selected=message.skin;crownScore=cachedCharacter().score;crownEnabled=cachedCharacter().crownEnabled;updateSelection();updateVisibility();updateCrown();notify(message.reason||'試合・被弾中はキャラクターを変更できません');return;}
+  if(message.type==='settings-saved'){goalDamage=message.goalDamage;updateDuelSettings();$('saveDuelGoal').disabled=selected===GUEST_SKIN;notify(`次の試合：${goalDamage}ダメージ · サーバーに保存しました`);return;}
   if(message.type==='settings-error'){$('saveDuelGoal').disabled=false;$('duelSettingsStatus').textContent=message.message;notify(message.message);return;}
   if(message.type==='duel-ready'){if(message.id===roomSelfId)notify('準備OK · 相手も1秒以内にパンチ');return;}
   if(message.type==='duel-start'){receiveDuel(message,true);return;}
@@ -279,7 +291,7 @@ function handleRoomMessage(socket,event){
   if(message.type==='duel-cancel'){duelActive=false;duelIds=[];$('duelHud').hidden=true;notify(message.reason);return;}
   if(message.type==='duel-result'){
     for(const [id,score]of Object.entries(message.scores)){if(id===roomSelfId){crownScore=score;updateCrown();}else{const r=remoteActors.get(id);if(r)r.actor.setAppearance(score,r.crownEnabled);}}
-    if(message.winner===roomSelfId)notify('勝利！ 勝敗スコア '+crownScore,4000);else if(message.loser===roomSelfId)notify('敗北 · 勝敗スコア '+crownScore,4000);else notify('タイマン決着！',3000);
+    if(message.practice)notify((message.winner===roomSelfId?'勝利！ ':message.loser===roomSelfId?'敗北 · ':'決着 · ')+'ゲスト練習試合 · 保存スコアの変更なし',4000);else if(message.winner===roomSelfId)notify('勝利！ 勝敗スコア '+crownScore,4000);else if(message.loser===roomSelfId)notify('敗北 · 勝敗スコア '+crownScore,4000);else notify('タイマン決着！',3000);
     duelActive=false;duelIds=[];$('duelHud').hidden=true;return;
   }
   if(message.type==='punch'){
@@ -305,10 +317,10 @@ function handleRoomMessage(socket,event){
     for(const [skin,record]of Object.entries(message.characters||{}))receiveCharacter(Number(skin),record);receiveCharacter(selected,message.self);
     const own=actors[selected]?.root;if(own){own.position.set(message.self.x,message.self.y,message.self.z);own.rotation.y=message.self.yaw}
     if(athleticActive&&courseAwaitingSave){athleticCheckpoint=world.athletic.checkpoints[cachedCharacter().checkpoint-1];respawnCourse();}courseAwaitingSave=false;
-    (message.players||[]).forEach(updateRemotePlayer);updateRoomStatus(`${roomCode} · ${remoteActors.size+remoteLoading.size+1}/8人`);scheduleShare();return;
+    (message.players||[]).forEach(updateRemotePlayer);updateRoomStatus(`${roomCode} · ${remoteActors.size+remoteLoading.size+1}/${MAX_PLAYERS}人`);scheduleShare();return;
   }
-  if(message.type==='player-joined'||message.type==='state'){updateRemotePlayer(message.player);updateRoomStatus(`${roomCode} · ${remoteActors.size+remoteLoading.size+1}/8人`);return}
-  if(message.type==='player-left'){removeRemotePlayer(message.id);updateRoomStatus(`${roomCode} · ${Math.max(1,remoteActors.size+remoteLoading.size+1)}/8人`)}
+  if(message.type==='player-joined'||message.type==='state'){updateRemotePlayer(message.player);updateRoomStatus(`${roomCode} · ${remoteActors.size+remoteLoading.size+1}/${MAX_PLAYERS}人`);return}
+  if(message.type==='player-left'){removeRemotePlayer(message.id);updateRoomStatus(`${roomCode} · ${Math.max(1,remoteActors.size+remoteLoading.size+1)}/${MAX_PLAYERS}人`)}
 }
 function connectRoom(){
   const code='共通ルーム';roomFailure='';
@@ -329,6 +341,7 @@ function bindFlightControl(id,key){const button=$(id);button.onpointerdown=e=>{e
 bindFlightControl('flightUp','ascend');bindFlightControl('flightDown','descend');
 function resize(){if(!renderer)return;renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()};addEventListener('resize',resize);visualViewport?.addEventListener('resize',resize);
 function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFrame(tick);if(document.hidden&&!backgroundDt){lastTime=0;return}const dt=backgroundDt||(lastTime?Math.min((now-lastTime)/1000,.05):.016);lastTime=now;time+=dt;fpsFrames++;
+  housingEditor?.update(dt,inStudio&&!paused()&&!localRagdoll&&!duelActive);
   if(localImpact){localImpact.time+=dt;if(localImpact.time>=localImpact.duration){verticalSpeed=localImpact.vertical;velocity.copy(localImpact.velocity);localImpact=null;if(localHit?.phase==='impact'){localHit.phase='air';localHit.elapsed=0;grounded=false;}}}
   for(const body of bodies)if(body.impact){body.impact.time+=dt;if(body.impact.time>=body.impact.duration){body.impact=null;body.hit.phase='air';body.hit.elapsed=0;body.grounded=false;}}
   if(charging){if(!canPunch())cancelCharge();else{chargeTime=Math.min(PUNCH.maxCharge,chargeTime+dt);updateChargeHud();if(now-lastChargeEffectAt>90){lastChargeEffectAt=now;const chargingActor=actors[selected]?.root;if(chargingActor){particleOrigin.copy(chargingActor.position);particleOrigin.y+=1.42;emitParticles(particleOrigin,chargeTime>8?'#ff825c':'#ffe06a',2,.65,0)}}}}
@@ -420,7 +433,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
       else{target.copy(cameraMode==='orbit'?orbitTarget:p.position);if(cameraMode!=='orbit'){const prone=proneWeight(localHit);target.y+=1.24-prone*.85;target.x-=Math.sin(p.rotation.y)*prone*.7;target.z-=Math.cos(p.rotation.y)*prone*.7;}focus.lerp(target,smoothing<=.001?1:1-Math.exp(-dt/(localRagdoll?Math.min(.055,smoothing):smoothing)));focus.copy(world.cameraPosition(target,focus,.12));const d=distance*(camera.aspect<.8?1.12:1);desired.set(-Math.sin(yaw)*Math.cos(pitch)*d,-Math.sin(pitch)*d,-Math.cos(yaw)*Math.cos(pitch)*d).add(focus);desired.y=Math.max(.2,desired.y);camera.position.copy(world.cameraPosition(focus,desired));camera.lookAt(focus)}
     }
   }
-  if(roomSocket?.readyState===WebSocket.OPEN&&p&&inStudio&&now-lastRoomStateAt>=33){lastRoomStateAt=now;roomSocket.send(JSON.stringify({type:'state',state:{x:p.position.x,y:p.position.y,z:p.position.z,yaw:p.rotation.y,headYaw:clamp(angleDelta(p.rotation.y,yaw),-.95,.95),headPitch:clamp(-pitch,-.65,.7),vx:localImpact?0:localRagdoll?localImpulse.x:velocity.x,vy:localImpact?0:localRagdoll?localImpulse.y:verticalSpeed,vz:localImpact?0:localRagdoll?localImpulse.z:velocity.z,skin:selected<7?selected:3,gesture,speed:velocity.length(),grounded,verticalSpeed,flight:airWalk,ragdoll:localRagdoll,seated,crownEnabled,hitSerial:localHitSerial,hitPhase:localHit?.phase||'none',hitTime:localHit?.elapsed||0,hitDownTime:localHit?.downTime||0,hitRecovery:localHit?.recovery||0,hitStrength:localHit?.strength||0,punchCharge:charging?chargeTime/PUNCH.maxCharge:0,attackDuration,attackRushing,attackKind,attackProgress:punchSwing,attackStrength,attackSerial}}))}
+  if(roomSocket?.readyState===WebSocket.OPEN&&p&&inStudio&&now-lastRoomStateAt>=33){lastRoomStateAt=now;roomSocket.send(JSON.stringify({type:'state',state:{x:p.position.x,y:p.position.y,z:p.position.z,yaw:p.rotation.y,headYaw:clamp(angleDelta(p.rotation.y,yaw),-.95,.95),headPitch:clamp(-pitch,-.65,.7),vx:localImpact?0:localRagdoll?localImpulse.x:velocity.x,vy:localImpact?0:localRagdoll?localImpulse.y:verticalSpeed,vz:localImpact?0:localRagdoll?localImpulse.z:velocity.z,skin:playableSkin(selected),gesture,speed:velocity.length(),grounded,verticalSpeed,flight:airWalk,ragdoll:localRagdoll,seated,crownEnabled,hitSerial:localHitSerial,hitPhase:localHit?.phase||'none',hitTime:localHit?.elapsed||0,hitDownTime:localHit?.downTime||0,hitRecovery:localHit?.recovery||0,hitStrength:localHit?.strength||0,punchCharge:charging?chargeTime/PUNCH.maxCharge:0,attackDuration,attackRushing,attackKind,attackProgress:punchSwing,attackStrength,attackSerial}}))}
   if(document.hidden)return;
   if(p&&inStudio&&!duelIds.length){const own={x:p.position.x,y:p.position.y,z:p.position.z,flight:airWalk,seated};const inRing=insideArena(own);$('duelHud').hidden=!inRing;if(inRing){const count=1+[...remoteActors.values()].filter(r=>insideArena({x:r.target.x,y:r.target.y,z:r.target.z,flight:r.flight,seated:r.seated})).length;$('duelHud').textContent=count===2?'対戦エリア · 2人 · 1秒以内に両者パンチで開始':`対戦エリア · ${count}人 / 2人で開始 · 金色の輪の内側`;}}
   remoteActors.forEach(remote=>{
@@ -448,7 +461,7 @@ function scheduleShare(){clearTimeout(shareTimer);shareTimer=setTimeout(()=>{con
 function applyShare(){
   const query=shareSource();const pick=(key,min,max,fallback)=>{if(!query.has(key))return fallback;const value=Number(query.get(key));return Number.isFinite(value)?clamp(value,min,max):fallback};
   if(query.has('punch')){const [held,range]=query.get('punch').split(',').map(Number);if(held>0)PUNCH.maxCharge=clamp(held,1,10);if(range>0)PUNCH.maxRange=clamp(range,1,1000)}
-  const character=clamp(Number(query.get('c')??selected),0,6);if(actors[character])selected=character;
+  const character=playableSkin(query.get('c')??selected);if(actors[character])selected=character;
   distance=pick('d',2,18,distance);fov=pick('fov',25,90,fov);camera.fov=fov;camera.updateProjectionMatrix();
   smoothing=pick('smooth',0,.4,smoothing);flySpeed=pick('fly',1,12,flySpeed);moveSpeed=pick('move',1,4.5,moveSpeed);pitch=pick('pitch',-1.15,1.1,pitch);const sharedYaw=Number(query.get('yaw'));if(Number.isFinite(sharedYaw))yaw=angleDelta(0,sharedYaw);
   $('distance').value=distance;$('distanceOut').textContent=distance.toFixed(1)+' m';$('fov').value=fov;$('fovOut').textContent=fov+'°';$('smoothing').value=smoothing;$('smoothingOut').textContent=smoothing.toFixed(2)+' s';$('flySpeed').value=flySpeed;$('flySpeedOut').textContent=flySpeed+' m/s';$('moveSpeed').value=moveSpeed;$('moveSpeedOut').textContent=moveSpeed.toFixed(1)+' m/s';
@@ -476,7 +489,7 @@ async function start(){try{
     onClose(){if(houseCameraState){const saved=houseCameraState;houseCameraState=null;setCameraMode(saved.mode);yaw=saved.yaw;pitch=saved.pitch;distance=saved.distance;if(saved.mode==='free')freePosition.copy(saved.free);}clearInput();canvas.focus();}
   });
   let loadedCount=0;const skinFailures=[];
-  const skinLoads=skinDefs.map(async([name,file],i)=>{if(!file)return;await replaceSkin(i,'skins/'+file)}).map((load,i)=>load.catch(error=>{skinFailures.push({index:i,error})}).finally(()=>{loadedCount++;if(!actors[selected])$('selectedName').textContent=`スキン読込 ${loadedCount}/${skinDefs.length}`}));
+  const skinLoads=skinDefs.map(async([name,file],i)=>{if(i===7)return;await replaceSkin(i,skinURL(i))}).map((load,i)=>load.catch(error=>{skinFailures.push({index:i,error})}).finally(()=>{if(i!==7)loadedCount++;if(!actors[selected])$('selectedName').textContent=`スキン読込 ${loadedCount}/8`}));
   const firstReady=Promise.any(skinLoads.map((load,index)=>load.then(()=>actors[index]?index:Promise.reject(new Error('No avatar')))));
   const preferredReady=skinLoads[selected].then(()=>actors[selected]?selected:firstReady,()=>firstReady);
   const readyIndex=await Promise.race([preferredReady,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Skin loading timed out')),10000))]);

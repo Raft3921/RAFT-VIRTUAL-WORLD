@@ -36,18 +36,24 @@ export function createHousingRenderer(scene,world){
     const batches=new Map(),push=(key,mat,part,item=null,hidden=false)=>{if(!batches.has(key))batches.set(key,{mat,parts:[],hidden,detail:part.detail===true});batches.get(key).parts.push({part,item});};
     for(const item of layout.items)for(const part of furnitureParts(item))push(part.c+':'+!!part.detail+':'+!!part.glow,material(part.c,part.detail,part.glow),part,item);
     const floor={x:0,y:-.009,z:0,w:ROOM.x*2,h:.018,d:ROOM.z*2};push('floor',finishMaterial('floor',layout.finish.floor),floor);
-    const panels=[{x:0,y:ROOM.height/2,z:-6.925,w:14.8,h:ROOM.height,d:.025},...[-1,1].map(sign=>({x:sign*7.425,y:ROOM.height/2,z:0,w:.025,h:ROOM.height,d:13.8,hidden:sign===(h.front>0?1:-1)})),...[-1,1].map(sign=>({x:sign*4.85,y:ROOM.height/2,z:6.925,w:5.1,h:ROOM.height,d:.025,hidden:true})),{x:0,y:4.53,z:6.925,w:4.6,h:1.44,d:.025,hidden:true}];
-    for(const p of panels)push('wall:'+!!p.hidden,finishMaterial('wallpaper',layout.finish.wallpaper),p,null,p.hidden);
+    const panels=[{x:0,y:ROOM.height/2,z:-6.925,w:14.8,h:ROOM.height,d:.025,wallZ:-1},...[-1,1].map(sign=>({x:sign*7.425,y:ROOM.height/2,z:0,w:.025,h:ROOM.height,d:13.8,wallX:sign})),...[-1,1].map(sign=>({x:sign*4.85,y:ROOM.height/2,z:6.925,w:5.1,h:ROOM.height,d:.025,wallZ:1})),{x:0,y:4.53,z:6.925,w:4.6,h:1.44,d:.025,wallZ:1}];
+    for(const p of panels)push('wall:'+p.wallX+':'+p.wallZ,finishMaterial('wallpaper',layout.finish.wallpaper),p);
     push('ceiling',finishMaterial('ceiling',layout.finish.ceiling),{x:0,y:ROOM.height+.01,z:0,w:14.8,h:.02,d:13.8},null,true);
     for(const batch of batches.values()){
-      const mesh=new THREE.InstancedMesh(boxGeometry,batch.mat,batch.parts.length);mesh.userData.detail=batch.detail;mesh.userData.cutaway=batch.hidden;mesh.userData.house=index;mesh.userData.itemIds=[];mesh.receiveShadow=true;mesh.castShadow=true;
+      const mesh=new THREE.InstancedMesh(boxGeometry,batch.mat,batch.parts.length);mesh.userData.detail=batch.detail;mesh.userData.cutaway=batch.hidden;mesh.userData.wallX=batch.parts[0].part.wallX;mesh.userData.wallZ=batch.parts[0].part.wallZ;mesh.userData.house=index;mesh.userData.itemIds=[];mesh.receiveShadow=true;mesh.castShadow=true;
       for(let i=0;i<batch.parts.length;i++){const {part,item}=batch.parts[i];const ref={mesh,instance:i,part};if(item){syncReference(ref,item);if(!room.references.has(item.id))room.references.set(item.id,[]);room.references.get(item.id).push(ref);mesh.userData.itemIds[i]=item.id;}else{transform.position.set(part.x,part.y,part.z);transform.rotation.set(0,0,0);transform.scale.set(part.w,part.h,part.d);transform.updateMatrix();mesh.setMatrixAt(i,transform.matrix);}}
       mesh.computeBoundingSphere();mesh.boundingSphere.radius+=2;room.group.add(mesh);room.meshes.push(mesh);if(batch.hidden)room.finishes.push(mesh);
-    }colliders(index,layout);setEditing(index,room.editing);
+    }colliders(index,layout);room.cutKey=null;setEditing(index,room.editing);
   }
   function preview(index,item){for(const ref of rooms[index]?.references.get(item.id)||[])syncReference(ref,item);}
-  function setEditing(index,value){const room=rooms[index];if(!room)return;room.editing=value;world.cutawayHouse(index,value);for(const mesh of room.meshes)mesh.frustumCulled=!value;for(const mesh of room.finishes)mesh.visible=!value;}
+  function hidden(room,mesh){return room.editing&&(mesh.userData.cutaway||mesh.userData.wallX===room.sideX||mesh.userData.wallZ===room.sideZ);}
+  function setEditing(index,value,position=null){
+    const room=rooms[index],h=HOUSES[index];if(!room)return;
+    const worldX=position?Math.sign(position.x-h.x)||1:1,worldZ=position?Math.sign(position.z-h.z)||h.front:h.front,key=value+':'+worldX+':'+worldZ;
+    if(room.cutKey===key)return;room.cutKey=key;room.editing=value;room.sideX=worldX*h.front;room.sideZ=worldZ*h.front;world.cutawayHouse(index,value,worldX,worldZ);
+    for(const mesh of room.meshes){mesh.frustumCulled=!value;mesh.visible=!hidden(room,mesh);}
+  }
   function pick(ray,index){const hits=ray.intersectObjects(rooms[index].meshes.filter(m=>m.visible),false);for(const hit of hits){const id=hit.object.userData.itemIds[hit.instanceId];if(id)return id;}return null;}
-  function cull(camera,mobile=false){for(const h of HOUSES){const room=rooms[h.index],distance=Math.hypot(camera.x-h.x,camera.y-2,camera.z-h.z);room.group.visible=room.editing||distance<(mobile?80:100);for(const mesh of room.meshes){mesh.visible=!(room.editing&&mesh.userData.cutaway)&&(!mesh.userData.detail||room.editing||distance<35);mesh.castShadow=room.group.visible&&distance<35;}}}
+  function cull(camera,mobile=false){for(const h of HOUSES){const room=rooms[h.index],distance=Math.hypot(camera.x-h.x,camera.y-2,camera.z-h.z);room.group.visible=room.editing||distance<(mobile?80:100);for(const mesh of room.meshes){mesh.visible=!hidden(room,mesh)&&(!mesh.userData.detail||room.editing||distance<35);mesh.castShadow=room.group.visible&&distance<35;}}}
   return {rooms,apply,preview,pick,setEditing,cull};
 }

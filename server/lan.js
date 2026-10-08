@@ -1,5 +1,6 @@
 import { createReadStream, existsSync, statSync, readFileSync, writeFileSync,renameSync } from 'node:fs';
 import { cleanState, GameRules,applyPlayerState,SYNC_VERSION } from '../dist/game-rules.js';
+import {GUEST_SKIN,MAX_PLAYERS,playableSkin} from '../dist/player-types.js';
 import { createServer } from 'node:http';
 import { networkInterfaces } from 'node:os';
 import { extname, resolve, sep } from 'node:path';
@@ -7,7 +8,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 
 const root = resolve('dist');
 const port = Number(process.env.PORT || 4173);
-const maxPlayers = 8;
+const maxPlayers = MAX_PLAYERS;
 const players = new Map();
 const mime = {
   '.css': 'text/css; charset=utf-8',
@@ -93,12 +94,12 @@ server.on('upgrade', (request, socket, head) => {
 sockets.on('connection', (socket, request) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
   const requestedSkin = Number(url.searchParams.get('skin'));
-  const skin = Number.isInteger(requestedSkin) && requestedSkin >= 0 && requestedSkin < 7 ? requestedSkin : 3;
+  const skin = playableSkin(requestedSkin);
   const spawn = players.size;
   const angle = spawn * 2.399;
   const profile=/^[a-f0-9-]{36}$/.test(url.searchParams.get('profile')||'')?url.searchParams.get('profile'):crypto.randomUUID();
   const player = {profile,...rules.character(skin,profile,url.searchParams.get('crown')==='1'),seated:false,
-    id: crypto.randomUUID(), skin,
+    id: crypto.randomUUID(), skin, guest:skin===GUEST_SKIN,
     x: Math.sin(angle) * 3, y: 0, z: Math.cos(angle) * 3,
     yaw: Math.atan2(-Math.sin(angle), -Math.cos(angle)),
     headYaw: 0, headPitch: 0, vx: 0, vy: 0, vz: 0,

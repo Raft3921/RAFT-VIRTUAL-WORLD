@@ -13,6 +13,7 @@ export function createWorld(scene){
   let worldTime=0,currentHouse=null;
   const houses=HOUSES.map(h=>({...h,parts:[]}));
   const transform=new THREE.Object3D(),previous=new THREE.Vector3();
+  const boardPickGeometry=new THREE.BoxGeometry(1.12,2.05,.24),boardPickMaterial=new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false});
   function box(x,y,z,w,h,d,color=WHITE,solid=true,extra={}){
     const body={x,y,z,w,h,d,...extra};
     if(currentHouse){body.houseIndex=currentHouse.index;currentHouse.parts.push(body);}
@@ -30,10 +31,11 @@ export function createWorld(scene){
   }
   function board(x,floor,z,kind='world',checkpoint=null,face=-1){
     if(checkpoint)face=Math.sign(checkpoint.z-z)||-1;
-    if(floor>0&&floor<1)box(x,floor/2,z,1.5,floor,1.5,TRIM);
-    box(x,floor+.12,z,1.1,.24,.85,'#344c57');
-    box(x,floor+1.15,z,.18,2,.18,'#344c57');
-    box(x,floor+1.45,z,.9,1.8,.16,'#243945');
+    const boardId=boards.length,boardPart=(...args)=>box(...args,true,{boardId});
+    if(floor>0&&floor<1)boardPart(x,floor/2,z,1.5,floor,1.5,TRIM);
+    boardPart(x,floor+.12,z,1.1,.24,.85,'#344c57');
+    boardPart(x,floor+1.15,z,.18,2,.18,'#344c57');
+    boardPart(x,floor+1.45,z,.9,1.8,.16,'#243945');
     box(x,floor+1.49,z+face*.096,.75,1.5,.04,'#87d8d3',false);
     const c=document.createElement('canvas');c.width=128;c.height=256;const ctx=c.getContext('2d');
     ctx.fillStyle='#142d3c';ctx.fillRect(0,0,128,256);ctx.fillStyle='#80e8db';ctx.fillRect(10,12,108,24);
@@ -44,7 +46,8 @@ export function createWorld(scene){
     ctx.fillStyle='#6eb5aa';ctx.fillRect(47,226,34,4);
     const tex=new THREE.CanvasTexture(c);tex.magFilter=THREE.NearestFilter;tex.minFilter=THREE.NearestFilter;
     const label=new THREE.Mesh(new THREE.PlaneGeometry(.73,1.46),new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}));label.position.set(x,floor+1.49,z+face*.12);label.rotation.y=face>0?0:Math.PI;group.add(label);
-    const b={x,y:floor+1.45,z,kind,checkpoint,label,...(kind==='house'?{houseIndex:currentHouse.index,owner:currentHouse.owner}:{})};boards.push(b);return b;
+    const pick=new THREE.Mesh(boardPickGeometry,boardPickMaterial);pick.position.set(x,floor+1.45,z);group.add(pick);
+    const b={boardId,x,y:floor+1.45,z,kind,checkpoint,label,pick,...(kind==='house'?{houseIndex:currentHouse.index,owner:currentHouse.owner}:{})};boards.push(b);return b;
   }
   // Centre studio: a white box with a genuinely open, broad entrance on +Z.
   const studio={x:0,z:0};box(0,.08,0,22,.16,18);box(-10.9,3.5,0,.3,7,18);box(10.9,3.5,0,.3,7,18);
@@ -197,8 +200,16 @@ export function createWorld(scene){
     for(const records of housingBodies.values())for(const b of records){const extent=Math.hypot(b.w,b.d)/2+1;for(let x=Math.floor((b.x-extent)/12);x<=Math.floor((b.x+extent)/12);x++)for(let z=Math.floor((b.z-extent)/12);z<=Math.floor((b.z+extent)/12);z++){const key=x+','+z;if(!housingBuckets.has(key))housingBuckets.set(key,[]);housingBuckets.get(key).push(b);}}
   }
   function nearby(p){const key=Math.floor(p.x/12)+','+Math.floor(p.z/12);if(!nearbyCache.has(key))nearbyCache.set(key,(buckets.get(key)||[]).concat(housingBuckets.get(key)||[]));return nearbyCache.get(key);}
-  function cutawayHouse(index,enabled){
-    const h=houses[index];if(!h)return;h.board.editorHidden=enabled;h.board.label.visible=!enabled;for(const b of h.parts){if(b.y<1||!(b.y>5.5||(b.z-h.z)*h.front>6.94||b.x-h.x>7.4))continue;transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,b.rotation||0,0);transform.scale.set(enabled?0:b.w,enabled?0:b.h,enabled?0:b.d);transform.updateMatrix();b.mesh.setMatrixAt(b.instance,transform.matrix);b.mesh.instanceMatrix.needsUpdate=true;}
+  function cutawayHouse(index,enabled,sideX=1,sideZ=null){
+    const h=houses[index];if(!h)return;sideZ??=h.front;
+    h.board.editorHidden=enabled;h.board.label.visible=!enabled;h.board.pick.visible=!enabled;
+    for(const b of h.parts){
+      if(b.y<1)continue;
+      const shell=b.y>5.5||Math.abs(b.z-h.z)>6.8||Math.abs(b.x-h.x)>7.4;
+      if(!shell)continue;
+      const hide=enabled&&(b.y>5.5||(b.z-h.z)*sideZ>6.8||(b.x-h.x)*sideX>7.4);
+      transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,b.rotation||0,0);transform.scale.set(hide?0:b.w,hide?0:b.h,hide?0:b.d);transform.updateMatrix();b.mesh.setMatrixAt(b.instance,transform.matrix);b.mesh.instanceMatrix.needsUpdate=true;
+    }
   }
   function inAthletic(p){return p.x>COURSE.minX&&p.x<COURSE.maxX&&p.z>COURSE.minZ&&p.z<COURSE.maxZ;}
   function localPoint(p,b){const c=Math.cos(b.rotation||0),s=Math.sin(b.rotation||0),x=p.x-b.x,z=p.z-b.z;return {x:c*x-s*z,z:s*x+c*z,c,s};}
@@ -245,12 +256,12 @@ export function createWorld(scene){
   function boardHit(o,f){let best=null,dist=4;for(const b of boards){if(b.kind==='house')continue;const dx=b.x-o.x,dy=b.y-o.y,dz=b.z-o.z,d=Math.hypot(dx,dy,dz);if(d<dist&&(dx*f.x+dz*f.z)/Math.max(.01,Math.hypot(dx,dz))>.45){best=b;dist=d;}}return best;}
   // Sweep a near-plane-sized camera sphere against the same oriented solids.
   // Test the whole segment (not just its endpoint), preventing fast wall tunnelling.
-  function cameraPosition(from,to,radius=.24){
+  function cameraPosition(from,to,radius=.24,ignoreBoardId=null){
     let fraction=1;const candidates=new Set(),length=from.distanceTo(to),sample=new THREE.Vector3();
     const steps=Math.max(1,Math.ceil(length/5));
     for(let i=0;i<=steps;i++){sample.lerpVectors(from,to,i/steps);for(const b of nearby(sample))candidates.add(b);}
     for(const b of candidates){
-      if(b.disabled)continue;
+      if(b.disabled||(ignoreBoardId!==null&&b.boardId===ignoreBoardId))continue;
       const a=localPoint(from,b),z=localPoint(to,b),start=[a.x,from.y-b.y,a.z],end=[z.x,to.y-b.y,z.z],half=[b.w/2+radius,b.h/2+radius,b.d/2+radius];
       // A focus point enclosed by its own surface must be allowed to escape.
       if(start.every((v,i)=>Math.abs(v)<half[i]))continue;

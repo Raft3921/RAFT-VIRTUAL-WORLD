@@ -1,7 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { cleanState, GameRules,applyPlayerState,SYNC_VERSION } from '../../dist/game-rules.js';
-
-const MAX_PLAYERS = 8;
+import {GUEST_SKIN,MAX_PLAYERS,playableSkin} from '../../dist/player-types.js';
 
 function json(data) {
   return JSON.stringify(data);
@@ -40,13 +39,13 @@ export class Room extends DurableObject {
 
     const url = new URL(request.url);
     const requestedSkin = Number(url.searchParams.get('skin'));
-    const skin = Number.isInteger(requestedSkin) && requestedSkin >= 0 && requestedSkin < 7 ? requestedSkin : 3;
+    const skin = playableSkin(requestedSkin);
     const id = crypto.randomUUID();
     const spawn = this.players.size;
     const angle = spawn * 2.399;
     const profile=/^[a-f0-9-]{36}$/.test(url.searchParams.get('profile')||'')?url.searchParams.get('profile'):crypto.randomUUID();
     const player = {profile,...this.rules.character(skin,profile,url.searchParams.get('crown')==='1'),seated:false,
-      id, skin,
+      id, skin, guest:skin===GUEST_SKIN,
       x: Math.sin(angle) * 3,
       y: 0,
       z: Math.cos(angle) * 3,
@@ -79,7 +78,7 @@ export class Room extends DurableObject {
     if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;
 
     const requestedSkin = Number(message.state?.skin);
-    const skin = Number.isInteger(requestedSkin) && requestedSkin >= 0 && requestedSkin < 7 ? requestedSkin : entry.player.skin;
+    const skin = playableSkin(requestedSkin,entry.player.skin);
     const state = cleanState(message.state, skin);
     if (!state) return;
     if(state.skin!==entry.player.skin){if(!this.rules.selectCharacter(entry,state.skin))state.skin=entry.player.skin;this.roomContext.waitUntil(this.rules.characters.pending);}

@@ -1,13 +1,14 @@
 import { ARENA,insideArena } from './world-layout.js';
 import { ATTACKS } from './combat-motion.js';
-import { CharacterStore,characterIndex } from './character-store.js';
+import { CharacterStore,cleanCharacter } from './character-store.js';
+import { GUEST_SKIN,playableSkin } from './player-types.js';
 import { HousingStore } from './housing-store.js';
-export const SYNC_VERSION='2026-10-07-housing-5';
+export const SYNC_VERSION='2026-10-08-home-guest-6';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||Math.abs(s.x)>1300||Math.abs(s.z)>1300||s.y<0||s.y>512)return null;
   const n=(key,a,b)=>Number.isFinite(s[key])?clamp(s[key],a,b):0;
-  return {x:s.x,y:s.y,z:s.z,yaw:s.yaw,skin:Number.isInteger(skin)&&skin>=0&&skin<7?skin:3,
+  return {x:s.x,y:s.y,z:s.z,yaw:s.yaw,skin:playableSkin(skin),
     headYaw:n('headYaw',-1,1),headPitch:n('headPitch',-.7,.7),vx:n('vx',-200,200),vy:n('vy',-200,200),vz:n('vz',-200,200),
     speed:n('speed',0,20),verticalSpeed:n('verticalSpeed',-200,200),grounded:s.grounded!==false,flight:s.flight===true,
     ragdoll:s.ragdoll===true,seated:s.seated===true,crownEnabled:s.crownEnabled===true,
@@ -38,15 +39,16 @@ export class GameRules{
     this.houses=new HousingStore(houses,saveHouses,broadcast);
   }
   entries(){return [...this.players.values()];}
-  character(skin,profile,enabled=false){return this.characters.get(skin,profile,enabled);}
+  character(skin,profile,enabled=false){return skin===GUEST_SKIN?cleanCharacter():this.characters.get(skin,profile,enabled);}
   broadcastCharacter(skin,record=this.characters.get(skin)){
     for(const entry of this.entries())if(entry.player.skin===skin)Object.assign(entry.player,record);
     this.broadcast({type:'character-state',skin,character:record});
   }
   selectCharacter(entry,value){
-    const skin=characterIndex(value),p=entry.player;if(skin===null)return false;
+    const skin=playableSkin(value,null),p=entry.player;if(skin===null)return false;
+    if(p.guest&&skin!==GUEST_SKIN){this.broadcast({type:'character-select-rejected',id:p.id,skin:p.skin,reason:'ゲストは入室中にメンバーへ変更できません'});return false;}
     if(p.skin!==skin&&(this.duel?.ids.includes(p.id)||p.ragdoll)){this.broadcast({type:'character-select-rejected',id:p.id,skin:p.skin});return false;}
-    p.skin=skin;Object.assign(p,this.character(skin,p.profile));this.broadcastCharacter(skin);this.broadcast({type:'state',player:p});return true;
+    p.skin=skin;p.guest=skin===GUEST_SKIN;Object.assign(p,this.character(skin,p.profile));if(!p.guest)this.broadcastCharacter(skin);this.broadcast({type:'state',player:p});return true;
   }
   inside(p){return insideArena(p);}
   snapshot(){return {type:'world',version:SYNC_VERSION,backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel};}
@@ -74,6 +76,9 @@ export class GameRules{
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
+    if(p.guest&&['housing-op','crown-toggle','checkpoint','duel-settings','backdrop'].includes(m.type)){
+      this.broadcast({type:'guest-denied',id:p.id,message:'ゲストは家・ワールド設定・メンバーの保存データを変更できません'});return;
+    }
     if(m.type==='housing-op'){if(this.duel?.ids.includes(p.id)||p.ragdoll){const house=this.houses.snapshots()[m.index];if(house)this.broadcast({type:'house-state',index:m.index,house,requestId:m.requestId,error:'試合・被弾中は家を編集できません'});return;}return this.houses.apply(p.skin,m);}
     if(m.type==='character-select'){this.selectCharacter(entry,m.skin);return this.characters.pending;}
     if(m.type==='crown-toggle'&&typeof m.enabled==='boolean')return this.characters.change(p.skin,{crownEnabled:m.enabled});
@@ -111,7 +116,7 @@ export class GameRules{
     this.broadcast({type:'duel-damage',...this.duel});
     if(this.duel.damage[q.id]<this.duel.goalDamage)return;
     const saved=this.characters.result(p.skin,q.skin);
-    this.broadcast({type:'duel-result',winner:p.id,loser:q.id,scores:{[p.id]:p.score,[q.id]:q.score}});
+    this.broadcast({type:'duel-result',winner:p.id,loser:q.id,practice:p.guest||q.guest,scores:{[p.id]:p.score,[q.id]:q.score}});
     this.duel=null;this.ready.clear();
     return saved;
   }

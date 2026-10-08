@@ -13,6 +13,7 @@ export class CharacterStore{
     this.legacyScores=legacyScores||{};this.save=save;this.onChange=onChange;this.onError=onError;this.pending=Promise.resolve();
   }
   get(skin,profile,initialEnabled=false){
+    if(characterIndex(skin)===null)return cleanCharacter();
     if(!this.data.characters[skin]){
       let score=0;
       if(profile&&!Object.hasOwn(this.data.migratedProfiles,profile)&&Object.hasOwn(this.legacyScores,profile)){
@@ -24,12 +25,15 @@ export class CharacterStore{
   }
   snapshots(){const result={};for(let skin=0;skin<7;skin++)result[skin]=cleanCharacter(this.data.characters[skin]);return result;}
   change(skin,patch,persist=true){
+    if(characterIndex(skin)===null)return this.pending;
     const previous=this.get(skin),next=cleanCharacter({...previous,...patch});
     if(next.score===previous.score&&next.crownEnabled===previous.crownEnabled&&next.checkpoint===previous.checkpoint)return this.pending;
     this.data.characters[skin]=next;this.onChange(skin,{...next});return persist?this.persist():this.pending;
   }
   checkpoint(skin,id){const next=Number(id);if(!Number.isInteger(next)||next<1||next>100)return this.pending;return this.change(skin,{checkpoint:Math.max(this.get(skin).checkpoint,next)});}
   result(winner,loser){
+    // Guest practice matches never change either member's saved score.
+    if(characterIndex(winner)===null||characterIndex(loser)===null)return this.pending;
     const deltas=new Map();deltas.set(winner,1);deltas.set(loser,(deltas.get(loser)||0)-1);
     for(const [skin,delta]of deltas)this.change(skin,{score:this.get(skin).score+delta},false);
     return this.persist();

@@ -4,6 +4,8 @@ Minecraft Java skins in a shared 3D studio. The static client is served from `di
 
 ## World controls
 
+UI text, control labels and images cannot be selected or dragged. A delegated JavaScript guard suppresses long-press context menus, native copy/cut gestures and selection handles, including dynamically created home-design controls. Numeric/text fields retain typing, paste and caret editing; Japanese IME composition is preserved. Explicit share-link copying still uses the Clipboard API. Scrolling panels, sliders, normal taps and the existing pointer-based charge/jump/joystick controls remain in place.
+
 - Eight spacious, white-walled homes surround the residential avenue. Their timber floors, coloured roof trims and unobstructed entrances have physical collision. There are no floating house-name signs.
 - Punch a world menu board to open background controls (GB/RB/BB), the crown toggle, character selection, all director settings and online controls. Close with the top-right ×. Punch while using the free/orbit camera to resume player control.
 - Land on an arena seat to sit; jump to stand. Outside matches ordinary movement can cross the dome, but punch knockback is blocked. During a match both fighters are locked inside the dome, including walking, jumping and knockback. Flight and position resets are disabled until the match ends. Hexes appear only near the player.

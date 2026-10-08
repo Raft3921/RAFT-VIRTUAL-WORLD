@@ -1,4 +1,6 @@
 @font-face{font-family:DotGothic16;src:url('./fonts/DotGothic16-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+html,body,body *,body *::before,body *::after{-webkit-user-select:none!important;-moz-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;-webkit-user-drag:none;-webkit-tap-highlight-color:transparent}
+button,[role=button]{touch-action:manipulation}
 :root{--ink:#edf7ec;--muted:#adc9c7;--line:#658c96;--surface:#152c3cf5;--accent:#9de4ca;font-family:DotGothic16,monospace;line-height:1.65}
 button,input,select,kbd{font-family:DotGothic16,monospace}
 button,select,.surface,.brand-mark,.character,.face,.charge-track,.jump,.jump::after,.punch,.joystick,.stick-ring,#stickKnob,.flight-controls button,#toast,.duel-hud{border-radius:0!important}

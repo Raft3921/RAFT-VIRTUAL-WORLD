@@ -17,5 +17,12 @@ export function furnitureAction(f){
   if(f.solid===false||f.family==='rug')return {kind:'ripple',label:'波紋が広がります'};
   if(f.family==='toy'||f.family==='soft')return {kind:'toy',label:'ぽよんと反応します'};
   if(['frame','poster','wall-decor'].includes(f.family)||f.design==='canvas')return {kind:'art',label:'絵と飾りがきらめきます'};
+  if(['chair','sofa','stool','bench'].includes(f.family))return {kind:'seat',label:'座面が弾みます'};
+  if(['table','desk'].includes(f.family))return {kind:'table',label:'天板が軽く震えます'};
+  if(['bookshelf','modern-storage','coat','crate','wall-shelf','pegboard'].includes(f.family))return {kind:'storage',label:'収納からほこりが舞います'};
+  if(f.family==='aquarium')return {kind:'aquarium',label:'水槽に泡が上がります'};
+  if(f.family==='appliance')return {kind:'cook',label:'家電から湯気が上がります'};
+  if(['electronics','wall-speaker','vent'].includes(f.family))return {kind:'gadget',label:'電子機器が点滅します'};
+  if(f.family==='hobby')return {kind:'craft',label:'趣味の道具から色の粒が飛びます'};
   return {kind:'pulse',label:'コツンと反応します'};
 }

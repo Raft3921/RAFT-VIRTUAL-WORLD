@@ -8,7 +8,7 @@ import {hitShape} from './hit-reaction.js';
 import {HOUSES,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js';
-export const SYNC_VERSION='2026-10-08-furniture-18';
+export const SYNC_VERSION='2026-10-08-duel-record-19';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||Math.abs(s.x)>1300||Math.abs(s.z)>1300||s.y<0||s.y>512)return null;
@@ -144,7 +144,7 @@ export class GameRules{
     }
     this.broadcast({type:'punch',knockdown,target:q.id,attacker:p.id,velocity,freeze,hitSerial:q.hitSerial,flinchSerial:q.flinchSerial,strength,targetPosition:{x:q.x,y:q.y,z:q.z},attackerPosition:{x:p.x,y:p.y,z:p.z},damage:fighting?level:0,projectile:!!projectile});
     if(!fighting)return;this.duel.damage[q.id]+=level;this.broadcast({type:'duel-damage',...this.duel});if(this.duel.damage[q.id]<this.duel.goalDamage)return;
-    const saved=this.characters.result(p.skin,q.skin);this.broadcast({type:'duel-result',winner:p.id,loser:q.id,practice:p.guest||q.guest,scores:{[p.id]:p.score,[q.id]:q.score},appearances:{[p.id]:p.appearanceLevel,[q.id]:q.appearanceLevel}});this.duel=null;this.ready.clear();return saved;
+    const saved=this.characters.result(p.skin,q.skin);this.broadcast({type:'duel-result',winner:p.id,loser:q.id,practice:p.skin===q.skin,guestMatch:p.guest||q.guest,scores:{[p.id]:p.score,[q.id]:q.score},appearances:{[p.id]:p.appearanceLevel,[q.id]:q.appearanceLevel}});this.duel=null;this.ready.clear();return saved;
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;

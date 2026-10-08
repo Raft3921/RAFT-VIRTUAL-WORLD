@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="world.css">
 <link rel="stylesheet" href="pixel.css?v=20261008-furniture18">
 <script defer src="ui-guard.js?v=20261008-ui11"></script>
-<script type="importmap">{"imports":{"./furniture-catalogue.js":"./furniture-catalogue.js?v=20261008-furniture18","./furniture-shapes.js":"./furniture-shapes.js?v=20261008-furniture18","./local-lighting.js":"./local-lighting.js?v=20261008-furniture18","three":"./vendor/three.module.js","./world-clock.js":"./world-clock.js?v=20261008-day13","./environment.js":"./environment.js?v=20261008-fixture15","./district.js":"./district.js?v=20261008-fixture15","./furniture-effects.js":"./furniture-effects.js?v=20261008-day13","./record-audio.js":"./record-audio.js?v=20261008-day13","./combat-policy.js":"./combat-policy.js?v=20261008-day13","./combat-motion.js":"./combat-motion.js?v=20261008-day13","./hit-reaction.js":"./hit-reaction.js?v=20261008-day13","./player-types.js":"./player-types.js?v=20261008-day13","./character-store.js":"./character-store.js?v=20261008-day13","./housing-data.js":"./housing-data.js?v=20261008-furniture18","./housing-mirror.js":"./housing-mirror.js?v=20261008-furniture18","./furniture-models.js":"./furniture-models.js?v=20261008-furniture18","./housing-store.js":"./housing-store.js?v=20261008-day13","./game-rules.js":"./game-rules.js?v=20261008-furniture18"}}</script>
+<script type="importmap">{"imports":{"./furniture-catalogue.js":"./furniture-catalogue.js?v=20261008-furniture18","./furniture-shapes.js":"./furniture-shapes.js?v=20261008-furniture18","./local-lighting.js":"./local-lighting.js?v=20261008-furniture18","three":"./vendor/three.module.js","./world-clock.js":"./world-clock.js?v=20261008-day13","./environment.js":"./environment.js?v=20261008-fixture15","./district.js":"./district.js?v=20261008-fixture15","./furniture-effects.js":"./furniture-effects.js?v=20261008-day13","./record-audio.js":"./record-audio.js?v=20261008-day13","./combat-policy.js":"./combat-policy.js?v=20261008-day13","./combat-motion.js":"./combat-motion.js?v=20261008-day13","./hit-reaction.js":"./hit-reaction.js?v=20261008-day13","./player-types.js":"./player-types.js?v=20261008-day13","./character-store.js":"./character-store.js?v=20261008-record19","./housing-data.js":"./housing-data.js?v=20261008-record19","./housing-mirror.js":"./housing-mirror.js?v=20261008-furniture18","./furniture-models.js":"./furniture-models.js?v=20261008-furniture18","./housing-store.js":"./housing-store.js?v=20261008-day13","./game-rules.js":"./game-rules.js?v=20261008-record19"}}</script>
 </head>
 <body data-screen="lobby">
 <canvas id="scene" aria-label="3D草原スタジオ" tabindex="0"></canvas>
@@ -84,6 +84,7 @@
   <button id="boardMaster">マスターモード（カメラ・草原・プレイヤー）</button>
   <label>スタジオ背景</label><div class="button-pair"><button data-bg="GB">GB</button><button data-bg="RB">RB</button><button data-bg="BB">BB</button></div>
   <button id="crownToggle">王冠・ハゲ表現：OFF</button>
+  <p id="duelRecord" class="help">0勝 0敗 · 勝率 --（今後の試合から集計）</p>
   <p id="gameClock" class="help" role="status">ゲーム内時刻 12:00 · 1日10分</p>
   <button id="cycleToggle">昼夜サイクル：ON</button>
   <label for="dayMinutes">1日の長さ（実時間・1〜120分）</label>
@@ -128,6 +129,6 @@
   <p id="houseSaveStatus" class="house-save-status" role="status">サーバーに保存済み</p>
   </footer>
 </aside>
-<script type="module" src="app.js?v=20261008-furniture18"></script>
+<script type="module" src="app.js?v=20261008-record19"></script>
 </body>
 </html>

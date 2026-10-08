@@ -69,14 +69,23 @@ export function placementError(item,items){
     if(intersects(p,q))return 'ほかの家具と重なっています';}
   return '';
 }
-// Seats face local +Z; their backrest is on -Z. A nearby desk/table owns
-// the pair, while the chair retains its position and the existing 45° grid.
+// Pair only at the closest legal grid step: one more step toward the table
+// must overlap that table, not merely another obstacle. Distant chairs retain
+// their independent position and rotation.
 export function pairFurniture(item,items){
   const f=FURNITURE_BY_ID.get(item.t);if(!f?.seat||f.mount!=='floor')return item;
   const next={...item};delete next.pair;
   let table=null,best=Infinity;
-  for(const other of items){const g=FURNITURE_BY_ID.get(other.t);if(other.id===item.id||!['table','desk','computer'].includes(g?.family))continue;const distance=Math.hypot(other.x-item.x,other.z-item.z)*GRID;if(distance>.01&&distance<=Math.max(4.5,Math.max(g.w,g.d)/2+2)&&distance<best){best=distance;table=other;}}
-  if(table){next.pair=table.id;next.r=((Math.round(Math.atan2(table.x-item.x,table.z-item.z)/(Math.PI/4))%8)+8)%8;}
+  for(const other of items){
+    const g=FURNITURE_BY_ID.get(other.t);if(other.id===item.id||!['table','desk','computer'].includes(g?.family))continue;
+    const distance=Math.hypot(other.x-item.x,other.z-item.z)*GRID;if(distance<=.01||distance>=best||distance>(Math.hypot(f.w,f.d)+Math.hypot(g.w,g.d))/2+Math.SQRT2*GRID)continue;
+    const r=((Math.round(Math.atan2(other.x-item.x,other.z-item.z)/(Math.PI/4))%8)+8)%8,aligned={...next,r};
+    if(placementError(aligned,items))continue;
+    const inward={...aligned,x:aligned.x+Math.round(Math.sin(r*Math.PI/4)),z:aligned.z+Math.round(Math.cos(r*Math.PI/4))};
+    if(!intersects(furniturePose(inward),furniturePose(other)))continue;
+    best=distance;table=other;next.r=r;
+  }
+  if(table)next.pair=table.id;
   return next;
 }
 export function cleanHouse(value){

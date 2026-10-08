@@ -8,7 +8,7 @@ import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION } from './game-rules.js?v=20261008-furniture18';
+import { SYNC_VERSION } from './game-rules.js?v=20261008-record19';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
 import { createHousingRenderer } from './housing-renderer.js?v=20261008-furniture18';
@@ -238,7 +238,8 @@ function setSelected(index){
   updateCrown();updateSelection();updateVisibility();scheduleShare();
 }
 function updateSelection(){$('selectedName').textContent=skinDefs[selected][0];$('sessionName').textContent=skinDefs[selected][0]+' · Meadow';$('enter').disabled=!actors[selected];$('actorSelect').value=String(selected);document.querySelectorAll('.character').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.index===selected)))}
-function updateCrown(){const guest=selected===GUEST_SKIN;if(guest){crownScore=0;crownEnabled=false;}updateClockControls();actors[selected]?.setAppearance(cachedCharacter().appearanceLevel,crownEnabled);$('crownToggle').disabled=guest;$('saveDuelGoal').disabled=guest;$('duelGoal').disabled=guest;document.querySelectorAll('[data-bg]').forEach(button=>button.disabled=guest);$('crownToggle').textContent=guest?'ゲスト · 王冠・ハゲ表現なし':skinDefs[selected][0]+' · 王冠・ハゲ表現：'+(crownEnabled?'ON':'OFF');}
+function battleRecord(){const {wins,losses}=cachedCharacter(),total=wins+losses;return wins+'勝 '+losses+'敗 · 勝率 '+(total?(wins/total*100).toFixed(1)+'%':'--（今後の試合から集計）');}
+function updateCrown(){const guest=selected===GUEST_SKIN;if(guest){crownScore=0;crownEnabled=false;}updateClockControls();$('duelRecord').textContent=guest?'ゲスト · 勝敗の保存なし':battleRecord();actors[selected]?.setAppearance(cachedCharacter().appearanceLevel,crownEnabled);$('crownToggle').disabled=guest;$('saveDuelGoal').disabled=guest;$('duelGoal').disabled=guest;document.querySelectorAll('[data-bg]').forEach(button=>button.disabled=guest);$('crownToggle').textContent=guest?'ゲスト · 王冠・ハゲ表現なし':skinDefs[selected][0]+' · 王冠・ハゲ表現：'+(crownEnabled?'ON':'OFF');}
 function updateDuelSettings(){$('duelGoal').value=String(goalDamage);$('duelSettingsStatus').textContent=selected===GUEST_SKIN?'ゲストはワールド設定を変更できません':`現在：${goalDamage}ダメージ · サーバー保存 · 次の試合から反映`;}
 function receiveDuel(duel,announce=false){duelIds=duel.ids;duelActive=duelIds.includes(roomSelfId);matchGoalDamage=duel.goalDamage||goalDamage;duelDamage=duel.damage?.[roomSelfId]||0;if(duelActive){airWalk=false;updateJumpButton();}if(announce)notify('タイマン開始！',3500);$('duelHud').hidden=false;$('duelHud').textContent=duelActive?`被ダメージ ${duelDamage} / ${matchGoalDamage} · 試合中はバリア封鎖`:`タイマン観戦中 · ${matchGoalDamage}ダメージで決着`;}
 function openWorldMenu(board=null){setClean(false);unlocked();openBoard=board;$('menu').hidden=true;$('master').hidden=true;$('worldMenu').hidden=false;$('stopAthletic').disabled=!athleticActive;updateDuelSettings();updateClockControls();$('worldStatus').textContent=athleticActive?'CHECK '+(athleticCheckpoint?.id||1)+' / 100 · ジャンプ力1.5倍':`闘技場：2人が1秒以内にパンチで開始 · ${goalDamage}ダメージで勝利`;}
@@ -343,7 +344,7 @@ function handleRoomMessage(socket,event){
   if(message.type==='duel-cancel'){duelActive=false;duelIds=[];$('duelHud').hidden=true;notify(message.reason);return;}
   if(message.type==='duel-result'){
     for(const [id,score]of Object.entries(message.scores)){if(id===roomSelfId){crownScore=score;updateCrown();}else{const r=remoteActors.get(id);if(r)r.actor.setAppearance(message.appearances?.[id]??r.appearanceLevel??Math.max(-8,score),r.crownEnabled);}}
-    if(message.practice)notify((message.winner===roomSelfId?'勝利！ ':message.loser===roomSelfId?'敗北 · ':'決着 · ')+'ゲスト練習試合 · 保存スコアの変更なし',4000);else if(message.winner===roomSelfId)notify('勝利！ 勝敗スコア '+crownScore,4000);else if(message.loser===roomSelfId)notify('敗北 · 勝敗スコア '+crownScore,4000);else notify('タイマン決着！',3000);
+    if(message.practice)notify('練習試合が終了 · 同じキャラクター同士のため記録変更なし',4000);else if(message.winner===roomSelfId)notify(selected===GUEST_SKIN?'勝利！ ゲストの記録は変更なし':'勝利！ '+battleRecord()+' · スコア '+crownScore,4500);else if(message.loser===roomSelfId)notify(selected===GUEST_SKIN?'敗北 · ゲストの記録は変更なし':'敗北 · '+battleRecord()+' · スコア '+crownScore,4500);else notify('タイマン決着！',3000);
     duelActive=false;duelIds=[];$('duelHud').hidden=true;return;
   }
   if(message.type==='punch'){

@@ -10,7 +10,8 @@ import { createCombatEffects } from './combat-effects.js';
 import { SYNC_VERSION } from './game-rules.js';
 import { cleanCharacter } from './character-store.js';
 import { createHousingRenderer } from './housing-renderer.js';
-import { createHouseEditor } from './house-editor.js';
+// Versioned URL prevents a previously cached editor module from blocking startup.
+import { createHouseEditor } from './house-editor.js?v=20261008-2';
 
 const $ = id => document.getElementById(id);
 const clamp = THREE.MathUtils.clamp;

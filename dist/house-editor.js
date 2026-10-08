@@ -84,7 +84,16 @@ export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPla
   for(const button of panel.querySelectorAll('[data-house-tab]'))button.onclick=()=>{category=button.dataset.houseTab;for(const b of panel.querySelectorAll('[data-house-tab]'))b.setAttribute('aria-selected',String(b===button));catalogue();};
   for(const key of Object.keys(FINISHES)){const select=$('houseFinish-'+key);for(const [id,label]of FINISHES[key])select.add(new Option(label,id));select.onchange=()=>{if(!commit({action:'finish',surface:key,value:select.value}))refresh();};}
   for(let c=0;c<FURNITURE_COLORS.length;c++)$('houseColor').add(new Option(['赤','緑','水色','オレンジ','灰色','紫','黄色','茶色','白','黒','ナチュラル','青灰'][c],String(c)));
-  $('houseColor').onchange=e=>{color=Number(e.target.value);const selected=item();if(selected){if(!commit({action:'move',item:{...selected,c:color}))refresh();}else{catalogue();}};
+  $('houseColor').onchange = event => {
+    color = Number(event.target.value);
+    const selected = item();
+    if (selected) {
+      const saved = commit({ action:'move', item:{ ...selected, c:color } });
+      if (!saved) refresh();
+      return;
+    }
+    catalogue();
+  };
   $('houseWall').onchange=e=>{wall=e.target.value;const selected=item();if(selected&&FURNITURE_BY_ID.get(selected.t).mount==='wall'){if(!commit({action:'move',item:{...selected,wall}}))refresh();}};
   $('housePlaced').onchange=e=>{selectedId=e.target.value||null;refresh();};$('closeHouseEditor').onclick=close;
   $('houseMoveMode').onclick=()=>{mode='move';drawSelection();};$('houseRotateMode').onclick=()=>{mode='rotate';drawSelection();};$('houseRotateLeft').onclick=()=>rotate(-1);$('houseRotateRight').onclick=()=>rotate(1);

@@ -418,13 +418,18 @@ export async function createAvatar(url,{model=null}={}) {
     if(sleepWeight>.001){
       pelvis.rotation.x=THREE.MathUtils.lerp(pelvis.rotation.x,-Math.PI/2,sleepWeight);
       pelvis.rotation.y*=1-sleepWeight;pelvis.rotation.z*=1-sleepWeight;
-      pelvis.position.y=THREE.MathUtils.lerp(pelvis.position.y,.14,sleepWeight);
+      const backDepth=(parts.torso.size[2]/2+parts.torso.inflate)*PX;
+      pelvis.position.y=THREE.MathUtils.lerp(pelvis.position.y,backDepth+.004,sleepWeight);
       torso.rotation.x*=1-sleepWeight;torso.rotation.y*=1-sleepWeight;torso.rotation.z*=1-sleepWeight;
       for(const [side,sign]of [['left',1],['right',-1]]){
         gestureJoint(hips[side],0,0,sign*.045,sleepWeight);gestureJoint(knees[side],0,0,0,sleepWeight);
         gestureJoint(shoulders[side],0,0,sign*.12,sleepWeight);gestureJoint(elbows[side],-.08,0,0,sleepWeight);
       }
     }
+    // A thicker block head rests on the pillow independently of the back.
+    // Lifting the whole rig to clear the head makes the torso hover above bed.
+    const pillowLift=Math.max(0,(parts.head.size[2]/2+parts.head.inflate-parts.torso.size[2]/2-parts.torso.inflate)*PX)+.075;
+    head.position.z=damp(head.position.z,pillowLift*sleepWeight,14,dt);
     if(state.impactDuration>0&&state.impactTime<state.impactDuration){
       const t=state.impactTime,u=t/state.impactDuration,amount=(.012+.035*(state.impactStrength||0))*Math.sin(Math.PI*u);
       pelvis.position.x+=Math.sin(t*155)*amount;pelvis.position.z+=Math.sin(t*119+.8)*amount;pelvis.rotation.z+=Math.sin(t*142)*amount*.4;
@@ -434,7 +439,7 @@ export async function createAvatar(url,{model=null}={}) {
       let sole=Infinity;for(const side of ['right','left']){const a=hips[side].rotation.x,b=a+knees[side].rotation.x,z=hips[side].rotation.z;const y=legHeight*PX+pelvis.position.y-(legHalf*PX*Math.cos(a)+legHalf*PX*Math.cos(b))*Math.cos(z)-.125*Math.abs(Math.sin(b));sole=Math.min(sole,y);}
       if(sole<0)pelvis.position.y-=sole;
     }
-    if((state.ragdoll||state.sleeping)&&grounded){root.updateMatrixWorld(true);let lowest=Infinity;for(const mesh of meshes){const b=mesh.geometry.boundingBox;for(let corner=0;corner<8;corner++){groundProbe.set(corner&1?b.max.x:b.min.x,corner&2?b.max.y:b.min.y,corner&4?b.max.z:b.min.z).applyMatrix4(mesh.matrixWorld);lowest=Math.min(lowest,groundProbe.y);}}if(lowest<root.position.y+.015)pelvis.position.y+=root.position.y+.015-lowest;}
+    if(state.ragdoll&&grounded){root.updateMatrixWorld(true);let lowest=Infinity;for(const mesh of meshes){const b=mesh.geometry.boundingBox;for(let corner=0;corner<8;corner++){groundProbe.set(corner&1?b.max.x:b.min.x,corner&2?b.max.y:b.min.y,corner&4?b.max.z:b.min.z).applyMatrix4(mesh.matrixWorld);lowest=Math.min(lowest,groundProbe.y);}}if(lowest<root.position.y+.015)pelvis.position.y+=root.position.y+.015-lowest;}
     head.rotation.y = damp(head.rotation.y, state.ragdoll||state.sleeping?0:clamp(state.lookYaw || 0, -.95, .95) - torso.rotation.y * .6, 12, dt);
     head.rotation.x = damp(head.rotation.x, state.ragdoll||state.sleeping?0:clamp(state.lookPitch || 0, -.65, .7) - torso.rotation.x * .65, 12, dt);
     head.rotation.z = -torso.rotation.z * .4;

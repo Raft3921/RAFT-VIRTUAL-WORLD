@@ -1,19 +1,19 @@
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261008-combat9';
+import { createAvatar } from './avatar.js?v=20261008-visual10';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261008-combat9';
+import { createWorld } from './world.js?v=20261008-visual10';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION } from './game-rules.js?v=20261008-combat9';
+import { SYNC_VERSION } from './game-rules.js?v=20261008-visual10';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261008-combat9';
+import { createHousingRenderer } from './housing-renderer.js?v=20261008-visual10';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261008-combat9';
+import { createHouseEditor } from './house-editor.js?v=20261008-visual10';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 
 const $ = id => document.getElementById(id);
@@ -412,7 +412,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
           const q=attackTarget(targetLock);if(attacking&&q){const dx=q.x-p.position.x,dz=q.z-p.position.z,d=Math.hypot(dx,dz);attackYaw=Math.atan2(dx,dz);p.rotation.y+=angleDelta(p.rotation.y,attackYaw)*(1-Math.exp(-dt*24));if(attackRushing&&d>1.95){const rush=Math.min(athleticActive?moveSpeed*1.65:18,Math.max(0,(d-1.85)/dt*.7));velocity.set(dx/d*rush,0,dz/d*rush);}else velocity.set(0,0,0);if(attackRushing&&grounded&&q.y-p.position.y>1.0){verticalSpeed=athleticActive?7.95:7.3;grounded=false;standingOn=null;}}
         }else velocity.set(0,0,0);
         if(sleeping){
-          const current=world.bedById(bed?.id);if(!current){wakeFromBed();}else{bed=current;const offset=(actors[selected].collisionShape?.height||2)*.45;p.position.set(bed.x+Math.sin(bed.yaw)*offset,bed.y+.07,bed.z+Math.cos(bed.yaw)*offset);p.rotation.y=bed.yaw;verticalSpeed=0;velocity.set(0,0,0);grounded=true;airWalk=false;jumpRequested=false;}
+          const current=world.bedById(bed?.id);if(!current){wakeFromBed();}else{bed=current;const offset=(actors[selected].collisionShape?.height||2)*.45;p.position.set(bed.x+Math.sin(bed.yaw)*offset,bed.y,bed.z+Math.cos(bed.yaw)*offset);p.rotation.y=bed.yaw;verticalSpeed=0;velocity.set(0,0,0);grounded=true;airWalk=false;jumpRequested=false;}
         }else if(seated){
           p.position.set(seat.x,seat.y-actors[selected].seatOffset,seat.z);p.rotation.y=seat.yaw;verticalSpeed=0;grounded=true;
         }else{
@@ -435,7 +435,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
             }
             if(!localRagdoll&&time>seatCooldown){
               const sleepingBed=punchSwing===0?world.bedAt(p.position,oldY,verticalSpeed):null,found=sleepingBed?null:world.seatAt(p.position,oldY,verticalSpeed);
-              if(sleepingBed){sleeping=true;bed=sleepingBed;seated=false;seat=null;velocity.set(0,0,0);verticalSpeed=0;standingOn=null;grounded=true;const offset=(actors[selected].collisionShape?.height||2)*.45;p.position.set(bed.x+Math.sin(bed.yaw)*offset,bed.y+.07,bed.z+Math.cos(bed.yaw)*offset);p.rotation.y=bed.yaw;if(cameraMode==='first')setCameraMode('follow');notify('ベッドで休憩 · ジャンプで起きる');}
+              if(sleepingBed){sleeping=true;bed=sleepingBed;seated=false;seat=null;velocity.set(0,0,0);verticalSpeed=0;standingOn=null;grounded=true;const offset=(actors[selected].collisionShape?.height||2)*.45;p.position.set(bed.x+Math.sin(bed.yaw)*offset,bed.y,bed.z+Math.cos(bed.yaw)*offset);p.rotation.y=bed.yaw;if(cameraMode==='first')setCameraMode('follow');notify('ベッドで休憩 · ジャンプで起きる');}
               else if(found){seated=true;seat=found;velocity.set(0,0,0);p.position.set(seat.x,seat.y-actors[selected].seatOffset,seat.z);notify('着席 · ジャンプで立つ');}
             }
           }

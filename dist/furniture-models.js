@@ -9,7 +9,7 @@ export function furnitureParts(item){
   const legs=(height=.7)=>{for(const x of [-.39,.39])for(const z of [-.36,.36])box(x,height/2,z,.075,height,.085,WOOD);};
   switch(f.family){
     case 'chair':legs(.43);box(0,.46,0,1,.11,1);box(0,.75,-.43,1,.5,.14);box(0,.77,-.35,.7,.17,.04,WOOD,true);break;
-    case 'sofa':legs(.13);box(0,.29,0,1,.4,1,DARK);box(0,.47,.06,.79,.16,.8);box(0,.79,-.43,1,.42,.14);for(const x of [-.45,.45])box(x,.56,0,.1,.35,1);box(0,.56,.16,.035,.01,.55,WHITE,true);break;
+    case 'sofa':legs(.13);box(0,.26,0,.96,.32,.96,DARK);box(0,.48,.055,.78,.14,.79);box(0,.76,-.43,.98,.48,.14);for(const x of [-.45,.45])box(x,.57,0,.1,.42,1);box(0,.557,.14,.022,.008,.54,WHITE,true);break;
     case 'stool':legs(.85);box(0,.92,0,1,.16,1);break;
     case 'bench':legs(.8);box(0,.9,0,1,.2,1);for(const z of [-.3,0,.3])box(0,1.001,z,1,.002,.025,DARK,true);break;
     case 'table':legs(.88);box(0,.94,0,1,.12,1);break;
@@ -38,7 +38,7 @@ export function furnitureParts(item){
       if(f.family==='bonsai'){legs(.4);box(0,.43,0,1,.06,1,WOOD);}const start=f.family==='bonsai'?.5:0;
       box(0,start+.12,0,.48,.24,.48,paint);box(0,.24+start/2,0,.32,.035,.32,WOOD);box(0,.53,0,.09,.58,.09,WOOD);box(-.17,.7,-.08,.45,.25,.5,LEAF);motion('sway');box(.17,.82,.06,.45,.25,.5,LEAF);motion('sway',{phase:1});box(0,.94,0,.47,.12,.45,LEAF);motion('sway',{phase:2});break;
     }
-    case 'aquarium':legs(.4);box(0,.44,0,1,.09,1,WOOD);box(0,.74,0,1,.5,1,'#8fbac9');box(0,.97,0,1,.06,1,DARK);box(0,.52,0,.9,.03,.9,WOOD);for(const x of [-.25,.12]){box(x,.7,.51,.15,.08,.015,paint,true);motion('fish',{phase:x*9,amplitude:f.w*.12});}break;
+    case 'aquarium':legs(.4);box(0,.44,0,1,.09,1,WOOD);box(0,.725,0,.94,.43,.88,'#8fbac9');box(0,.97,0,1,.05,1,DARK);box(0,.50,0,.98,.035,.96,WOOD);for(const [i,x]of [-.25,.12].entries()){box(x,.68+i*.09,.458+i*.018,.15,.08,.012,paint,true);motion('fish',{phase:x*9,amplitude:f.w*.12});}break;
     case 'lamp':box(0,.04,0,.55,.08,.55,DARK);box(0,.43,0,.045,.8,.045,METAL);box(0,.88,0,1,.24,1,paint);box(0,.82,.505,.65,.1,.015,WHITE,true);break;
     case 'coat':box(0,.04,0,.8,.08,.8,WOOD);box(0,.49,0,.07,.9,.07,WOOD);box(0,.83,0,1,.055,.08,WOOD);box(.25,.68,0,.32,.4,.1,paint);break;
     case 'mirror':box(0,.05,0,1,.1,1,WOOD);box(0,.53,-.18,1,.93,.18,paint);box(0,.53,-.065,.83,.82,.045,'#8fbac9');parts[parts.length-1].mirror=true;break;
@@ -64,6 +64,16 @@ export function furnitureParts(item){
     case 'light-bar':for(const x of [-.36,.36])box(x,.72,0,.025,.56,.025,METAL);box(0,.26,0,1,.45,1,paint);box(0,.035,0,.9,.035,.8,WHITE);break;
   }
   const shift=f.mount==='wall'?-f.h*.44:f.mount==='ceiling'?-f.h*.88:0,light=['lamp','sconce','pendant','chandelier','fan','ceiling-light','light-bar'].includes(f.family);for(const p of parts){p.y+=shift;if(p.pivot)p.pivot[1]+=shift;if(p.detail&&f.family!=='rug')p.z+=.001;p.glow=light&&p.c===WHITE;}
+  // Separate remaining exposed co-planar box faces across every furniture
+  // family. Do this once when building, not during animation/render updates.
+  const axes=[['x','w'],['y','h'],['z','d']];
+  for(let i=0;i<parts.length;i++)for(let j=i+1;j<parts.length;j++){
+    const a=parts[i],b=parts[j],small=a.w*a.h*a.d<=b.w*b.h*b.d?a:b,large=small===a?b:a;
+    for(const [axis,size]of axes){
+      const overlap=axes.filter(([other])=>other!==axis).every(([other,span])=>Math.min(a[other]+a[span]/2,b[other]+b[span]/2)-Math.max(a[other]-a[span]/2,b[other]-b[span]/2)>.00001);if(!overlap)continue;
+      for(const sign of [-1,1])if(Math.abs(small[axis]+sign*small[size]/2-large[axis]-sign*large[size]/2)<.000001){const separation=.003;small[axis]+=sign*separation;if(small.pivot)small.pivot[axes.findIndex(([key])=>key===axis)]+=sign*separation;break;}
+    }
+  }
   return parts;
 }
 export function furnitureThumbnail(def,color=10){

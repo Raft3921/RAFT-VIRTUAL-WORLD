@@ -8,7 +8,7 @@ import {hitShape} from './hit-reaction.js';
 import {HOUSES,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js';
-export const SYNC_VERSION='2026-10-08-daynight-13';
+export const SYNC_VERSION='2026-10-08-chair-pair-17';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||Math.abs(s.x)>1300||Math.abs(s.z)>1300||s.y<0||s.y>512)return null;

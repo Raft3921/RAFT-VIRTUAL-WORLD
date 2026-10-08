@@ -34,7 +34,7 @@ export function cleanFurniture(value){
   const def=FURNITURE_BY_ID.get(value?.t);if(!def||typeof value.id!=='string'||!/^[-a-z0-9_]{1,32}$/.test(value.id)||!snap(value.x)||!snap(value.z))return null;
   const r=Number(value.r),c=Number(value.c),y=Number(value.y||0),wall=['back','front','left','right'].includes(value.wall)?value.wall:'back';
   if(!Number.isInteger(r)||r<0||r>=(def.mount==='wall'?4:8)||!Number.isInteger(c)||c<0||c>=FURNITURE_COLORS.length||!snap(y))return null;
-  return {id:value.id,t:def.id,x:value.x,z:value.z,y:def.mount==='wall'?y:0,r,c,...(['bed','canopy'].includes(def.family)?{v:value.v===2?2:1}:{}),...(def.mount==='wall'?{wall}:{})};
+  return {id:value.id,t:def.id,x:value.x,z:value.z,y:def.mount==='wall'?y:0,r,c,...(['bed','canopy'].includes(def.family)?{v:value.v===2?2:1}:{}),...(def.mount==='wall'?{wall}:{}),...(def.seat&&typeof value.pair==='string'&&/^[-a-z0-9_]{1,32}$/.test(value.pair)?{pair:value.pair}:{})};
 }
 export function furniturePose(item){
   const f=furnitureDefinition(item);let x=item.x*GRID,z=item.z*GRID,y=0,yaw=item.r*Math.PI/4,roll=0,w=f.w,h=f.h,d=f.d;
@@ -62,6 +62,16 @@ export function placementError(item,items){
   for(const other of items){if(other.id===item.id)continue;const g=FURNITURE_BY_ID.get(other.t);if(f.solid===false||g.solid===false){if(f.solid!==g.solid)continue;}if(intersects(p,furniturePose(other)))return 'ほかの家具と重なっています';}
   return '';
 }
+// Seats face local +Z; their backrest is on -Z. A nearby desk/table owns
+// the pair, while the chair retains its position and the existing 45° grid.
+export function pairFurniture(item,items){
+  const f=FURNITURE_BY_ID.get(item.t);if(!f?.seat||f.mount!=='floor')return item;
+  const next={...item};delete next.pair;
+  let table=null,best=Infinity;
+  for(const other of items){const g=FURNITURE_BY_ID.get(other.t);if(other.id===item.id||!['table','desk','computer'].includes(g?.family))continue;const distance=Math.hypot(other.x-item.x,other.z-item.z)*GRID;if(distance>.01&&distance<=Math.max(4.5,Math.max(g.w,g.d)/2+2)&&distance<best){best=distance;table=other;}}
+  if(table){next.pair=table.id;next.r=((Math.round(Math.atan2(table.x-item.x,table.z-item.z)/(Math.PI/4))%8)+8)%8;}
+  return next;
+}
 export function cleanHouse(value){
   const house=emptyHouse(),rev=Number(value?.rev);house.rev=Number.isSafeInteger(rev)&&rev>=0?rev:0;
   for(const key of Object.keys(FINISHES))if(FINISHES[key].some(f=>f[0]===value?.finish?.[key]))house.finish[key]=value.finish[key];
@@ -69,6 +79,9 @@ export function cleanHouse(value){
   // Expand old beds without deleting saved furniture. Prefer the same position,
   // otherwise the nearest free grid cell; packed rooms retain the legacy bed.
   for(let i=0;i<house.items.length;i++){const old=house.items[i];if(old.v!==1)continue;let replacement=null;for(let radius=0;radius<=12&&!replacement;radius++)for(let dx=-radius;dx<=radius&&!replacement;dx++)for(let dz=-radius;dz<=radius;dz++){if(Math.max(Math.abs(dx),Math.abs(dz))!==radius)continue;const candidate={...old,v:2,x:old.x+dx,z:old.z+dz};if(snap(candidate.x)&&snap(candidate.z)&&!placementError(candidate,house.items)){replacement=candidate;break;}}if(replacement)house.items[i]=replacement;}
+  // Migrate existing chairs without moving or deleting any other furniture.
+  // Never rotate a wide seat through a wall or another saved object.
+  for(let i=0;i<house.items.length;i++){const paired=pairFurniture(house.items[i],house.items);if(!placementError(paired,house.items))house.items[i]=paired;else{const unpaired={...house.items[i]};delete unpaired.pair;house.items[i]=unpaired;}}
   return house;
 }
 export function applyHouseOperation(house,op){
@@ -76,7 +89,7 @@ export function applyHouseOperation(house,op){
   if(op.action==='finish'){if(!FINISHES[op.surface]?.some(f=>f[0]===op.value))return {error:'内装設定が不正です'};next.finish[op.surface]=op.value;}
   else if(op.action==='delete'){const index=next.items.findIndex(i=>i.id===op.id);if(index<0)return {error:'家具が見つかりません'};next.items.splice(index,1);}
   else if(op.action==='add'||op.action==='move'){
-    const item=cleanFurniture(op.item);if(!item)return {error:'家具設定が不正です'};const index=next.items.findIndex(i=>i.id===item.id);
+    const raw=cleanFurniture(op.item);if(!raw)return {error:'家具設定が不正です'};const item=pairFurniture(raw,next.items),index=next.items.findIndex(i=>i.id===item.id);
     if(op.action==='add'&&(index>=0||next.items.length>=MAX_FURNITURE))return {error:'家具は64個まで配置できます'};
     if(op.action==='move'&&(index<0||next.items[index].t!==item.t))return {error:'家具が見つかりません'};
     const error=placementError(item,next.items);if(error)return {error};if(index<0)next.items.push(item);else next.items[index]=item;
@@ -84,6 +97,6 @@ export function applyHouseOperation(house,op){
   return {house:cleanHouse(next)};
 }
 export function findPlacement(def,items,color=10,wall='back'){
-  for(let radius=0;radius<28;radius+=2)for(let x=-radius;x<=radius;x+=2)for(let z=-radius;z<=radius;z+=2){if(radius&&Math.max(Math.abs(x),Math.abs(z))!==radius)continue;const candidate={id:'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),t:def.id,x,z,y:def.mount==='wall'?9:0,r:0,c:color,...(['bed','canopy'].includes(def.family)?{v:2}:{}),...(def.mount==='wall'?{wall}:{})};if(!placementError(candidate,items))return candidate;}
+  for(let radius=0;radius<28;radius+=2)for(let x=-radius;x<=radius;x+=2)for(let z=-radius;z<=radius;z+=2){if(radius&&Math.max(Math.abs(x),Math.abs(z))!==radius)continue;const candidate=pairFurniture({id:'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),t:def.id,x,z,y:def.mount==='wall'?9:0,r:0,c:color,...(['bed','canopy'].includes(def.family)?{v:2}:{}),...(def.mount==='wall'?{wall}:{})},items);if(!placementError(candidate,items))return candidate;}
   return null;
 }

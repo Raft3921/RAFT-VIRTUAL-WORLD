@@ -13,7 +13,7 @@ import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js'
 import { cleanCharacter } from './character-store.js';
 import { createHousingRenderer } from './housing-renderer.js?v=20261008-play21';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261008-play20';
+import { createHouseEditor } from './house-editor.js?v=20261009-ui22';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js';
 import {createWorldGuide} from './world-guide.js';
@@ -244,7 +244,8 @@ function battleRecord(){const {wins,losses}=cachedCharacter(),total=wins+losses;
 function updateCrown(){const guest=selected===GUEST_SKIN;if(guest){crownScore=0;crownEnabled=false;}updateClockControls();$('duelRecord').textContent=guest?'ゲスト · 勝敗の保存なし':battleRecord();actors[selected]?.setAppearance(cachedCharacter().appearanceLevel,crownEnabled);$('crownToggle').disabled=guest;$('saveDuelGoal').disabled=guest;$('duelGoal').disabled=guest;document.querySelectorAll('[data-bg]').forEach(button=>button.disabled=guest);$('crownToggle').textContent=guest?'ゲスト · 王冠・ハゲ表現なし':skinDefs[selected][0]+' · 王冠・ハゲ表現：'+(crownEnabled?'ON':'OFF');}
 function updateDuelSettings(){$('duelGoal').value=String(goalDamage);$('duelSettingsStatus').textContent=selected===GUEST_SKIN?'ゲストはワールド設定を変更できません':`現在：${goalDamage}ダメージ · サーバー保存 · 次の試合から反映`;}
 function receiveDuel(duel,announce=false){duelIds=duel.ids;duelActive=duelIds.includes(roomSelfId);matchGoalDamage=duel.goalDamage||goalDamage;duelDamage=duel.damage?.[roomSelfId]||0;if(duelActive){airWalk=false;updateJumpButton();}if(announce)notify('タイマン開始！',3500);$('duelHud').hidden=false;$('duelHud').textContent=duelActive?`被ダメージ ${duelDamage} / ${matchGoalDamage} · 試合中はバリア封鎖`:`タイマン観戦中 · ${matchGoalDamage}ダメージで決着`;}
-function openWorldMenu(board=null){setClean(false);unlocked();openBoard=board;$('menu').hidden=true;$('master').hidden=true;$('worldMenu').hidden=false;$('stopAthletic').disabled=!athleticActive;updateDuelSettings();updateClockControls();$('worldStatus').textContent=athleticActive?'CHECK '+(athleticCheckpoint?.id||1)+' / 100 · ジャンプ力1.5倍':`闘技場：2人が1秒以内にパンチで開始 · ${goalDamage}ダメージで勝利`;}
+function showWorldMenuTab(name){for(const button of document.querySelectorAll('[data-world-tab]'))button.setAttribute('aria-selected',String(button.dataset.worldTab===name));for(const section of document.querySelectorAll('[data-world-panel]')){section.hidden=section.dataset.worldPanel!==name;if(!section.hidden)section.scrollTop=0;}$('worldMenu').querySelector('.world-menu-content').scrollTop=0;}
+function openWorldMenu(board=null){setClean(false);unlocked();openBoard=board;$('menu').hidden=true;$('master').hidden=true;$('worldMenu').hidden=false;$('stopAthletic').disabled=!athleticActive;updateDuelSettings();updateClockControls();$('worldStatus').textContent=`闘技場：2人が1秒以内にパンチで開始 · ${goalDamage}ダメージで勝利`;$('athleticMenuStatus').textContent=athleticActive?'CHECK '+(athleticCheckpoint?.id||1)+' / 100 · ジャンプ力1.5倍':'CHECK 100まで登るコースです。ジャンプ力はゾーン内で1.5倍。';showWorldMenuTab(board?.kind==='checkpoint'||athleticActive?'course':board?.kind==='arena'?'battle':'studio');}
 function closeWorldMenu(){$('worldMenu').hidden=true;canvas.focus();}
 function respawnCourse(){
   const cp=athleticCheckpoint||world.athletic.checkpoints[0];
@@ -263,6 +264,7 @@ async function replaceSkin(i,url){const actor=await playerAvatar(i,url);const ol
 $('enter').onclick=enterStudio;$('resume').onclick=()=>{$('menu').hidden=true;clearInput();canvas.focus()};$('changeCharacter').onclick=$('masterCharacter').onclick=returnLobby;
 $('openMaster').onclick=openMaster;$('closeMaster').onclick=()=>{$('master').hidden=true;clearInput();canvas.focus()};$('cleanView').onclick=$('cleanMaster').onclick=enterClean;
 $('studioBoard').onclick=()=>openWorldMenu();$('closeWorldMenu').onclick=closeWorldMenu;
+for(const button of document.querySelectorAll('[data-world-tab]'))button.onclick=()=>showWorldMenuTab(button.dataset.worldTab);
 $('boardGuide').onclick=()=>worldGuide?.open();
 document.querySelectorAll('[data-bg]').forEach(button=>button.onclick=()=>{if(selected===GUEST_SKIN)return;const value=button.dataset.bg;world.setBackdrop(value);if(roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify({type:'backdrop',value}));notify(value+' 背景に切替');});
 $('crownToggle').onclick=()=>{if(selected===GUEST_SKIN)return;cacheCharacter(selected,{...cachedCharacter(),crownEnabled:!crownEnabled});pendingCrown[selected]=crownEnabled;safeSave('raft-character-crown-pending',JSON.stringify(pendingCrown));if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'crown-toggle',enabled:crownEnabled}));};

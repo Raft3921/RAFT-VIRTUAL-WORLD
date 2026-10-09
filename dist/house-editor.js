@@ -24,11 +24,12 @@ export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPla
   const effectOrigin=new THREE.Vector3(),effectTransform=new THREE.Object3D();let effectTime=1,effectRemoving=false;
   const active=()=>index>=0,item=()=>draft||layouts[index]?.items.find(i=>i.id===selectedId),localToWorld=(x,y,z)=>{const h=HOUSES[index];return new THREE.Vector3(h.x+x*h.front,ROOM.floor+y,h.z+z*h.front);};
   const setStatus=(text,error=false)=>{$('houseSaveStatus').textContent=text;$('houseSaveStatus').dataset.error=String(error);};
+  function showPane(name){for(const button of panel.querySelectorAll('[data-house-pane]'))button.setAttribute('aria-selected',String(button.dataset.housePane===name));for(const section of panel.querySelectorAll('[data-house-panel]')){section.hidden=section.dataset.housePanel!==name;if(!section.hidden)section.scrollTop=0;}}
   const cache=()=>{try{localStorage.setItem('raft-house-layouts',JSON.stringify(layouts));}catch{}};
   function cast(e){const rect=canvas.getBoundingClientRect();if(document.pointerLockElement===canvas)ndc.set(0,0);else ndc.set((e.clientX-rect.left)/rect.width*2-1,-((e.clientY-rect.top)/rect.height*2-1));camera.updateMatrixWorld();world.group.updateMatrixWorld(true);ray.setFromCamera(ndc,camera);ray.params.Line.threshold=.12;}
   function buildGhost(){ghost.clear();if(!draft){ghost.visible=false;return;}for(const part of furnitureParts(draft)){if(!ghostMaterials.has(part.c))ghostMaterials.set(part.c,new THREE.MeshStandardMaterial({color:part.c,transparent:true,opacity:.65,roughness:.85,depthWrite:false}));const mesh=new THREE.Mesh(furnitureGeometry(part.shape)||previewGeometry,ghostMaterials.get(part.c));mesh.userData.baseColor=part.c;mesh.position.set(part.x,part.y,part.z);mesh.rotation.set(part.rx||0,part.ry||0,part.rz||0);mesh.scale.set(part.w,part.h,part.d);ghost.add(mesh);}ghost.visible=true;}
   function drawSelection(candidate=item(),error=null){
-    const visible=active()&&!!candidate;outline.visible=footprint.visible=visible;gizmo.visible=visible&&!['orbit','pan'].includes(mode);$('housePlacementHUD').hidden=!visible;$('houseDraftActions').hidden=!draft;$('houseSelection').hidden=!visible;
+    const visible=active()&&!!candidate;outline.visible=footprint.visible=visible;gizmo.visible=visible&&!['orbit','pan'].includes(mode);$('housePlacementHUD').hidden=!visible;$('houseDraftActions').hidden=!draft;$('houseSelection').hidden=!visible;$('houseEmptySelection').hidden=visible;$('houseWallRow').hidden=true;
     for(const [id,value]of [['houseMoveMode','move'],['houseRotateMode','rotate'],['houseCameraOrbit','orbit'],['houseCameraPan','pan']])$(id).setAttribute('aria-pressed',String(mode===value));
     if(!candidate||!active())return;error??=placementError(candidate,layouts[index].items);
     const f=FURNITURE_BY_ID.get(candidate.t),p=furniturePose(candidate),h=HOUSES[index];const centre=localToWorld(p.x,p.centerY,p.z);
@@ -41,12 +42,12 @@ export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPla
     const sideWall=f.mount==='wall'&&(candidate.wall==='left'||candidate.wall==='right');for(const handle of handles)handle.arrow.visible=handle.pick.visible=mode==='move'&&(f.mount==='wall'?handle.axis==='y'||handle.axis===(sideWall?'z':'x'):f.allowHeight||handle.axis!=='y');
     ring.visible=ringPick.visible=mode==='rotate';ring.rotation.set(f.mount==='wall'?0:-Math.PI/2,sideWall?Math.PI/2:0,0);ringPick.rotation.copy(ring.rotation);
     $('houseSelectedName').textContent=f.name;$('houseX').value=(candidate.x*GRID).toFixed(2);$('houseY').value=(f.mount==='wall'?candidate.y*GRID:f.allowHeight?(candidate.y||0)*HEIGHT_GRID:f.mount==='ceiling'?ROOM.height:0).toFixed(2);$('houseZ').value=(candidate.z*GRID).toFixed(2);$('houseY').disabled=f.mount!=='wall'&&!f.allowHeight;$('houseY').step=String(f.allowHeight?HEIGHT_GRID:GRID);$('houseX').disabled=sideWall;$('houseZ').disabled=f.mount==='wall'&&!sideWall;$('houseWall').value=candidate.wall||wall;$('houseColor').value=String(candidate.c);
-    color=candidate.c;if(candidate.wall)wall=candidate.wall;
+    color=candidate.c;if(candidate.wall)wall=candidate.wall;$('houseWallRow').hidden=f.mount!=='wall';
     $('houseSelection').hidden=false;
   }
   function refresh(){
     const layout=layouts[index];if(!layout)return;$('houseCount').textContent=`${layout.items.length} / ${MAX_FURNITURE} · グリッド25cm`;
-    const list=$('housePlaced');list.replaceChildren(new Option('家具を選択',''));for(const object of layout.items)list.add(new Option(FURNITURE_BY_ID.get(object.t).name+' · '+object.id.slice(-4),object.id));list.value=selectedId||'';
+    const list=$('housePlaced');list.replaceChildren(new Option(draft?'配置中の家具を編集中':'家具を選択',''));for(const object of layout.items)list.add(new Option(FURNITURE_BY_ID.get(object.t).name+' · '+object.id.slice(-4),object.id));list.value=selectedId||'';
     for(const key of Object.keys(FINISHES))$('houseFinish-'+key).value=layout.finish[key];$('houseUndo').disabled=!undoItem||!!pending;$('houseDelete').disabled=!!pending;drawSelection();
   }
   function commit(op){
@@ -56,7 +57,7 @@ export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPla
     const requestId='h'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);pending={index,requestId,previous,affected,removing:op.action==='delete',at:clock};layouts[index]=result.house;view.apply(index,result.house);refresh();setStatus('サーバーに保存中…');
     try{send({type:'housing-op',index,rev:previous.rev,requestId,...op});}catch{disconnected();notify('接続が切れました。配置を元に戻しました');return false;}return true;
   }
-  function add(def){if(pending)return;if(layouts[index].items.length>=MAX_FURNITURE){notify('家具は64個までです');return;}draft=findPlacement(def,layouts[index].items,color,wall)||{id:'f'+Date.now().toString(36),t:def.id,x:0,z:0,y:def.mount==='wall'?9:0,r:0,c:color,...(['bed','canopy'].includes(def.family)?{v:2}:{}),...(def.mount==='wall'?{wall}:{})};selectedId=null;mode='move';buildGhost();refresh();setStatus('プレビューを動かして「ここに置く」で確定');}
+  function add(def){if(pending)return;if(layouts[index].items.length>=MAX_FURNITURE){notify('家具は64個までです');return;}draft=findPlacement(def,layouts[index].items,color,wall)||{id:'f'+Date.now().toString(36),t:def.id,x:0,z:0,y:def.mount==='wall'?9:0,r:0,c:color,...(['bed','canopy'].includes(def.family)?{v:2}:{}),...(def.mount==='wall'?{wall}:{})};selectedId=null;mode='move';buildGhost();refresh();showPane('edit');setStatus('プレビューを動かして「ここに置く」で確定');}
   function modify(next){if(pending)return;next=pairFurniture(next,layouts[index].items);if(draft){draft={...next};buildGhost();drawSelection();return;}if(!commit({action:'move',item:next}))refresh();}
   let cataloguePage=0,searchTimer=null;
   function catalogue(){
@@ -67,13 +68,12 @@ export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPla
     if(!definitions.length&&category!=='materials'){const empty=document.createElement('p');empty.className='help';empty.textContent='条件に合う家具がありません';list.append(empty);}
     $('houseCataloguePage').textContent=definitions.length+'種類 · '+(cataloguePage+1)+' / '+pages;
     $('houseCataloguePrev').disabled=cataloguePage===0;$('houseCatalogueNext').disabled=cataloguePage>=pages-1;
-    $('houseCatalogueTools').hidden=$('houseCataloguePages').hidden=category==='materials';
-    $('houseMaterials').hidden=category!=='materials';list.hidden=category==='materials';$('houseWallRow').hidden=category!=='wall';
+    $('houseCatalogueTools').hidden=$('houseCataloguePages').hidden=false;list.hidden=false;
   }
   function rotate(delta){const selected=item();if(!selected)return;if(selected.pair){notify('机とペアの椅子は、少し離すと自由に回転できます');return;}const f=FURNITURE_BY_ID.get(selected.t);modify({...selected,r:(selected.r+delta+(f.mount==='wall'?4:8))%(f.mount==='wall'?4:8)});}
   function close(){if(!active())return;if(drag&&!drag.orbit&&!draft)view.preview(index,drag.original);drag=null;pointers.clear();pinch=null;view.setEditing(index,false);index=-1;selectedId=null;draft=null;panel.hidden=true;document.body.dataset.houseEditing='false';gizmo.visible=outline.visible=grid.visible=ghost.visible=footprint.visible=false;$('housePlacementHUD').hidden=true;camera.clearViewOffset();viewportKey='';onClose();}
   function open(houseIndex){
-    const h=HOUSES[houseIndex];if(!h||h.owner!==getSkin()){notify('自分のメンバーカラーの家だけ編集できます');return;}if(active())close();index=houseIndex;selectedId=null;draft=null;undoItem=null;color=h.index;mode='move';pan.set(0,0);onOpen();panel.hidden=false;panel.dataset.folded='false';$('houseFold').textContent='縮小';$('homeEditPrompt').hidden=true;document.body.dataset.houseEditing='true';$('houseTitle').textContent=$('selectedName').textContent+'の家';$('houseColor').value=String(color);view.setEditing(index,true);grid.position.set(h.x,ROOM.floor+.012,h.z);grid.visible=true;category='floor';for(const b of panel.querySelectorAll('[data-house-tab]'))b.setAttribute('aria-selected',String(b.dataset.houseTab==='floor'));catalogue();refresh();setStatus(isConnected()?'家具を選んでプレビュー · 確定すると自動保存':'サーバー接続待ち · プレビューはできます',!isConnected());fitCamera();
+    const h=HOUSES[houseIndex];if(!h||h.owner!==getSkin()){notify('自分のメンバーカラーの家だけ編集できます');return;}if(active())close();index=houseIndex;selectedId=null;draft=null;undoItem=null;color=h.index;mode='move';pan.set(0,0);onOpen();panel.hidden=false;panel.dataset.folded='false';$('houseFold').textContent='縮小';$('homeEditPrompt').hidden=true;document.body.dataset.houseEditing='true';$('houseTitle').textContent=$('selectedName').textContent+'の家';$('houseColor').value=String(color);view.setEditing(index,true);grid.position.set(h.x,ROOM.floor+.012,h.z);grid.visible=true;category='floor';for(const b of panel.querySelectorAll('[data-house-tab]'))b.setAttribute('aria-selected',String(b.dataset.houseTab==='floor'));catalogue();refresh();showPane('browse');setStatus(isConnected()?'家具を選んでプレビュー · 確定すると自動保存':'サーバー接続待ち · プレビューはできます',!isConnected());fitCamera();
   }
   function boardReachable(board){const player=getPlayer();if(!player||Math.hypot(player.x-board.x,player.z-board.z)>7)return false;const eye=new THREE.Vector3(player.x,player.y+1.45,player.z),point=board.label.position;return world.cameraPosition(eye,point,.025,board.boardId).distanceTo(point)<.14;}
   function clickBoard(e){
@@ -88,7 +88,7 @@ export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPla
     if(e.button===2||mode==='orbit'||mode==='pan'){drag={orbit:true,pan:mode==='pan'||e.shiftKey,x:e.clientX,y:e.clientY,pointerId:e.pointerId};return true;}
     gizmo.updateMatrixWorld(true);
     const hits=gizmo.visible?ray.intersectObject(gizmo,true).filter(h=>h.object.visible&&h.object.parent?.visible):[],axis=hits[0]?.object.userData.axis;
-    if(!axis&&!draft){const id=view.pick(ray,index);if(!id){drag={orbit:true,pan:e.shiftKey,x:e.clientX,y:e.clientY,pointerId:e.pointerId};return true;}selectedId=id;refresh();}
+    if(!axis&&!draft){const id=view.pick(ray,index);if(!id){drag={orbit:true,pan:e.shiftKey,x:e.clientX,y:e.clientY,pointerId:e.pointerId};return true;}selectedId=id;refresh();showPane('edit');}
     if(pending)return true;const selected=item();if(!selected)return true;const f=FURNITURE_BY_ID.get(selected.t),p=furniturePose(selected),sideWall=f.mount==='wall'&&(selected.wall==='left'||selected.wall==='right'),centre=localToWorld(p.x,p.centerY,p.z),chosen=axis||'plane';
     const worldYaw=p.yaw+(HOUSES[index].front<0?Math.PI:0);normal.set(f.mount==='wall'?Math.sin(worldYaw):0,f.mount==='wall'?0:1,f.mount==='wall'?Math.cos(worldYaw):0);
     if(chosen!=='rotate'&&chosen!=='plane'){const vector=new THREE.Vector3(chosen==='x'?1:0,chosen==='y'?1:0,chosen==='z'?1:0);camera.getWorldDirection(normal);normal.addScaledVector(vector,-normal.dot(vector)).normalize();}
@@ -128,6 +128,7 @@ export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPla
     const connected=isConnected();if(connected!==connectedBefore){connectedBefore=connected;if(active())drawSelection();}
     if(footprint.visible)footprint.material.opacity=.15+Math.sin(clock*4)*.035;
   }
+  for(const button of panel.querySelectorAll('[data-house-pane]'))button.onclick=()=>showPane(button.dataset.housePane);
   for(const button of panel.querySelectorAll('[data-house-tab]'))button.onclick=()=>{category=button.dataset.houseTab;cataloguePage=0;for(const b of panel.querySelectorAll('[data-house-tab]'))b.setAttribute('aria-selected',String(b===button));catalogue();};
   for(const section of [...new Set(FURNITURE.map(f=>f.section||'従来の家具'))])$('houseFurnitureSection').add(new Option(section,section));
   $('houseFurnitureSearch').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{cataloguePage=0;catalogue();},120);};
@@ -147,7 +148,7 @@ export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPla
   $('houseWall').onchange=e=>{wall=e.target.value;const selected=item();if(selected&&FURNITURE_BY_ID.get(selected.t).mount==='wall')modify({...selected,wall});};
   $('housePlaced').onchange=e=>{draft=null;ghost.visible=false;selectedId=e.target.value||null;mode='move';refresh();};$('closeHouseEditor').onclick=close;
   $('houseMoveMode').onclick=()=>{mode='move';drawSelection();};$('houseRotateMode').onclick=()=>{mode='rotate';drawSelection();};$('houseRotateLeft').onclick=()=>rotate(-1);$('houseRotateRight').onclick=()=>rotate(1);
-  const cancelDraft=()=>{draft=null;ghost.visible=false;refresh();};
+  const cancelDraft=()=>{draft=null;ghost.visible=false;refresh();showPane('browse');};
   $('houseConfirm').onclick=()=>{if(!draft)return;const candidate={...draft};draft=null;ghost.visible=false;selectedId=candidate.id;if(!commit({action:'add',item:candidate})){draft=candidate;selectedId=null;buildGhost();refresh();}};
   $('houseCancelDraft').onclick=cancelDraft;
   $('houseDelete').onclick=()=>{if(draft){cancelDraft();return;}const selected=item();if(selected&&commit({action:'delete',id:selected.id})){selectedId=null;refresh();}};

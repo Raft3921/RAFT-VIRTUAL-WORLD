@@ -8,9 +8,9 @@
 <link rel="stylesheet" href="studio.css">
 <link rel="stylesheet" href="room.css">
 <link rel="stylesheet" href="world.css">
-<link rel="stylesheet" href="pixel.css?v=20261008-play20">
+<link rel="stylesheet" href="pixel.css?v=20261009-ui22">
 <script defer src="ui-guard.js?v=20261008-ui11"></script>
-<script type="importmap">{"imports":{"./furniture-catalogue.js":"./furniture-catalogue.js?v=20261008-furniture18","./furniture-shapes.js":"./furniture-shapes.js?v=20261008-play20","./furniture-actions.js":"./furniture-actions.js?v=20261008-play21","./furniture-geometry.js":"./furniture-geometry.js?v=20261008-play20","./world-guide.js":"./world-guide.js?v=20261008-play20","./local-lighting.js":"./local-lighting.js?v=20261008-play20","three":"./vendor/three.module.js","./world-clock.js":"./world-clock.js?v=20261008-day13","./environment.js":"./environment.js?v=20261008-fixture15","./district.js":"./district.js?v=20261008-fixture15","./furniture-effects.js":"./furniture-effects.js?v=20261008-play21","./record-audio.js":"./record-audio.js?v=20261008-day13","./combat-policy.js":"./combat-policy.js?v=20261008-day13","./combat-motion.js":"./combat-motion.js?v=20261008-day13","./hit-reaction.js":"./hit-reaction.js?v=20261008-day13","./player-types.js":"./player-types.js?v=20261008-day13","./character-store.js":"./character-store.js?v=20261008-record19","./housing-data.js":"./housing-data.js?v=20261008-record19","./housing-mirror.js":"./housing-mirror.js?v=20261008-furniture18","./furniture-models.js":"./furniture-models.js?v=20261008-play20","./housing-store.js":"./housing-store.js?v=20261008-day13","./game-rules.js":"./game-rules.js?v=20261008-play21"}}</script>
+<script type="importmap">{"imports":{"./furniture-catalogue.js":"./furniture-catalogue.js?v=20261008-furniture18","./furniture-shapes.js":"./furniture-shapes.js?v=20261008-play20","./furniture-actions.js":"./furniture-actions.js?v=20261008-play21","./furniture-geometry.js":"./furniture-geometry.js?v=20261008-play20","./world-guide.js":"./world-guide.js?v=20261009-ui22","./local-lighting.js":"./local-lighting.js?v=20261008-play20","three":"./vendor/three.module.js","./world-clock.js":"./world-clock.js?v=20261008-day13","./environment.js":"./environment.js?v=20261008-fixture15","./district.js":"./district.js?v=20261008-fixture15","./furniture-effects.js":"./furniture-effects.js?v=20261008-play21","./record-audio.js":"./record-audio.js?v=20261008-day13","./combat-policy.js":"./combat-policy.js?v=20261008-day13","./combat-motion.js":"./combat-motion.js?v=20261008-day13","./hit-reaction.js":"./hit-reaction.js?v=20261008-day13","./player-types.js":"./player-types.js?v=20261008-day13","./character-store.js":"./character-store.js?v=20261008-record19","./housing-data.js":"./housing-data.js?v=20261008-record19","./housing-mirror.js":"./housing-mirror.js?v=20261008-furniture18","./furniture-models.js":"./furniture-models.js?v=20261008-play20","./housing-store.js":"./housing-store.js?v=20261008-day13","./game-rules.js":"./game-rules.js?v=20261008-play21"}}</script>
 </head>
 <body data-screen="lobby">
 <canvas id="scene" aria-label="3D草原スタジオ" tabindex="0"></canvas>
@@ -79,23 +79,14 @@
 </aside>
 <aside id="worldMenu" class="world-menu surface" aria-label="ワールドメニュー" hidden>
   <div class="panel-title"><div><span class="eyebrow">WORLD BOARD</span><h2>ワールドメニュー</h2></div><button id="closeWorldMenu" class="icon-button" aria-label="メニューを閉じる">×</button></div>
-  <p class="help">ボードをパンチして開く · 自由・周回カメラは1秒以内に5回クリックで操作に戻る（パンチボタンのタップも可）</p>
-  <button id="boardSession">キャラクター・撮影表示・オンライン設定</button>
-  <button id="boardMaster">マスターモード（カメラ・草原・プレイヤー）</button>
-  <button id="boardGuide">ワールドガイドを開く</button>
-  <label>スタジオ背景</label><div class="button-pair"><button data-bg="GB">GB</button><button data-bg="RB">RB</button><button data-bg="BB">BB</button></div>
-  <button id="crownToggle">王冠・ハゲ表現：OFF</button>
-  <p id="duelRecord" class="help">0勝 0敗 · 勝率 --（今後の試合から集計）</p>
-  <p id="gameClock" class="help" role="status">ゲーム内時刻 12:00 · 1日10分</p>
-  <button id="cycleToggle">昼夜サイクル：ON</button>
-  <label for="dayMinutes">1日の長さ（実時間・1〜120分）</label>
-  <div class="duel-settings"><input id="dayMinutes" type="number" min="1" max="120" step="1" value="10" inputmode="numeric"><button id="saveDayMinutes">サーバーに保存</button></div>
-  <button id="flashlightToggle">自動懐中電灯：ON（自分だけの設定）</button>
-  <label for="duelGoal">勝利に必要な合計ダメージ（1〜100）</label>
-  <div class="duel-settings"><input id="duelGoal" type="number" min="1" max="100" step="1" value="11" inputmode="numeric"><button id="saveDuelGoal">サーバーに保存</button></div>
-  <p id="duelSettingsStatus" class="help" role="status">現在：11ダメージ · 変更は次の試合から反映</p>
-  <button id="stopAthletic">アスレチックをやめる</button>
-  <p id="worldStatus" class="help">闘技場：2人がほぼ同時にパンチすると開始</p>
+  <nav class="world-menu-tabs" aria-label="メニュー項目"><button data-world-tab="studio" aria-selected="true">撮影</button><button data-world-tab="look" aria-selected="false">外見</button><button data-world-tab="time" aria-selected="false">時間</button><button data-world-tab="battle" aria-selected="false">対戦</button><button data-world-tab="course" aria-selected="false">アスレ</button></nav>
+  <div class="world-menu-content">
+    <section class="world-menu-section" data-world-panel="studio"><h3>撮影とワールド</h3><p class="help">背景やカメラ、オンライン参加を設定できます。</p><div class="world-menu-actions"><button id="boardSession">キャラクター・オンライン</button><button id="boardMaster">撮影カメラ・マスターモード</button><button id="boardGuide">ワールドガイド</button></div><label>スタジオ背景</label><div class="button-pair world-backgrounds"><button data-bg="GB">緑 GB</button><button data-bg="RB">赤 RB</button><button data-bg="BB">青 BB</button></div><p class="help">自由・周回カメラは1秒以内に5回クリック／パンチボタンのタップで戻れます。</p></section>
+    <section class="world-menu-section" data-world-panel="look" hidden><h3>キャラクターの外見</h3><p class="help">勝敗で変わる王冠と髪の表現を切り替えます。</p><button id="crownToggle">王冠・ハゲ表現：OFF</button><p id="duelRecord" class="help">0勝 0敗 · 勝率 --（今後の試合から集計）</p></section>
+    <section class="world-menu-section" data-world-panel="time" hidden><h3>時間と照明</h3><p id="gameClock" class="help" role="status">ゲーム内時刻 12:00 · 1日10分</p><button id="cycleToggle">昼夜サイクル：ON</button><label for="dayMinutes">1日の長さ（実時間・1〜120分）</label><div class="duel-settings"><input id="dayMinutes" type="number" min="1" max="120" step="1" value="10" inputmode="numeric"><button id="saveDayMinutes">サーバーに保存</button></div><button id="flashlightToggle">自動懐中電灯：ON（自分だけの設定）</button></section>
+    <section class="world-menu-section" data-world-panel="battle" hidden><h3>コロシアム対戦</h3><p id="worldStatus" class="help">闘技場：2人がほぼ同時にパンチすると開始</p><label for="duelGoal">勝利に必要な合計ダメージ（1〜100）</label><div class="duel-settings"><input id="duelGoal" type="number" min="1" max="100" step="1" value="11" inputmode="numeric"><button id="saveDuelGoal">サーバーに保存</button></div><p id="duelSettingsStatus" class="help" role="status">現在：11ダメージ · 変更は次の試合から反映</p></section>
+    <section class="world-menu-section" data-world-panel="course" hidden><h3>アスレチック</h3><p id="athleticMenuStatus" class="help">CHECK 100まで登るコースです。ジャンプ力はゾーン内で1.5倍。</p><button id="stopAthletic">アスレチックをやめる</button><p class="help">やめても、メンバーのチェックポイントは保存され、次回は続きから始められます。</p></section>
+  </div>
 </aside>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <button id="guidePrompt" class="home-edit-prompt" hidden>ガイドを開く <small>操作方法・各ゾーンの遊び方</small></button>
@@ -107,34 +98,40 @@
 <div id="housePlacementHUD" class="house-placement-hud" hidden><strong id="housePlacementLabel"></strong><small id="housePlacementCoords"></small></div>
 <aside id="houseEditor" class="house-editor surface" aria-label="家のカスタマイズ" hidden>
   <div class="panel-title"><div><span class="eyebrow">HOME DESIGN</span><h2 id="houseTitle">自分の家</h2></div><button id="houseFold" aria-label="編集パネルを縮小・展開">縮小</button><button id="closeHouseEditor" class="icon-button" aria-label="家の編集を終了">×</button></div>
+  <nav class="house-editor-nav" aria-label="編集する項目"><button data-house-pane="browse" aria-selected="true">家具を探す</button><button data-house-pane="edit" aria-selected="false">配置・編集</button><button data-house-pane="room" aria-selected="false">部屋・視点</button></nav>
+  <p id="houseCount" class="house-editor-count">0 / 64 · グリッド25cm</p>
   <div class="house-editor-body">
-  <p id="houseCount" class="help">0 / 64 · グリッド25cm</p>
-  <div class="house-camera-tools"><button id="houseCameraOrbit">視点回転</button><button id="houseCameraPan">視点移動</button><button id="houseCameraTop">真上</button><button id="houseCameraFit">全体を見る</button></div>
-  <nav class="tabs house-tabs" aria-label="家具の設置場所"><button data-house-tab="floor" aria-selected="true">床置き</button><button data-house-tab="wall" aria-selected="false">壁掛け</button><button data-house-tab="ceiling" aria-selected="false">天井吊り</button><button data-house-tab="materials" aria-selected="false">内装</button></nav>
-  <label id="houseWallRow" hidden>取り付ける壁<select id="houseWall"><option value="back">奥の壁</option><option value="front">玄関側の壁</option><option value="left">左の壁</option><option value="right">右の壁</option></select></label>
-  <label>家具の色<select id="houseColor"></select></label>
-  <div id="houseCatalogueTools"><label>家具を検索<input id="houseFurnitureSearch" type="search" placeholder="ギター、丸、クッション…" autocomplete="off"></label><label>種類で絞る<select id="houseFurnitureSection"><option value="">すべての種類</option></select></label></div>
-  <div id="houseCatalogue" class="furniture-catalogue"></div>
-  <div id="houseCataloguePages" class="house-catalogue-pages"><button id="houseCataloguePrev">前へ</button><span id="houseCataloguePage" aria-live="polite"></span><button id="houseCatalogueNext">次へ</button></div>
-  <div id="houseMaterials" class="house-materials" hidden><label>床材<select id="houseFinish-floor"></select></label><label>壁紙<select id="houseFinish-wallpaper"></select></label><label>天井<select id="houseFinish-ceiling"></select></label><p class="help">ラグ・カーペットは床置きの家具から追加できます。</p></div>
+  <section class="house-editor-pane house-browse-pane" data-house-panel="browse">
+    <nav class="tabs house-tabs" aria-label="家具の設置場所"><button data-house-tab="floor" aria-selected="true">床置き</button><button data-house-tab="wall" aria-selected="false">壁掛け</button><button data-house-tab="ceiling" aria-selected="false">天井吊り</button></nav>
+    <div id="houseCatalogueTools"><label>家具を検索<input id="houseFurnitureSearch" type="search" placeholder="ギター、丸、クッション…" autocomplete="off"></label><label>種類で絞る<select id="houseFurnitureSection"><option value="">すべての種類</option></select></label></div>
+    <div id="houseCatalogue" class="furniture-catalogue"></div>
+    <div id="houseCataloguePages" class="house-catalogue-pages"><button id="houseCataloguePrev">前へ</button><span id="houseCataloguePage" aria-live="polite"></span><button id="houseCatalogueNext">次へ</button></div>
+  </section>
+  <section class="house-editor-pane" data-house-panel="edit" hidden>
   <label>配置済みの家具<select id="housePlaced"></select></label>
+  <label>家具の色<select id="houseColor"></select></label>
+  <label id="houseWallRow" hidden>取り付ける壁<select id="houseWall"><option value="back">奥の壁</option><option value="front">玄関側の壁</option><option value="left">左の壁</option><option value="right">右の壁</option></select></label>
+  <p id="houseEmptySelection" class="help">家具を探して選ぶか、部屋に置いた家具をタップしてください。</p>
   <section id="houseSelection" hidden><h3 id="houseSelectedName">家具</h3>
     <p id="housePlacementState" class="placement-state" role="status">配置できます</p>
     <div class="button-pair"><button id="houseMoveMode">移動ギズモ</button><button id="houseRotateMode">回転ギズモ</button></div>
-    <div class="house-nudge"><button data-house-nudge="back" aria-label="奥へ、壁家具は下へ25cm">↑ 奥 / 下</button><button data-house-nudge="left" aria-label="左へ25cm">← 左</button><button data-house-nudge="front" aria-label="手前へ、壁家具は上へ25cm">↓ 手前 / 上</button><button data-house-nudge="right" aria-label="右へ25cm">右 →</button></div>
-    <div class="house-coordinates"><label>X<input id="houseX" type="number" step=".25" min="-7.5" max="7.5"></label><label>高さ<input id="houseY" type="number" step=".25" min="0" max="5.25"></label><label>Z<input id="houseZ" type="number" step=".25" min="-7" max="7"></label></div>
     <div class="button-pair"><button id="houseRotateLeft">↶ 回転</button><button id="houseRotateRight">回転 ↷</button></div>
     <div class="button-pair"><button id="houseDuplicate">複製</button><button id="houseDelete">撤去</button></div>
+    <details class="house-advanced"><summary>細かい位置を調整</summary><div class="house-nudge"><button data-house-nudge="back" aria-label="奥へ、壁家具は下へ25cm">↑ 奥 / 下</button><button data-house-nudge="left" aria-label="左へ25cm">← 左</button><button data-house-nudge="front" aria-label="手前へ、壁家具は上へ25cm">↓ 手前 / 上</button><button data-house-nudge="right" aria-label="右へ25cm">右 →</button></div><div class="house-coordinates"><label>X<input id="houseX" type="number" step=".25" min="-7.5" max="7.5"></label><label>高さ<input id="houseY" type="number" step=".25" min="0" max="5.25"></label><label>Z<input id="houseZ" type="number" step=".25" min="-7" max="7"></label></div></details>
   </section>
   <button id="houseUndo" disabled>直前の撤去を戻す</button>
-  <div class="button-pair"><button id="houseZoomIn">＋ 拡大</button><button id="houseZoomOut">− 縮小</button></div>
-  <p class="help">家具を選び、緑のプレビューを置く。矢印・25cmボタンで移動、黄色の輪で回転。2本指で拡大・視点移動。R：回転 / Enter：配置。</p>
+  <p class="help">家具をタップすると回転、ドラッグすると移動します。緑は配置可能、赤は配置不可です。</p>
+  </section>
+  <section class="house-editor-pane" data-house-panel="room" hidden>
+    <h3>内装を変える</h3><div id="houseMaterials" class="house-materials"><label>床材<select id="houseFinish-floor"></select></label><label>壁紙<select id="houseFinish-wallpaper"></select></label><label>天井<select id="houseFinish-ceiling"></select></label><p class="help">ラグ・カーペットは「家具を探す」から追加できます。</p></div>
+    <h3>編集カメラ</h3><div class="house-camera-tools"><button id="houseCameraOrbit">視点回転</button><button id="houseCameraPan">視点移動</button><button id="houseCameraTop">真上</button><button id="houseCameraFit">全体を見る</button></div><div class="button-pair house-zoom"><button id="houseZoomIn">＋ 拡大</button><button id="houseZoomOut">− 縮小</button></div><p class="help">2本指で拡大・視点移動。カメラを動かすと手前の壁が隠れます。</p>
+  </section>
   </div>
   <footer class="house-editor-footer">
   <div id="houseDraftActions" class="button-pair" hidden><button id="houseConfirm" class="primary">✓ ここに置く</button><button id="houseCancelDraft">取消</button></div>
   <p id="houseSaveStatus" class="house-save-status" role="status">サーバーに保存済み</p>
   </footer>
 </aside>
-<script type="module" src="app.js?v=20261008-play21"></script>
+<script type="module" src="app.js?v=20261009-ui22"></script>
 </body>
 </html>

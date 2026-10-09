@@ -42,3 +42,31 @@ body[data-house-editing=true] .home-edit-prompt,body[data-clean=true] .home-edit
 @media(max-width:640px){.world-guide{inset:10px;padding:14px}.world-guide-layout{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);gap:12px}#guideSections{flex-direction:row;max-height:94px;touch-action:pan-x;padding-bottom:6px}#guideSections button{max-width:160px;font-size:13px;padding:10px}.world-guide-reading{padding:0 2px 12px}.world-guide details p{font-size:14px}}
 .house-catalogue-pages{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0 18px}.house-catalogue-pages span{font-size:12px;text-align:center}#houseCatalogueTools input{width:100%;min-width:0}#houseCatalogueTools[hidden],.house-catalogue-pages[hidden]{display:none}
 @media(max-width:600px){.lobby-panel{width:calc(100% - 40px);padding:14px}.world-menu{padding:17px;bottom:15px}.world-menu>button{font-size:14px}.punch{right:110px}}
+
+/* Keep category navigation visible while only the chosen group scrolls. */
+.world-menu{display:flex;flex-direction:column;width:min(440px,calc(100vw - 32px));height:min(560px,calc(100dvh - 32px));padding:16px;overflow:hidden;gap:11px}
+.world-menu .panel-title{flex:none;padding:0 0 9px}.world-menu .panel-title h2{margin:0}
+.world-menu-tabs,.house-editor-nav{display:grid;gap:4px;flex:none}
+.world-menu-tabs{grid-template-columns:repeat(5,minmax(0,1fr))}.house-editor-nav{grid-template-columns:repeat(3,minmax(0,1fr))}
+.world-menu-tabs button,.house-editor-nav button{min-width:0;min-height:44px;padding:7px 2px;font-size:13px;line-height:1.3;background:#213d4b;color:#c5d8d3}
+.world-menu-tabs button[aria-selected=true],.house-editor-nav button[aria-selected=true]{background:#a9e3b7;border-color:#d4f4bb;color:#183b35;box-shadow:inset 0 -4px #5a9f7f}
+.world-menu-content{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding:2px 3px 8px}
+.world-menu-section[hidden],.house-editor-pane[hidden]{display:none!important}
+.world-menu-section h3{font-size:17px;color:#c8f2d2;margin:5px 0 8px}.world-menu-section>button,.world-menu-actions button{display:block;width:100%;text-align:left;margin:6px 0}
+.world-menu-section>label{display:block;margin:15px 0 6px;font-size:13px}.world-menu-section .help{margin:8px 0 13px}
+.world-menu-actions{display:grid;gap:5px}.world-menu-actions button{margin:0}.world-backgrounds{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0;gap:6px}.world-backgrounds button{min-width:0}
+#gameClock,#duelRecord,#duelSettingsStatus,#worldStatus,#athleticMenuStatus{padding:9px 10px;background:#203e49;border-left:3px solid #9fdec5}
+.house-editor{gap:6px}.house-editor-nav button{font-size:12px}.house-editor-count{flex:none;margin:0;color:#bcd8cf;font-size:12px}
+.house-editor-body{flex:1;overflow:hidden;padding-right:0}.house-editor-pane{height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding:2px 3px 10px}
+.house-browse-pane:not([hidden]){display:flex;flex-direction:column;overflow:hidden;padding-bottom:0}
+.house-browse-pane .house-tabs{flex:none;margin:0 0 6px}.house-browse-pane .house-tabs button{min-width:0}
+.house-browse-pane #houseCatalogueTools{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:7px;flex:none}.house-browse-pane #houseCatalogueTools label{min-width:0;margin:2px 0 7px;font-size:11px}.house-browse-pane #houseCatalogueTools input,.house-browse-pane #houseCatalogueTools select{min-width:0;width:100%;height:40px;margin-top:2px;font-size:12px}
+.house-browse-pane .furniture-catalogue{flex:1;min-height:0;max-height:none;margin:2px 0;overflow-y:auto;align-content:start;overscroll-behavior:contain}
+.house-browse-pane .house-catalogue-pages{flex:none;margin:4px 0 0;padding:5px 0;border-top:2px solid #426779}.house-catalogue-pages button{min-width:67px}
+.house-editor-pane>label{margin:5px 0 10px}.house-editor-pane h3{margin:6px 0 8px}.house-editor-pane .button-pair{margin:7px 0;gap:5px}.house-editor-pane .button-pair button{min-width:0}
+.house-advanced{margin:10px 0;border:2px solid #547d81;background:#1d3946}.house-advanced summary{padding:9px 10px;cursor:pointer;color:#c7ebd3}.house-advanced[open] summary{border-bottom:2px solid #547d81}.house-advanced .house-nudge,.house-advanced .house-coordinates{margin:8px}
+.house-zoom{margin-top:10px!important}.house-editor-pane .house-materials label{margin:8px 0}.house-editor-pane .help{margin:10px 0}
+.house-editor[data-folded=true] .house-editor-nav,.house-editor[data-folded=true] .house-editor-count{display:none}
+@media(max-width:720px){.house-editor{width:min(380px,48vw)}.house-editor-nav button{font-size:11px}.world-menu{left:8px;bottom:8px;width:min(440px,calc(100vw - 16px));height:min(540px,calc(100dvh - 16px))}}
+@media(max-width:720px) and (orientation:portrait){.house-editor{width:calc(100% - 12px);height:62dvh;max-height:62dvh;top:auto;bottom:max(6px,env(safe-area-inset-bottom));right:6px}.house-editor[data-folded=true]{height:auto;max-height:170px}.house-editor .panel-title h2{font-size:14px}.house-browse-pane .furniture-catalogue{grid-template-columns:repeat(3,minmax(0,1fr))}.world-menu{height:min(560px,70dvh)} }
+@media(max-height:520px){.world-menu{height:calc(100dvh - 12px);bottom:6px}.world-menu-tabs button{min-height:38px;font-size:11px}.house-editor-nav button{min-height:38px}}

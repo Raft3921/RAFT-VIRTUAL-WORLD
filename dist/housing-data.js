@@ -4,6 +4,32 @@ export const OWNER_SKINS=[3,5,6,2,4,1,0,7];
 export const HOUSE_COLORS=['#d84a42','#52a96d','#48b8d4','#e88a38','#87929a','#9a70c5','#e4c84d','#9a6748'];
 export const FURNITURE_COLORS=[...HOUSE_COLORS,'#f4eee2','#354353','#bd9166','#8fbac9'];
 export const HOUSES=OWNER_SKINS.map((owner,index)=>({index,owner,x:-39+(index%4)*26,z:index<4?45:80,front:index<4?1:-1,color:HOUSE_COLORS[index]}));
+// Mirror realm identity is the source house and furniture ID. Every realm has
+// eight independent, editable houses at deterministic shared coordinates.
+export function mirrorRealmKey(house,id){return `m|${house}|${id}`;}
+export const MIRROR_REALMS=new Map();
+export function mirrorRealm(key,realms=MIRROR_REALMS){
+  const match=typeof key==='string'&&/^m\|([0-7])\|([-a-z0-9_]{1,32})$/.exec(key);if(!match)return null;
+  const slot=realms.get(key);if(slot===undefined)return null;
+  return {key,source:Number(match[1]),id:match[2],slot,x:2000+(slot%32)*180,z:2000+Math.floor(slot/32)*160};
+}
+export function registerMirrorRealm(key,slot=MIRROR_REALMS.size){
+  if(!/^m\|[0-7]\|[-a-z0-9_]{1,32}$/.test(key)||!Number.isInteger(slot)||slot<0||slot>=4096)return null;
+  if(!MIRROR_REALMS.has(key)){if([...MIRROR_REALMS.values()].includes(slot))return null;MIRROR_REALMS.set(key,slot);}
+  const realm=mirrorRealm(key);if(!realm)return null;
+  for(const source of HOUSES.slice(0,8)){const index=`${key}|${source.index}`;HOUSES[index]??={...source,index,sourceIndex:source.index,realm:key,x:realm.x+source.x,z:realm.z-source.z,front:-source.front};}
+  return realm;
+}
+export function houseDescriptor(index,realms=MIRROR_REALMS){
+  if((typeof index==='number'&&Number.isInteger(index)||typeof index==='string'&&/^[0-7]$/.test(index))&&Number(index)>=0&&Number(index)<8)return HOUSES[Number(index)];
+  if(realms===MIRROR_REALMS&&Object.hasOwn(HOUSES,index)&&HOUSES[index]?.realm)return HOUSES[index];
+  if(typeof index==='string'){const end=index.lastIndexOf('|'),key=index.slice(0,end),target=index.slice(end+1);const realm=mirrorRealm(key,realms);if(/^[0-7]$/.test(target)&&realm){const source=HOUSES[Number(target)];const home={...source,index,sourceIndex:source.index,realm:key,x:realm.x+source.x,z:realm.z-source.z,front:-source.front};if(realms===MIRROR_REALMS)HOUSES[index]=home;return home;}}
+  return null;
+}
+export function replaceMirrorRealms(records){MIRROR_REALMS.clear();for(const key of Object.keys(HOUSES))if(HOUSES[key].realm)delete HOUSES[key];for(const [key,slot]of Object.entries(records||{}).sort((a,b)=>a[1]-b[1]))registerMirrorRealm(key,slot);}
+export const allHouses=()=>Object.values(HOUSES);
+export function mirrorHouseKey(realm,index){return `${realm}|${index}`;}
+export const memberColor=skin=>HOUSES.slice(0,8).find(h=>h.owner===skin)?.color||'#eeeeee';
 const item=(id,name,family,w,h,d,mount='floor',extra={})=>({id,name,family,w,h,d,mount,...extra});
 export const FURNITURE=[
   item('chair','木の椅子','chair',.8,1.2,.8,'floor',{seat:.57}),item('armchair','アームチェア','sofa',1.1,1.1,1,'floor',{seat:.52}),item('sofa','2人掛けソファ','sofa',2.4,1.2,1.1,'floor',{seat:.56}),item('long-sofa','ワイドソファ','sofa',3.2,1.2,1.1,'floor',{seat:.56}),
@@ -67,6 +93,14 @@ export function placementError(item,items){
     // deliberately conservative full-height placement envelope of a desk.
     if(f.allowHeight&&['table','desk','computer'].includes(g.family)&&p.y>=q.y+g.h*(g.family==='computer'?.555:.88)-.026)continue;
     if(intersects(p,q))return 'ほかの家具と重なっています';}
+  return '';
+}
+// Return passages belong to the realm, so furniture must keep their landing
+// and approach clear even though the passages are not editable furniture.
+export function mirrorPassageError(layout,source){
+  const portals=(source?.items||[]).filter(item=>['mirror','wall-mirror'].includes(FURNITURE_BY_ID.get(item.t)?.family)).map(item=>{const p=furniturePose(item),yaw=-p.yaw;return {x:-p.x+Math.sin(yaw)*.65,z:p.z+Math.cos(yaw)*.65,centerY:1.5,w:Math.max(1.4,p.w),h:3,d:1.6,yaw};});
+  if(!portals.length)portals.push({x:0,z:-ROOM.z+.8,centerY:1.5,w:1.8,h:3,d:1.6,yaw:0});
+  for(const item of layout.items){if(FURNITURE_BY_ID.get(item.t)?.solid===false)continue;const pose=furniturePose(item);if(portals.some(portal=>intersects(pose,portal)))return '現世に戻る鏡の前を空けてください';}
   return '';
 }
 // Pair only at the closest legal grid step: one more step toward the table

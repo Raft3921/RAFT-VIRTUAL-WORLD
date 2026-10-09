@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {HOUSES,ROOM,furnitureDefinition,furniturePose} from './housing-data.js';
+import {houseDescriptor,ROOM,furnitureDefinition,furniturePose} from './housing-data.js';
 import {furnitureParts} from './furniture-models.js';
 
 export const STREET_LAMPS=[[-25,20],[25,20],[-25,62],[25,62],[16,-15],[-34,12],[60,27],[78,27]];
@@ -12,7 +12,7 @@ const sourceTransform=new THREE.Object3D(),sourcePoint=new THREE.Vector3(),lastV
 let lightsDirty=true,lastLightUpdate=-Infinity;const disabledFixtures=new Set();
 export function setFurnitureEnabled(index,id,enabled){const key=index+':'+id;if(enabled)disabledFixtures.delete(key);else disabledFixtures.add(key);lightsDirty=true;}
 export function setHouseLighting(index,layout){
-  const home=HOUSES[index];if(!home)return;
+  const home=houseDescriptor(index);if(!home)return;
   const sources=[];
   for(const item of layout.items){
     const f=furnitureDefinition(item);if(!f.light&&!lampFamilies.has(f.family))continue;

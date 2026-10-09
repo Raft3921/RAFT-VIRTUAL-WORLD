@@ -1,5 +1,5 @@
 import {ARENA} from './world-layout.js';
-import {HOUSES,ROOM,FURNITURE_BY_ID,furniturePose} from './housing-data.js';
+import {HOUSES,houseDescriptor,ROOM,FURNITURE_BY_ID,furniturePose} from './housing-data.js';
 export const BROWN_PROJECTILE={speed:15,up:1.2,gravity:2,radius:.19,life:1.5,damage:2};
 export function projectileAt(p,now){const t=Math.max(0,Math.min(BROWN_PROJECTILE.life,(now-p.born)/1000));return {x:p.x+p.vx*t,y:p.y+p.vy*t-BROWN_PROJECTILE.gravity*t*t/2,z:p.z+p.vz*t};}
 export function segmentBox(a,b,box,radius=0){
@@ -13,7 +13,8 @@ const STUDIO=[{x:-10.9,y:3.5,z:0,w:.3,h:7,d:18},{x:10.9,y:3.5,z:0,w:.3,h:7,d:18}
 export function projectileWallFraction(a,b,layouts=[]){
   let first=null;const check=box=>{const fraction=segmentBox(a,b,box,BROWN_PROJECTILE.radius);if(fraction!==null&&(first===null||fraction<first))first=fraction;};
   for(const box of STUDIO)check(box);
-  for(const house of HOUSES){
+  const realms=new Map(Object.entries(layouts.$realms||{})),houses=[...HOUSES.slice(0,8),...Object.keys(layouts).filter(key=>key.startsWith('m|')).map(key=>houseDescriptor(key,realms)).filter(Boolean)];
+  for(const house of houses){
     if(Math.min(a.x,b.x)>house.x+11||Math.max(a.x,b.x)<house.x-11||Math.min(a.z,b.z)>house.z+11||Math.max(a.z,b.z)<house.z-11)continue;
     const x=house.x,z=house.z,f=house.front;
     for(const box of [{x:x-7.6,y:2.8,z,w:.3,h:5.5,d:14.5},{x:x+7.6,y:2.8,z,w:.3,h:5.5,d:14.5},{x,y:2.8,z:z-f*7.1,w:15.5,h:5.5,d:.3},{x:x-5,y:2.8,z:z+f*7.1,w:5.4,h:5.5,d:.3},{x:x+5,y:2.8,z:z+f*7.1,w:5.4,h:5.5,d:.3},{x,y:4.8,z:z+f*7.1,w:4.6,h:1.5,d:.3},{x,y:5.9,z,w:16,h:.3,d:15},{x,y:.14,z,w:15.5,h:.21,d:14.5}])check(box);

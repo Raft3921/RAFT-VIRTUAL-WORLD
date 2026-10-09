@@ -121,7 +121,7 @@ sockets.on('connection', (socket, request) => {
     if(message.type!=='state'){rules.receive(entry,message);return;}
     if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;
     const requestedSkin = Number(message.state?.skin);
-    const state = cleanState(message.state, requestedSkin);
+    const state = cleanState(message.state, requestedSkin, rules.houses.realms);
     if (!state) return;
     if(state.skin!==entry.player.skin&&!rules.selectCharacter(entry,state.skin))state.skin=entry.player.skin;
     applyPlayerState(entry.player,state);

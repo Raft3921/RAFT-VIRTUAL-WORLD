@@ -79,7 +79,7 @@ export class Room extends DurableObject {
 
     const requestedSkin = Number(message.state?.skin);
     const skin = playableSkin(requestedSkin,entry.player.skin);
-    const state = cleanState(message.state, skin);
+    const state = cleanState(message.state, skin, this.rules.houses.realms);
     if (!state) return;
     if(state.skin!==entry.player.skin){if(!this.rules.selectCharacter(entry,state.skin))state.skin=entry.player.skin;this.roomContext.waitUntil(this.rules.characters.pending);}
     entry.lastStateAt = Date.now();

@@ -5,16 +5,18 @@ import { GYOZA_SKIN,GUEST_SKIN,playableSkin } from './player-types.js';
 import { HousingStore } from './housing-store.js';
 import {BROWN_PROJECTILE,projectileAt,segmentBox,projectileWallFraction} from './projectile-motion.js';
 import {hitShape} from './hit-reaction.js';
-import {HOUSES,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js';
+import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js';
 import {furnitureAction} from './furniture-actions.js';
-export const SYNC_VERSION='2026-10-08-furniture-play-21';
+export const SYNC_VERSION='2026-10-09-vrs-mirrors-23';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-export function cleanState(s,skin){
-  if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||Math.abs(s.x)>1300||Math.abs(s.z)>1300||s.y<0||s.y>512)return null;
+export function cleanState(s,skin,realms){
+  if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||s.y<0||s.y>512)return null;
+  const realm=mirrorRealm(s.mirrorRealm,realms);if(s.mirrorRealm&&!realm)return null;
+  if(realm?Math.abs(s.x-realm.x)>65||Math.abs(s.z-(realm.z-62.5))>42:Math.abs(s.x)>1300||Math.abs(s.z)>1300)return null;
   const n=(key,a,b)=>Number.isFinite(s[key])?clamp(s[key],a,b):0;
-  return {x:s.x,y:s.y,z:s.z,yaw:s.yaw,skin:playableSkin(skin),
+  return {mirrorRealm:realm?.key||null,x:s.x,y:s.y,z:s.z,yaw:s.yaw,skin:playableSkin(skin),
     headYaw:n('headYaw',-1,1),headPitch:n('headPitch',-.7,.7),vx:n('vx',-200,200),vy:n('vy',-200,200),vz:n('vz',-200,200),
     speed:n('speed',0,20),verticalSpeed:n('verticalSpeed',-200,200),grounded:s.grounded!==false,flight:s.flight===true,
     ragdoll:s.ragdoll===true,seated:s.seated===true,sleeping:s.sleeping===true&&s.ragdoll!==true,crownEnabled:s.crownEnabled===true,
@@ -69,7 +71,7 @@ export class GameRules{
     const duration=Number(value.duration);if(typeof value.enabled!=='boolean'||!Number.isInteger(duration)||duration<60||duration>7200)return;
     this.settingsQueue=this.settingsQueue.then(async()=>{try{const now=Date.now(),phase=dayPhase(this.settings.cycle,now),cycle={enabled:value.enabled,duration,epoch:now,phase},settings={...this.settings,cycle};await this.saveSettings(settings);this.settings=settings;this.broadcast(this.snapshot());this.broadcast({type:'cycle-saved'});}catch{this.broadcast({type:'cycle-error',message:'昼夜設定をサーバーに保存できませんでした'});}});return this.settingsQueue;
   }
-  pruneRecords(){const homes=this.houses.snapshots(),itemAt=(index,id)=>homes[index]?.items.find(i=>i.id===id);for(const [key,record]of this.records)if(!homes[record.index]?.items.some(i=>i.id===record.itemId&&FURNITURE_BY_ID.get(i.t)?.family==='record')){this.records.delete(key);this.broadcast({...record,type:'record-state',playing:false});}for(const [key,state]of this.furnitureStates){const item=itemAt(state.index,state.itemId);if(!item||furnitureAction(FURNITURE_BY_ID.get(item.t)).kind!==state.kind)this.furnitureStates.delete(key);}for(const key of this.pianoSteps.keys()){const divider=key.indexOf(':'),index=Number(key.slice(0,divider)),id=key.slice(divider+1);if(!itemAt(index,id))this.pianoSteps.delete(key);}}
+  pruneRecords(){const homes=this.houses.snapshots(),itemAt=(index,id)=>homes[index]?.items.find(i=>i.id===id);for(const [key,record]of this.records)if(!homes[record.index]?.items.some(i=>i.id===record.itemId&&FURNITURE_BY_ID.get(i.t)?.family==='record')){this.records.delete(key);this.broadcast({...record,type:'record-state',playing:false});}for(const [key,state]of this.furnitureStates){const item=itemAt(state.index,state.itemId);if(!item||furnitureAction(FURNITURE_BY_ID.get(item.t)).kind!==state.kind)this.furnitureStates.delete(key);}for(const key of this.pianoSteps.keys()){const divider=key.indexOf(':'),index=key.slice(0,divider),id=key.slice(divider+1);if(!itemAt(index,id))this.pianoSteps.delete(key);}}
   updateSettings(value){
     const goalDamage=Number(value);if(!Number.isInteger(goalDamage)||goalDamage<1||goalDamage>100)return;
     this.settingsQueue=this.settingsQueue.then(async()=>{
@@ -150,9 +152,10 @@ export class GameRules{
   receive(entry,m,now=Date.now()){
     const p=entry.player;
     if(m.type==='piano-play'||m.type==='record-toggle'||m.type==='furniture-hit'){
-      if(p.ragdoll||this.duel?.ids.includes(p.id)||now-(entry.lastInstrumentAt||0)<180)return;
-      const h=HOUSES[m.index],item=this.houses.snapshots()[m.index]?.items.find(i=>i.id===m.itemId);if(!h||!item)return;
+      if(p.ragdoll||this.duel?.ids.includes(p.id))return;
+      const h=houseDescriptor(m.index,this.houses.realms),item=this.houses.snapshots()[m.index]?.items.find(i=>i.id===m.itemId);if(!h||!item)return;
       const definition=FURNITURE_BY_ID.get(item.t),action=furnitureAction(definition),family=action.kind;if(m.type==='piano-play'&&family!=='piano'||m.type==='record-toggle'&&family!=='record'||m.type==='furniture-hit'&&(family==='piano'||family==='record'))return;
+      if(now-(entry.lastInstrumentAt??-Infinity)<(['piano','instrument'].includes(family)?55:180))return;
       const pose=furniturePose(item),x=h.x+pose.x*h.front,z=h.z+pose.z*h.front,dx=x-p.x,dz=z-p.z;
       if(Math.hypot(dx,dz)>3.8+Math.min(1,Math.max(definition.w,definition.d)*.25)||Math.abs(p.y+1.05-(ROOM.floor+pose.centerY))>2.7||dx*Math.sin(p.yaw)+dz*Math.cos(p.yaw)<-.2)return;
       entry.lastInstrumentAt=now;const key=h.index+':'+item.id;

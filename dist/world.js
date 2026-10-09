@@ -11,7 +11,7 @@ const WHITE='#faf8f1',TRIM='#d4d7d5',WOOD='#bd8d60',STONE='#c9c4b7';
 export function createWorld(scene){
   const group=new THREE.Group();scene.add(group);group.name='RAFT World';
   const batches=new Map(),bodies=[],boards=[],seats=[],moving=[],hazards=[],pulsing=[],falling=[],balls=[],chunks=[],clockHands=[];
-  let worldTime=0,currentHouse=null;
+  let worldTime=0,currentHouse=null;const movementBounds=new Map();
   const houses=HOUSES.map(h=>({...h,parts:[]}));
   const lampMaterial=withLocalLighting(new THREE.MeshStandardMaterial({color:'#ffe4a6',emissive:'#ffe4a6',emissiveIntensity:0,roughness:.6}));
   const transform=new THREE.Object3D(),previous=new THREE.Vector3();
@@ -262,6 +262,7 @@ export function createWorld(scene){
         const dx=p.x+offsetX-ARENA.x,dy=Math.max(0,p.y+height/2-.24),dz=p.z+offsetZ-ARENA.z,r=ARENA.radius-Math.max(.65,depth*.75),len=Math.hypot(dx,dy,dz);
         if(len>r){const nx=dx/len,ny=dy/len,nz=dz/len;p.set(ARENA.x+nx*r-offsetX,Math.max(.24,.24+ny*r-height/2),ARENA.z+nz*r-offsetZ);const dot=vel.x*nx+vel.y*ny+vel.z*nz;if(dot>0){const restitution=ragdoll?1.10:1,damping=ragdoll?.68:1;vel.x=(vel.x-dot*nx*restitution)*damping;vel.y=(vel.y-dot*ny*restitution)*damping;vel.z=(vel.z-dot*nz*restitution)*damping;}}
       }
+      for(const bound of movementBounds.values())if(Math.abs(previous.x-bound.x)<70&&Math.abs(previous.z-(bound.z-62.5))<55&&!bound.allowed(p.x,p.z)){p.x=previous.x;p.z=previous.z;vel.x=0;vel.z=0;break;}
       const ground=terrainHeight(p);
       if(p.y<=ground){p.y=ground;vel.y=0;grounded=true;}
     }
@@ -316,5 +317,5 @@ export function createWorld(scene){
   // Keep the inexpensive pool draw registered even during the day (alpha 0)
   // so its shader is not first compiled when night begins.
   function setNight(value){nightLight.value=THREE.MathUtils.clamp(value||0,0,1);lampMaterial.emissiveIntensity=nightLight.value*1.8;}
-  return {group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,setBackdrop,setNight,setHouseBodies,cutawayHouse};
+  return {setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);},group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,setBackdrop,setNight,setHouseBodies,cutawayHouse};
 }

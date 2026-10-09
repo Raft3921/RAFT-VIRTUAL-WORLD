@@ -1,4 +1,4 @@
-import {HOUSES,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js';
+import {houseDescriptor,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js';
 
 // One lazily fetched music stream, even when several record machines are on.
 export function createRecordAudio(getLayout){
@@ -13,7 +13,7 @@ export function createRecordAudio(getLayout){
   function receive(message){const key=message.index+':'+message.itemId;if(message.playing)records.set(key,{...message,key});else records.delete(key);if(current?.key===key&&!message.playing){wanted=false;audio.pause();current=null;}}
   function hydrate(states=[]){records.clear();for(const record of states)receive(record);if(current&&!records.has(current.key)){audio.pause();current=null;wanted=false;}}
   function update(time,listener,serverClock){if(serverClock)clock=serverClock;if(time-lastUpdate<.15)return;lastUpdate=time;let nearest=null,best=26;
-    if(listener)for(const record of records.values()){const h=HOUSES[record.index],item=getLayout(record.index)?.items.find(i=>i.id===record.itemId&&FURNITURE_BY_ID.get(i.t)?.family==='record');if(!h||!item)continue;const p=furniturePose(item),distance=Math.hypot(listener.x-h.x-p.x*h.front,listener.y-ROOM.floor-.8,listener.z-h.z-p.z*h.front);if(distance<best){best=distance;nearest=record;}}
+    if(listener)for(const record of records.values()){const h=houseDescriptor(record.index),item=getLayout(record.index)?.items.find(i=>i.id===record.itemId&&FURNITURE_BY_ID.get(i.t)?.family==='record');if(!h||!item)continue;const p=furniturePose(item),distance=Math.hypot(listener.x-h.x-p.x*h.front,listener.y-ROOM.floor-.8,listener.z-h.z-p.z*h.front);if(distance<best){best=distance;nearest=record;}}
     wanted=!!nearest;if(!nearest){if(!priming)audio.pause();current=null;return;}const changed=current?.key!==nearest.key||current?.startedAt!==nearest.startedAt;current=nearest;audio.volume=.45*Math.pow(1-best/26,2);if(changed){blocked=false;start();}else if(audio.paused&&!blocked&&!priming)start();
   }
   function toggle(index,itemId){const key=index+':'+itemId;receive({index,itemId,playing:!records.has(key),startedAt:clock()});}

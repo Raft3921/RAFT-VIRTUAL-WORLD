@@ -245,7 +245,7 @@ export function createWorld(scene){
       previous.copy(p);p.addScaledVector(vel,step);
       const center={x:p.x+offsetX,z:p.z+offsetZ};
       for(const b of nearby(center)){
-        if(b.disabled)continue;
+        if(b.disabled||api.portalPassage?.(b,p,previous,height))continue;
         const q=localPoint({x:p.x+offsetX,z:p.z+offsetZ},b),relative=angle-(b.rotation||0),rxExtent=shape?Math.abs(Math.cos(relative))*width+Math.abs(Math.sin(relative))*depth:.32,rzExtent=shape?Math.abs(Math.sin(relative))*width+Math.abs(Math.cos(relative))*depth:.32;
         const bottom=b.y-b.h/2,top=b.y+b.h/2;
         if(Math.abs(q.x)>=b.w/2+rxExtent||Math.abs(q.z)>=b.d/2+rzExtent)continue;
@@ -292,7 +292,7 @@ export function createWorld(scene){
         let a=(-half[axis]-start[axis])/delta,z=(half[axis]-start[axis])/delta;
         if(a>z)[a,z]=[z,a];enter=Math.max(enter,a);leave=Math.min(leave,z);if(enter>leave)break;
       }
-      if(enter<=leave&&enter>=0&&enter<fraction)fraction=Math.max(0,enter-.015/Math.max(length,.01));
+      if(enter<=leave&&enter>=0&&enter<fraction&&!api.portalPassage?.(b,to,from,0,true))fraction=Math.max(0,enter-.015/Math.max(length,.01));
     }
     return to.clone().lerp(from,1-fraction);
   }
@@ -317,5 +317,5 @@ export function createWorld(scene){
   // Keep the inexpensive pool draw registered even during the day (alpha 0)
   // so its shader is not first compiled when night begins.
   function setNight(value){nightLight.value=THREE.MathUtils.clamp(value||0,0,1);lampMaterial.emissiveIntensity=nightLight.value*1.8;}
-  return {setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);},group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,setBackdrop,setNight,setHouseBodies,cutawayHouse};
+  const api={setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);},group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
 }

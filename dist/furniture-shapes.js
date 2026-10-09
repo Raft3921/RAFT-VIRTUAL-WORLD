@@ -5,7 +5,7 @@ export function expandedParts(f,paint,box,motion,parts){
   const s=f.design;
   const B=(...args)=>box(...args),rotate=(x=0,y=0,z=0)=>Object.assign(parts[parts.length-1],{rx:x,ry:y,rz:z});
   const disk=(x,y,z,w,h,d,c=paint,n=7)=>{for(let i=0;i<n;i++){const a=(i+.5)/n*2-1;B(x,y,z+a*d/2,w*Math.sqrt(1-a*a),h,d/n,c);}};
-  const face=(shape,x,y,z,w,h,d,c=paint,mirror=false)=>{for(let i=0;i<9;i++){const a=(i+.5)/9*2-1;let width=w;if(['round','oval'].includes(shape))width*=Math.sqrt(1-a*a);else if(shape==='hex')width*=1-Math.abs(a)*.4;else if(shape==='arch'&&a>0)width*=Math.sqrt(1-a*a);B(x,y+a*h/2,z,width,h/9,d,c);if(mirror&&i===4)Object.assign(parts[parts.length-1],{mirror:true,portalHeight:9});}};
+  const face=(shape,x,y,z,w,h,d,c=paint,mirror=false)=>{for(let i=0;i<9;i++){const a=(i+.5)/9*2-1;let width=w;if(['round','oval'].includes(shape))width*=Math.sqrt(1-a*a);else if(shape==='hex')width*=1-Math.abs(a)*.4;else if(shape==='arch'&&a>0)width*=Math.sqrt(1-a*a);B(x,y+a*h/2,z,width,h/9,d,c);if(mirror&&i===4)Object.assign(parts[parts.length-1],{mirror:true,portalHeight:9,portalShape:['round','oval'].includes(shape)?1:shape==='hex'?2:shape==='arch'?3:0});}};
   const fourLegs=(top=.88,c=WOOD)=>{for(const x of [-.4,.4])for(const z of [-.37,.37])B(x,top/2,z,.07,top,.07,c);};
   const shelf=(rows=4,columns=1)=>{B(0,.5,-.46,1,1,.07,WOOD);for(const x of [-.46,.46])B(x,.5,0,.08,1,1,WOOD);for(let i=0;i<=rows;i++)B(0,i/rows,0,1,.035,1,WOOD);for(let i=1;i<columns;i++)B(-.5+i/columns,.5,0,.04,1,1,WOOD);};
   const screen=(x=0,y=.7,z=0,w=.9,h=.5)=>{B(x,y,z,w,h,.09,DARK);B(x,y,z+.055,w*.9,h*.82,.025,paint);parts[parts.length-1].role='screen';B(x-w*.2,y+h*.17,z+.071,w*.4,h*.045,.009,WHITE,true);parts[parts.length-1].role='screen';};

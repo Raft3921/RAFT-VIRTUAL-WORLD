@@ -9,3 +9,5 @@ node_modules/
 .wrangler/
 artifacts/
 .DS_Store
+
+.room-chat.jsonl

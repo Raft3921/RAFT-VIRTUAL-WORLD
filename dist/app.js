@@ -1,20 +1,22 @@
+import {createWorldChat} from './world-chat.js?v=20261009-chat26';
+import {startUpdateNotice} from './update-notice.js?v=20261009-chat26';
 import {memberColor} from './housing-data.js';
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261008-light14';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261009-void25';
+import { createWorld } from './world.js?v=20261009-chat26';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION } from './game-rules.js?v=20261009-void25';
+import { SYNC_VERSION } from './game-rules.js?v=20261009-chat26';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261009-void25';
+import { createHousingRenderer } from './housing-renderer.js?v=20261009-chat26';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261009-void25';
+import { createHouseEditor } from './house-editor.js?v=20261009-chat26';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js';
 import {createWorldGuide} from './world-guide.js';
@@ -60,7 +62,7 @@ function requestCameraReturn(){
 }
 let distance=5.5,fov=55,smoothing=.14,flySpeed=4,moveSpeed=2.8,gesture='none',showCast=false;
 let renderer,environment,world,requestId,lastTime=0,time=0,metricsAt=0,fpsFrames=0,fps=60;
-let housingView=null,housingEditor=null,houseCameraState=null;
+let housingView=null,housingEditor=null,houseCameraState=null,worldChat=null;const updateNotice=startUpdateNotice({endpoint:SYNC_ENDPOINT,version:SYNC_VERSION});
 let worldGuide=null;
 let activeQuality=touch?'low':'high',qualityChoice='auto',slowSeconds=0,cleanTimer=0,pendingClean=0;
 const PUNCH={maxCharge:10,maxRange:1000,tapRange:8,reach:2.25,radius:1.2,gravity:18,angle:24*Math.PI/180};
@@ -201,7 +203,7 @@ function applyPunch(held,targetId=null){
   const facing=new THREE.Vector3(Math.sin(attackYaw),0,Math.cos(attackYaw));
   const origin=p.position.clone();origin.y+=1.05;
   const board=!targetId&&world?.boardHit(origin,facing);if(board){openWorldMenu(board);return;}
-  const instrument=!targetId&&housingView?.instrumentHit(origin,facing);if(instrument){const message={type:instrument.kind==='record'?'record-toggle':instrument.kind==='piano'?'piano-play':'furniture-hit',index:instrument.index,itemId:instrument.itemId,serial:attackSerial};if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));else housingView.interactOffline(message,p.position);return;}
+  const instrument=!targetId&&housingView?.instrumentHit(origin,facing);if(instrument){if(instrument.kind==='chat'&&(!roomSelfId||roomSocket?.readyState!==WebSocket.OPEN)){worldChat?.open();return;}const message={type:instrument.kind==='record'?'record-toggle':instrument.kind==='piano'?'piano-play':'furniture-hit',index:instrument.index,itemId:instrument.itemId,serial:attackSerial};if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));else housingView.interactOffline(message,p.position);return;}
   const throwing=selected===GYOZA_SKIN&&held<1&&attackKind===3;
   if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId){
     if(throwing)brownProjectiles.launch(p.position,attackYaw,{predicted:true,owner:roomSelfId,serial:attackSerial});
@@ -223,7 +225,7 @@ function applyPunch(held,targetId=null){
 
 }
 function unlocked(){if(document.pointerLockElement)document.exitPointerLock();clearInput()}
-function paused(){return !inStudio||housingEditor?.active||worldGuide?.active||!$('menu').hidden||!$('master').hidden||!$('worldMenu').hidden}
+function paused(){return !inStudio||worldChat?.active||housingEditor?.active||worldGuide?.active||!$('menu').hidden||!$('master').hidden||!$('worldMenu').hidden}
 function setClean(value){const wasClean=clean;clearTimeout(pendingClean);pendingClean=0;clean=value;document.body.dataset.clean=String(value);$('menu').hidden=$('master').hidden=$('worldMenu').hidden=true;worldGuide?.close(false);clearInput();if(wasClean&&!value)notify('操作表示に戻りました',1700)}
 function enterClean(){if(pendingClean){clearTimeout(pendingClean);pendingClean=0;$('toast').hidden=true;return}notify(touch?'画面を長押しすると操作表示に戻れます':'H・Escで戻る / F1でマスターモード',2200);$('menu').hidden=$('master').hidden=true;canvas.focus();pendingClean=setTimeout(()=>{pendingClean=0;if(inStudio&&$('menu').hidden&&$('master').hidden)setClean(true)},1500)}
 function openMenu(){if(housingEditor?.active)housingEditor.close();setClean(false);unlocked();$('worldMenu').hidden=true;$('master').hidden=true;$('menu').hidden=false;$('resume').focus()}
@@ -259,12 +261,13 @@ function stopCourse(){if(!athleticActive||duelActive)return;if(athleticCheckpoin
 
 function placeActors(){housingView?.portals.reset();courseAwaitingSave=false;athleticActive=false;athleticCheckpoint=null;seated=false;seat=null;sleeping=false;bed=null;standingOn=null;localImpact=null;localRagdoll=false;localHit=null;restoreHitCamera=null;localImpulse.set(0,0,0);actors.forEach((a,i)=>{if(a){a.resetHitReaction();bodies[i].flinchSerial=0;bodies[i].protectedUntil=0;if(i===selected){a.root.position.set(0,0,0);a.root.rotation.set(0,0,0)}else{const angle=i*2.399+.4,radius=3.4+(i%3)*.85;a.root.position.set(Math.sin(angle)*radius,0,Math.cos(angle)*radius+1.2);a.root.rotation.set(0,Math.atan2(-a.root.position.x,-a.root.position.z),0)}}if(a&&world)a.root.position.y=world.floorAt(a.root.position,.5).y;bodies[i].vel.set(0,0,0);bodies[i].grounded=true;bodies[i].ragdoll=false;bodies[i].hit=null;bodies[i].travelRemaining=0});velocity.set(0,0,0);verticalSpeed=0;grounded=true;airWalk=false;lastJumpTapAt=-Infinity;updateJumpButton();cancelCharge();punchSwing=0;pendingAttack=null;queuedAttack=null;comboIndex=0;attackRushing=false;chainRemaining=0;targetLock=null}
 function enterStudio(){if(!actors[selected])return;const query=shareSource();inStudio=true;showCast=false;$('showCast').checked=false;document.body.dataset.screen='studio';$('lobby').hidden=true;$('hud').hidden=false;placeActors();focus.set(0,1.25,0);const sharedYaw=Number(query.get('yaw')),sharedPitch=Number(query.get('pitch'));yaw=query.has('yaw')&&Number.isFinite(sharedYaw)?angleDelta(0,sharedYaw):0;pitch=query.has('pitch')&&Number.isFinite(sharedPitch)?clamp(sharedPitch,-1.15,1.1):-.14;setCameraMode(query.get('cam')||'follow');updateVisibility();canvas.focus();notify(touch?'左スティックで移動。パンチを長押しで溜め':'ドラッグで視点 / 右下の✊を長押しで溜めパンチ',3500);connectRoom();scheduleShare()}
-function returnLobby(){leaveRoom();if(selected===GUEST_SKIN)guestState=cleanCharacter();unlocked();setClean(false);inStudio=false;document.body.dataset.screen='lobby';$('hud').hidden=true;$('lobby').hidden=false;$('menu').hidden=$('master').hidden=$('worldMenu').hidden=true;gesture='none';$('gesture').value='idle';placeActors();updateSelection();updateVisibility();$('enter').focus()}
+function returnLobby(){if(worldChat?.active)worldChat.close();leaveRoom();if(selected===GUEST_SKIN)guestState=cleanCharacter();unlocked();setClean(false);inStudio=false;document.body.dataset.screen='lobby';$('hud').hidden=true;$('lobby').hidden=false;$('menu').hidden=$('master').hidden=$('worldMenu').hidden=true;gesture='none';$('gesture').value='idle';placeActors();updateSelection();updateVisibility();$('enter').focus()}
 function makeFace(url,el){const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=c.height=32;c.className='face';c.setAttribute('aria-hidden','true');const q=c.getContext('2d');q.imageSmoothingEnabled=false;const s=img.width/64;if(url.includes('models/gyoza/')){q.drawImage(img,8*s,8*s,18*s,9*s,0,8,32,16);q.drawImage(img,20*s,55*s,18*s,9*s,0,8,32,16);}else{q.drawImage(img,8*s,8*s,8*s,8*s,0,0,32,32);q.drawImage(img,40*s,8*s,8*s,8*s,0,0,32,32);}el.replaceChildren(c)};img.src=url}
 const faces=[],characterButtons=[];
 castOrder.forEach(i=>{const [name,file]=skinDefs[i],b=document.createElement('button');b.className='character';b.style.setProperty('--member-color',memberColor(i));b.dataset.index=i;b.setAttribute('aria-label',name+' を選択');b.setAttribute('aria-pressed',String(i===selected));const holder=document.createElement('span');holder.className='face';holder.textContent='＋';faces[i]=holder;characterButtons[i]=b;const label=document.createElement('span');label.textContent=name;b.append(holder,label);b.onclick=()=>setSelected(i);$('characters').append(b);$('actorSelect').add(new Option(name,String(i)));if(file)makeFace(skinURL(i),holder)});
 const guestButton=document.createElement('button');guestButton.className='character guest-character';guestButton.dataset.index=String(GUEST_SKIN);guestButton.setAttribute('aria-label','ゲスト · 保存データを変更しない白いキャラクター');const guestFace=document.createElement('span');guestFace.className='face';const guestLabel=document.createElement('span');guestLabel.textContent='ゲスト';guestButton.append(guestFace,guestLabel);guestButton.onclick=()=>setSelected(GUEST_SKIN);$('characters').append(guestButton);faces[GUEST_SKIN]=guestFace;characterButtons[GUEST_SKIN]=guestButton;$('actorSelect').add(new Option('ゲスト（保存なし）',String(GUEST_SKIN)));makeFace(skinURL(GUEST_SKIN),guestFace);
 async function replaceSkin(i,url){const actor=await playerAvatar(i,url);const old=actors[i];if(old){actor.root.position.copy(old.root.position);actor.root.rotation.copy(old.root.rotation);scene.remove(old.root);old.dispose()}actors[i]=actor;const appearance=cachedCharacter(i);actor.setAppearance(appearance.appearanceLevel,appearance.crownEnabled);scene.add(actor.root);makeFace(url,faces[i]);updateSelection();updateVisibility()}
+worldChat=createWorldChat({names:skinDefs.map(s=>s[0]),skinURL,makeFace,getSelfId:()=>roomSelfId,isConnected:()=>roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,send:message=>roomSocket.send(JSON.stringify(message)),onOpen(){if(housingEditor?.active)housingEditor.close();worldGuide?.close(false);setClean(false);unlocked();punchSwing=0;pendingAttack=null;queuedAttack=null;},onClose(){clearInput();canvas.focus();}});
 $('enter').onclick=enterStudio;$('resume').onclick=()=>{$('menu').hidden=true;clearInput();canvas.focus()};$('changeCharacter').onclick=$('masterCharacter').onclick=returnLobby;
 $('openMaster').onclick=openMaster;$('closeMaster').onclick=()=>{$('master').hidden=true;clearInput();canvas.focus()};$('cleanView').onclick=$('cleanMaster').onclick=enterClean;
 $('studioBoard').onclick=()=>openWorldMenu();$('closeWorldMenu').onclick=closeWorldMenu;
@@ -307,7 +310,7 @@ document.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat&&!/INPUT|
 const punchBtn=$('punchBtn');
 punchBtn.onpointerdown=e=>{e.preventDefault();punchBtn.setPointerCapture(e.pointerId);beginCharge()};
 ['pointerup','pointercancel','lostpointercapture'].forEach(type=>punchBtn.addEventListener(type,()=>{if(cameraReturnMode()){if(type==='pointerup')requestCameraReturn();return;}launchPunch();}));
-addEventListener('keydown',e=>{if(housingEditor?.key(e))return;if(e.code==='F1'){e.preventDefault();if(!e.repeat)openMaster();return}if(e.code==='Escape'){e.preventDefault();if(worldGuide?.active){worldGuide.close()}else if(clean){setClean(false);unlocked()}else if(!$('worldMenu').hidden){closeWorldMenu()}else if(!$('master').hidden){$('master').hidden=true;unlocked();canvas.focus()}else if(!$('menu').hidden){$('menu').hidden=true;clearInput();canvas.focus()}else if(inStudio)openMenu();return}if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(e.code==='KeyH'&&inStudio&&!e.repeat){e.preventDefault();if(clean)setClean(false);else enterClean();return}if(!inStudio||paused())return;if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight'].includes(e.code)){e.preventDefault();keys.add(e.code)}});
+addEventListener('keydown',e=>{if(worldChat?.key(e))return;if(housingEditor?.key(e))return;if(e.code==='F1'){e.preventDefault();if(!e.repeat)openMaster();return}if(e.code==='Escape'){e.preventDefault();if(worldGuide?.active){worldGuide.close()}else if(clean){setClean(false);unlocked()}else if(!$('worldMenu').hidden){closeWorldMenu()}else if(!$('master').hidden){$('master').hidden=true;unlocked();canvas.focus()}else if(!$('menu').hidden){$('menu').hidden=true;clearInput();canvas.focus()}else if(inStudio)openMenu();return}if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(e.code==='KeyH'&&inStudio&&!e.repeat){e.preventDefault();if(clean)setClean(false);else enterClean();return}if(!inStudio||paused())return;if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight'].includes(e.code)){e.preventDefault();keys.add(e.code)}});
 addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',clearInput);document.addEventListener('visibilitychange',()=>{clearInput();lastTime=0});
 function updateRoomStatus(message){$('roomStatus').textContent=message}
 const brownProjectiles=createBrownProjectiles(scene,{world:()=>world,targets:()=>actors.flatMap((actor,index)=>actor&&index!==selected&&actor.root.visible&&!protectedFromHit(bodies[index],time)?[{index,position:actor.root.position,height:actor.collisionShape?.height||1.9}]:[]),onLocalHit:(index,shot)=>{const body=bodies[index];if(protectedFromHit(body,time))return;body.vel.set(shot.vx*.8,4,shot.vz*.8);body.ragdoll=true;body.hit=createHit(.2);body.grounded=false;body.inArena=insideArena(actors[index].root.position);actors[index].root.rotation.y=Math.atan2(-shot.vx,-shot.vz);},onImpact:position=>{particleOrigin.set(position.x,position.y,position.z);emitParticles(particleOrigin,'#ad7844',10,2,5);}});
@@ -332,6 +335,8 @@ function updateRemotePlayer(player){
 }
 function handleRoomMessage(socket,event){
   let message;try{message=JSON.parse(event.data)}catch{return}
+  if(worldChat?.receive(message))return;
+  if(message.type==='server-update'){updateNotice.show();return;}
   if(message.type==='projectile-spawn'){brownProjectiles.spawn(message.projectile);return;}
   if(message.type==='projectile-impact'){brownProjectiles.finish(message);return;}
   if(message.type==='projectile-cancel'){brownProjectiles.cancelPrediction(message.owner,message.serial);return;}
@@ -340,7 +345,7 @@ function handleRoomMessage(socket,event){
   if(message.type==='piano-play'||message.type==='instrument-play'){housingView?.playInstrument(message,actors[selected]?.root.position);return;}
   if(message.type==='furniture-event'){housingView?.receiveFurnitureEvent(message,actors[selected]?.root.position);return;}
   if(message.type==='record-state'){housingView?.recordAudio.receive(message);return;}
-  if(message.type==='world'){world?.setBackdrop(message.backdrop);if(message.cycle){dayCycle=cleanCycle(message.cycle);if(Number.isFinite(message.serverNow))serverOffset=message.serverNow-Date.now();updateClockControls();}if(message.records)housingView?.recordAudio.hydrate(message.records);if(message.furnitureStates)housingView?.hydrateFurnitureStates(message.furnitureStates);if(Number.isInteger(message.goalDamage)){goalDamage=message.goalDamage;updateDuelSettings();}if(message.duel)receiveDuel(message.duel);return;}
+  if(message.type==='world'){if(message.version&&message.version!==SYNC_VERSION)updateNotice.show();world?.setBackdrop(message.backdrop);if(message.cycle){dayCycle=cleanCycle(message.cycle);if(Number.isFinite(message.serverNow))serverOffset=message.serverNow-Date.now();updateClockControls();}if(message.records)housingView?.recordAudio.hydrate(message.records);if(message.furnitureStates)housingView?.hydrateFurnitureStates(message.furnitureStates);if(Number.isInteger(message.goalDamage)){goalDamage=message.goalDamage;updateDuelSettings();}if(message.duel)receiveDuel(message.duel);return;}
   if(message.type==='cycle-saved'){updateClockControls();notify('昼夜設定をサーバーに保存しました');return;}
   if(message.type==='cycle-error'){updateClockControls();notify(message.message);return;}
   if(message.type==='flashlight-state'&&message.id===roomSelfId){flashlightEnabled=message.enabled;flashlightPending=false;if(selected!==GUEST_SKIN){safeSave('raft-flashlight-enabled',String(flashlightEnabled));safeSave('raft-flashlight-pending','false');}updateClockControls();return;}
@@ -382,9 +387,9 @@ function handleRoomMessage(socket,event){
     }return;
   }
   if(message.type==='joined'){
-    if(message.version!==SYNC_VERSION){roomFailure='ページと同期サーバーの版が一致しません';notify('ページと同期サーバーの版が違います。サーバーを更新・再起動し、ページを再読み込みしてください。',12000);roomSocket?.close(1000,'update server');updateRoomStatus(roomFailure);return;}
+    if(message.version!==SYNC_VERSION){updateNotice.show();roomFailure='ページと同期サーバーの版が一致しません';notify('ページと同期サーバーの版が違います。サーバーを更新・再起動し、ページを再読み込みしてください。',12000);roomSocket?.close(1000,'update server');updateRoomStatus(roomFailure);return;}
     roomSelfId=message.self.id;actors[selected]?.resetHitReaction();localHitSerial=message.self.hitSerial||0;if(flashlightPending&&selected!==GUEST_SKIN)roomSocket.send(JSON.stringify({type:'flashlight-toggle',enabled:flashlightEnabled}));else flashlightEnabled=message.self.flashlightEnabled!==false;updateClockControls();
-    housingEditor?.hydrate(message.houses);
+    housingEditor?.hydrate(message.houses);worldChat?.hydrate(message.chat);
     for(const projectile of message.projectiles||[])brownProjectiles.spawn(projectile);
     for(const [skin,record]of Object.entries(message.characters||{}))receiveCharacter(Number(skin),record);receiveCharacter(selected,message.self);
     const own=actors[selected]?.root;if(own){own.position.set(message.self.x,message.self.y,message.self.z);own.rotation.y=message.self.yaw}
@@ -404,7 +409,7 @@ function connectRoom(){
     socket.addEventListener('open',()=>{if(roomSocket===socket)updateRoomStatus(`${code} · 入室処理中`)});
     socket.addEventListener('message',event=>{if(roomSocket===socket)handleRoomMessage(socket,event)});
     socket.addEventListener('error',()=>{if(roomSocket===socket)updateRoomStatus('接続エラー · URLと公開設定を確認')});
-    socket.addEventListener('close',()=>{if(roomSocket!==socket)return;housingEditor?.disconnected();roomSocket=null;roomSelfId='';roomCode='';clearRemoteActors();updateRoomStatus(roomFailure||'未接続');scheduleShare()});
+    socket.addEventListener('close',()=>{if(roomSocket!==socket)return;housingEditor?.disconnected();worldChat?.disconnected();roomSocket=null;roomSelfId='';roomCode='';clearRemoteActors();updateRoomStatus(roomFailure||'未接続');scheduleShare()});
   }catch(error){roomSocket=null;roomCode='';updateRoomStatus('接続先URLが正しくありません');console.error(error)}
 }
 function leaveRoom(){if(housingEditor?.active)housingEditor.close();housingEditor?.disconnected();duelActive=false;duelIds=[];$('duelHud').hidden=true;const socket=roomSocket;roomSocket=null;roomSelfId='';roomCode='';clearRemoteActors();if(socket)socket.close(1000,'left room');updateRoomStatus('未接続');scheduleShare()}

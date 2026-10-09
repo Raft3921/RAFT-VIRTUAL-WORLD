@@ -1,6 +1,7 @@
 const instruments=new Set(['acoustic','electric','bass','ukulele','drums','snare','e-drums','keyboard','violin','harp']);
 export function furnitureAction(f){
   const s=f.design;
+  if(f.family==='computer'||f.family==='electronics'&&['pc','laptop','tablet','server'].includes(s))return {kind:'chat',label:'ワールドチャット'};
   if(f.family==='record')return {kind:'record',defaultEnabled:false,label:'レコード'};
   if(f.family==='piano')return {kind:'piano',instrument:'piano',label:'ピアノ'};
   if(f.family==='hobby'&&instruments.has(s))return {kind:'instrument',instrument:s,label:f.name};

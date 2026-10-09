@@ -123,3 +123,17 @@ Mirror entrances use direct stencil rendering into the main framebuffer at scree
 Crossing the mirror plane preserves position relative to the opening, direction and momentum. There is no preset arrival location, camera reset or transition toast. A follow camera stays on its own side until it crosses, allowing the actor to walk through the opening. Collision is opened only at the entrance within a thin wall.
 
 No tests, validation commands, runtime checks or browser verification were performed, as instructed.
+
+## Mirror exits, updates and saved world chat · 2026-10-09
+
+The mirror-world furniture catalogue excludes all mirror types, and the server rejects attempts to place, duplicate or move mirror furniture there. Old mirror-world mirror furniture is removed on load; the permanent return entrances stay. Return entrances copy the complete frame, stand, glass shape and colour of their real-world mirror, and follow that mirror's edits.
+
+Portal masks retain their aperture when it enters the camera's near plane; the follow-camera handoff occurs exactly at the plane. Ill-conditioned clipping is skipped and entrance selection has hysteresis to avoid rapid switching between adjacent mirrors. The rendering remains a single extra direct stencil view, without mirror textures.
+
+Punch a computer, desktop PC, laptop, tablet or server computer to open world chat. New messages show one face-and-speech-bubble notice at the top of the ordinary view. The terminal has the recent history, an older-history button and scroll loading for all saved messages, plus a 400-character input. Enter sends; Shift+Enter adds a line. Guests may chat. Senders are identified by the server's current character; text is displayed as plain text. Sending requires a nearby computer and is limited to one message per second.
+
+LAN chat is an append-only ignored `.room-chat.jsonl` file. Cloudflare saves each message separately under a `chat:` storage key, so the complete history is retained without an ever-growing single storage value. The client requests history in pages of 100 messages.
+
+GitHub Pages stamps each published artifact with its Git commit ID. Clients read the published release manifest and the sync server's release endpoint once per minute and upon returning to the page. Changed releases display the persistent notice: **更新したけん、ページを再読み込みしよう！**, with a reload button. Future Worker deployments should set `DEPLOYMENT_REVISION` to a unique commit-plus-deployment stamp, and the LAN server exposes a unique startup stamp. These requests implement player notifications; no external tests or runtime verification are performed.
+
+Current sync version: `2026-10-09-vrs-chat-26`. No tests, validation commands, browser verification or gameplay checks were performed for this update.

@@ -1,5 +1,6 @@
-import { createReadStream, existsSync, statSync, readFileSync, writeFileSync,renameSync } from 'node:fs';
+import { createReadStream, existsSync, statSync, readFileSync, writeFileSync,renameSync,appendFileSync } from 'node:fs';
 import { cleanState, GameRules,applyPlayerState,SYNC_VERSION } from '../dist/game-rules.js';
+import {BUILD_ID} from '../dist/build-info.js';
 import {GUEST_SKIN,MAX_PLAYERS,playableSkin} from '../dist/player-types.js';
 import { createServer } from 'node:http';
 import { networkInterfaces } from 'node:os';
@@ -8,7 +9,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 
 const root = resolve('dist');
 const port = Number(process.env.PORT || 4173);
-const maxPlayers = MAX_PLAYERS;
+const maxPlayers = MAX_PLAYERS;const serverBuildId=BUILD_ID+'-'+Date.now();
 const players = new Map();
 const mime = {
   '.css': 'text/css; charset=utf-8',
@@ -35,7 +36,8 @@ let scores={};try{scores=JSON.parse(readFileSync('.room-scores.json','utf8'));}c
 let settings={};try{settings=JSON.parse(readFileSync('.room-settings.json','utf8'));}catch{}
 let characters={};try{characters=JSON.parse(readFileSync('.room-characters.json','utf8'));}catch{}
 let houses={};try{houses=JSON.parse(readFileSync('.room-houses.json','utf8'));}catch{}
-const rules=new GameRules(players,broadcast,scores,s=>writeFileSync('.room-scores.json',JSON.stringify(s)),settings,s=>{writeFileSync('.room-settings.json.tmp',JSON.stringify(s));renameSync('.room-settings.json.tmp','.room-settings.json');},characters,s=>{writeFileSync('.room-characters.json.tmp',JSON.stringify(s));renameSync('.room-characters.json.tmp','.room-characters.json');},houses,s=>{writeFileSync('.room-houses.json.tmp',JSON.stringify(s));renameSync('.room-houses.json.tmp','.room-houses.json');});
+let chat=[];try{chat=readFileSync('.room-chat.jsonl','utf8').split('\n').filter(Boolean).flatMap(line=>{try{return [JSON.parse(line)];}catch{return [];}});}catch{}
+const rules=new GameRules(players,broadcast,scores,s=>writeFileSync('.room-scores.json',JSON.stringify(s)),settings,s=>{writeFileSync('.room-settings.json.tmp',JSON.stringify(s));renameSync('.room-settings.json.tmp','.room-settings.json');},characters,s=>{writeFileSync('.room-characters.json.tmp',JSON.stringify(s));renameSync('.room-characters.json.tmp','.room-characters.json');},houses,s=>{writeFileSync('.room-houses.json.tmp',JSON.stringify(s));renameSync('.room-houses.json.tmp','.room-houses.json');},()=>{},chat,message=>appendFileSync('.room-chat.jsonl',JSON.stringify(message)+'\n'));
 
 function remove(socket) {
   const entry = players.get(socket);
@@ -53,6 +55,7 @@ const server = createServer((request, response) => {
     response.writeHead(400).end('Bad request');
     return;
   }
+  if(pathname==='/version'){response.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}).end(JSON.stringify({version:SYNC_VERSION,buildId:serverBuildId}));return;}
   if (pathname === '/health') {
     response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }).end('ok');
     return;
@@ -108,7 +111,7 @@ sockets.on('connection', (socket, request) => {
     gesture: 'none', speed: 0, grounded: true, verticalSpeed: 0, flight: false, ragdoll: false,
   };
   players.set(socket, { player, lastStateAt: 0 });
-  send(socket, { type: 'joined', version:SYNC_VERSION, projectiles:rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:rules.houses.snapshots(), characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
+  send(socket, { type: 'joined', version:SYNC_VERSION, chat:rules.chat.page(), projectiles:rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:rules.houses.snapshots(), characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
   broadcast({ type: 'player-joined', player }, socket);
   send(socket,rules.snapshot());
 

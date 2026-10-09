@@ -1,3 +1,4 @@
+import {WorldChatStore} from './world-chat-store.js';
 import { ARENA,insideArena } from './world-layout.js';
 import { ATTACKS } from './combat-motion.js';
 import { CharacterStore,cleanCharacter } from './character-store.js';
@@ -9,7 +10,7 @@ import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} f
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js';
 import {furnitureAction} from './furniture-actions.js';
-export const SYNC_VERSION='2026-10-09-vrs-mirrors-23';
+export const SYNC_VERSION='2026-10-09-vrs-chat-26';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin,realms){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||s.y<0||s.y>512)return null;
@@ -39,12 +40,12 @@ export function applyPlayerState(player,state){
   state.hitSerial=serial;state.crownEnabled=player.crownEnabled;Object.assign(player,state);
 }
 export class GameRules{
-  constructor(players,broadcast,scores={},save=()=>{},settings={},saveSettings=()=>{},characters={},saveCharacters=()=>{},houses={},saveHouses=()=>{},onAsyncWork=()=>{}){
+  constructor(players,broadcast,scores={},save=()=>{},settings={},saveSettings=()=>{},characters={},saveCharacters=()=>{},houses={},saveHouses=()=>{},onAsyncWork=()=>{},chat=[],saveChat=()=>{}){
     this.players=players;this.broadcast=broadcast;this.scores=scores;this.save=save;this.ready=new Map();this.duel=null;this.cooldowns=new Map();this.backdrop='GB';
     settings=settings&&typeof settings==='object'?settings:{};
     const goal=Number(settings.goalDamage);this.settings={...settings,goalDamage:Number.isInteger(goal)&&goal>=1&&goal<=100?goal:11};this.saveSettings=saveSettings;this.settingsQueue=Promise.resolve();
     this.characters=new CharacterStore(characters,scores,saveCharacters,(skin,record)=>this.broadcastCharacter(skin,record),()=>this.broadcast({type:'character-save-error',message:'キャラクターの状態をサーバーに保存できませんでした。'}));
-    this.houses=new HousingStore(houses,saveHouses,broadcast);
+    this.houses=new HousingStore(houses,saveHouses,broadcast);this.chat=new WorldChatStore(chat,saveChat);
     this.projectiles=[];this.projectileTimer=null;this.projectileSequence=0;this.onAsyncWork=onAsyncWork;this.projectileFlight=null;this.finishFlight=null;
     this.settings.cycle=cleanCycle(settings.cycle);this.pianoSteps=new Map();this.records=new Map();this.furnitureStates=new Map();this.furnitureSequence=0;
   }
@@ -151,6 +152,8 @@ export class GameRules{
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
+    if(m.type==='chat-history'){this.broadcast({type:'chat-history',playerId:p.id,...this.chat.page(m.before)});return;}
+    if(m.type==='chat-post'){if(!entry.chatTerminal||p.ragdoll||this.duel?.ids.includes(p.id)){this.broadcast({type:'chat-error',playerId:p.id,message:'家のパソコンを殴ってチャットを開いてください'});return;}const h=houseDescriptor(entry.chatTerminal.index,this.houses.realms),item=this.houses.snapshots()[entry.chatTerminal.index]?.items.find(i=>i.id===entry.chatTerminal.itemId);if(!h||!item||furnitureAction(FURNITURE_BY_ID.get(item.t)).kind!=='chat'){this.broadcast({type:'chat-error',playerId:p.id,message:'このパソコンはなくなりました'});return;}const pose=furniturePose(item);if(Math.hypot(p.x-h.x-pose.x*h.front,p.z-h.z-pose.z*h.front)>7){this.broadcast({type:'chat-error',playerId:p.id,message:'パソコンの近くで送信してください'});return;}if(now-(entry.lastChatAt||0)<1000){this.broadcast({type:'chat-error',playerId:p.id,message:'少し待ってから送信してください'});return;}if(typeof m.text!=='string'||m.text.length>400)return;entry.lastChatAt=now;return this.chat.post(p.skin,m.text).then(message=>this.broadcast({type:'chat-message',playerId:p.id,message})).catch(()=>this.broadcast({type:'chat-error',playerId:p.id,message:'保存できませんでした。もう一度送信してください'}));}
     if(m.type==='piano-play'||m.type==='record-toggle'||m.type==='furniture-hit'){
       if(p.ragdoll||this.duel?.ids.includes(p.id))return;
       const h=houseDescriptor(m.index,this.houses.realms),item=this.houses.snapshots()[m.index]?.items.find(i=>i.id===m.itemId);if(!h||!item)return;
@@ -159,6 +162,7 @@ export class GameRules{
       const pose=furniturePose(item),x=h.x+pose.x*h.front,z=h.z+pose.z*h.front,dx=x-p.x,dz=z-p.z;
       if(Math.hypot(dx,dz)>3.8+Math.min(1,Math.max(definition.w,definition.d)*.25)||Math.abs(p.y+1.05-(ROOM.floor+pose.centerY))>2.7||dx*Math.sin(p.yaw)+dz*Math.cos(p.yaw)<-.2)return;
       entry.lastInstrumentAt=now;const key=h.index+':'+item.id;
+      if(family==='chat'){entry.chatTerminal={index:h.index,itemId:item.id};this.broadcast({type:'chat-open',playerId:p.id,...this.chat.page()});return;}
       if(family==='record'){const playing=!this.records.has(key),record={type:'record-state',index:h.index,itemId:item.id,playing,startedAt:now};if(playing)this.records.set(key,record);else this.records.delete(key);this.broadcast(record);return;}
       if(family==='piano'||family==='instrument'){const step=this.pianoSteps.get(key)||0,note=PIANO_MELODY[step%PIANO_MELODY.length];this.pianoSteps.set(key,(step+1)%PIANO_MELODY.length);this.broadcast({type:family==='piano'?'piano-play':'instrument-play',index:h.index,itemId:item.id,note,instrument:action.instrument,serial:++this.furnitureSequence,playerId:p.id});return;}
       const previous=this.furnitureStates.get(key),enabled=action.toggle?!(previous?.enabled??action.defaultEnabled):true,event={type:'furniture-event',index:h.index,itemId:item.id,kind:family,enabled,serial:++this.furnitureSequence,playerId:p.id};if(action.toggle)this.furnitureStates.set(key,event);this.broadcast(event);return;

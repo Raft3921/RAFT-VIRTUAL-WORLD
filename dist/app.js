@@ -1,4 +1,4 @@
-import {createWorldChat} from './world-chat.js?v=20261009-portalperf28';
+import {createWorldChat} from './world-chat.js?v=20261009-chat30s29';
 import {startUpdateNotice} from './update-notice.js?v=20261009-chat26';
 import {memberColor} from './housing-data.js';
 import * as THREE from 'three';

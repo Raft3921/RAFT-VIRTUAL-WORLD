@@ -291,7 +291,7 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
   let grass = makeGrass(TIERS[settings.quality], uniforms);
   group.add(sky, ground, grass, ambient, sun, sun.target);
   scene.add(group);
-  scene.fog = new THREE.Fog('#abd5f2', 120, 1400);
+  const meadowFog=new THREE.Fog('#abd5f2',120,1400),meadowBackground=scene.background,voidBackground=new THREE.Color('#000000');scene.fog=meadowFog;let mirrorView=false,grassVisible=true;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -345,6 +345,7 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
 
   return {
     group, ground, sun, ambient, settings,
+    setMirrorView(value){mirrorView=!!value;sky.visible=!mirrorView;ground.visible=!mirrorView;grass.visible=!mirrorView&&grassVisible;scene.fog=mirrorView?null:meadowFog;scene.background=mirrorView?voidBackground:meadowBackground;},
     get grass() { return grass; },
     setSettings,
     update(time, nextFocus,phase=null) {
@@ -355,11 +356,11 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
         const angle=(phase-.25)*Math.PI*2,elevation=Math.sin(angle),daylight=THREE.MathUtils.smoothstep(elevation,-.12,.32),warm=(1-THREE.MathUtils.smoothstep(Math.abs(elevation),.03,.45))*THREE.MathUtils.smoothstep(elevation,-.3,-.03);
         sunOffset.set(-Math.cos(angle)*.8,elevation,-Math.cos(angle)*.6).multiplyScalar(70);
         const skyUniforms=sky.material.uniforms;skyUniforms.uSun.value.copy(sunOffset).normalize();skyUniforms.uNight.value=1-daylight;skyUniforms.uZenith.value.copy(nightZenith).lerp(dayZenith,daylight);skyUniforms.uHorizon.value.copy(nightHorizon).lerp(dayHorizon,daylight);warmColor.set(phase<.5?'#f5aa77':'#fa5439');skyUniforms.uHorizon.value.lerp(warmColor,warm*.88);warmColor.set(phase<.5?'#77618a':'#7d345e');skyUniforms.uZenith.value.lerp(warmColor,warm*.48);
-        ambient.intensity=.10+1.5*daylight;ambient.color.copy(nightAmbient).lerp(dayAmbient,daylight);ambient.groundColor.copy(nightGround).lerp(dayGround,daylight);sun.intensity=Math.max(0,elevation)*2.5;sun.color.set(warm>.3?'#ffbd7b':'#fff7e3');scene.fog.color.copy(skyUniforms.uHorizon.value);renderer.toneMappingExposure=settings.exposure;
+        ambient.intensity=.10+1.5*daylight;ambient.color.copy(nightAmbient).lerp(dayAmbient,daylight);ambient.groundColor.copy(nightGround).lerp(dayGround,daylight);sun.intensity=Math.max(0,elevation)*2.5;sun.color.set(warm>.3?'#ffbd7b':'#fff7e3');meadowFog.color.copy(skyUniforms.uHorizon.value);renderer.toneMappingExposure=settings.exposure;
         settings.night=1-THREE.MathUtils.smoothstep(elevation,-.10,.08);
       }
       // Grass blades are subpixel from elevated parkour/free-camera viewpoints.
-      grass.visible=focus.y<18;
+      grassVisible=focus.y<18;grass.visible=!mirrorView&&grassVisible;
       uniforms.uFocus.value.set(focus.x, focus.z);
       sun.position.copy(focus).add(sunOffset);
       sun.target.position.copy(focus);

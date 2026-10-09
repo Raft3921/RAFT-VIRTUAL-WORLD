@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {createPortalViews,portalFrame,passageTransform} from './portal-view.js';
+import {createPortalViews,portalFrame,passageTransform} from './portal-view.js?v=20261009-portalperf28';
 import {HOUSES,ROOM,mirrorRealmKey,mirrorRealm,mirrorHouseKey,houseDescriptor} from './housing-data.js';
 
 // Portal windows render their linked rooms from the viewer’s perspective. A source mirror owns
@@ -79,7 +79,9 @@ export function createHousingMirrors(scene,world){
       const f=portalFrame(entry.mesh),distance=camera.position.distanceToSquared(f.center);if(distance>=best||camera.position.clone().sub(f.center).dot(f.normal)<=.0001||!frustum.intersectsSphere(new THREE.Sphere(f.center,Math.hypot(f.width,f.height)*.5)))continue;nearest=entry;best=distance;
     }
     if(lastWindowEntry&&entries.has(lastWindowEntry)){const f=portalFrame(lastWindowEntry.mesh),distance=camera.position.distanceToSquared(f.center);if(distance<14*14&&best>distance*.75&&camera.position.clone().sub(f.center).dot(f.normal)>.0001&&frustum.intersectsSphere(new THREE.Sphere(f.center,Math.hypot(f.width,f.height)*.5)))nearest=lastWindowEntry;}lastWindowEntry=nearest;
-    if(nearest){const space=createSpace(mirrorRealmKey(nearest.house,nearest.id));if(space){refreshGateways(space);const gate=space.gates.get(nearest.house+':'+nearest.id);if(gate)pairs.push({source:nearest.mesh,destination:gate.mesh});}}
+    // A mirrored avenue is costly to instantiate. Keep the ordinary mirror
+    // until the viewer is close enough for its doorway to fill the shot.
+    if(nearest&&best<36){const space=createSpace(mirrorRealmKey(nearest.house,nearest.id));if(space){refreshGateways(space);const gate=space.gates.get(nearest.house+':'+nearest.id);if(gate)pairs.push({source:nearest.mesh,destination:gate.mesh});}}
     for(const space of spaces.values())if(Math.abs(camera.position.x-space.x)<100&&Math.abs(camera.position.z-(space.z-62.5))<85){refreshGateways(space);for(const gate of space.gates.values())pairs.push({source:gate.mesh,destination:counterpart(gate)});}
     for(const entry of entries){const h=houseDescriptor(entry.house);if(h?.realm)pairs.push({source:entry.mesh,destination:counterpart({house:h.sourceIndex,id:entry.id})});}
     return pairs;
@@ -109,10 +111,12 @@ export function createHousingMirrors(scene,world){
     active=realm;cooldownUntil=time+.12;bridge={source,destination,matrix:matrix.clone(),inverse:matrix.clone().invert()};
     return {position:newPosition,yawDelta,matrix,rotation,entering,seamless:true};
   }
-  function approaching(mesh,position,velocity,height){
-    const f=portalFrame(mesh),distance=position.clone().sub(f.center).dot(f.normal);
-    if(distance<-.15||distance>.5||velocity.dot(f.normal)>=-.08)return false;
-    return intersectsBody(mesh,position,height);
+  function approaching(mesh,position,previous,velocity,height){
+    const f=portalFrame(mesh),before=previous.clone().sub(f.center).dot(f.normal),after=position.clone().sub(f.center).dot(f.normal);
+    if(after<-.2||after>.82||(after>=before&&velocity.dot(f.normal)>=-.02))return false;
+    mesh.updateWorldMatrix(true,false);inverse.copy(mesh.matrixWorld).invert();
+    for(const lift of [.18,height*.5,height-.1]){probe.set(position.x,position.y+lift,position.z).applyMatrix4(inverse);if(Math.abs(probe.x)<.62&&Math.abs(probe.y)<.62)return true;}
+    return false;
   }
   function classicTravel(destination,realm,time){
     const f=portalFrame(destination),position=f.center.clone().addScaledVector(f.normal,1.1);position.y=ROOM.floor+.02;
@@ -121,7 +125,7 @@ export function createHousingMirrors(scene,world){
   }
   function step(position,velocity,height,time,previous){
     if(!previous||time<cooldownUntil)return null;
-    const enters=mesh=>travelMode==='classic'?approaching(mesh,position,velocity,height):crossing(mesh,position,previous,height);
+    const enters=mesh=>travelMode==='classic'?approaching(mesh,position,previous,velocity,height):crossing(mesh,position,previous,height);
     if(active){const space=createSpace(active);if(!space)return null;refreshGateways(space);for(const gate of space.gates.values())if(enters(gate.mesh))return travelMode==='classic'?classicTravel(counterpart(gate),null,time):travel(gate.mesh,counterpart(gate),position,false,null,time);
       for(const e of entries){const h=houseDescriptor(e.house);if(h?.realm===active&&enters(e.mesh))return travelMode==='classic'?classicTravel(counterpart({house:h.sourceIndex,id:e.id}),null,time):travel(e.mesh,counterpart({house:h.sourceIndex,id:e.id}),position,false,null,time);}return null;}
     for(const entry of originals()){if(!enters(entry.mesh))continue;const key=mirrorRealmKey(entry.house,entry.id),space=createSpace(key);if(!space)continue;const gate=space.gates.get(entry.house+':'+entry.id);if(gate)return travelMode==='classic'?classicTravel(gate,key,time):travel(entry.mesh,gate.mesh,position,true,key,time);}return null;

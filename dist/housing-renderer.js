@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {HOUSES,houseDescriptor,ROOM,FURNITURE_BY_ID,furnitureDefinition,FINISHES,emptyHouse,furniturePose} from './housing-data.js';
 import {furnitureParts} from './furniture-models.js';
-import {createHousingMirrors} from './housing-mirror.js?v=20261009-portalmode27';
+import {createHousingMirrors} from './housing-mirror.js?v=20261009-portalperf28';
 import {createFurnitureEffects} from './furniture-effects.js';
 import {createRecordAudio} from './record-audio.js';
 import {withLocalLighting,setHouseLighting,updateFurnitureLighting,setFurnitureEnabled} from './local-lighting.js';

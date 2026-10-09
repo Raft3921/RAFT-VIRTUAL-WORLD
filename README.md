@@ -1,5 +1,7 @@
 # RAFT-VIRTUAL-WORLD
 
+The world menu's 操作 settings save a per-device mirror choice: シームレス physically carries the player through the visible portal, while クラシック stops portal rendering and immediately warps the player to the matching exit.
+
 Minecraft Java skins in a shared 3D studio. The static client is served from `dist/`; online players share one room through a Cloudflare Durable Object WebSocket.
 
 ## World controls

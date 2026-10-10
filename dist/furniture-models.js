@@ -2,7 +2,9 @@ import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js';
 import {expandedParts} from './furniture-shapes.js';
 import {furnitureAction} from './furniture-actions.js';
 const WOOD='#bd9166',DARK='#354353',METAL='#87929a',WHITE='#f4eee2',LEAF='#52a96d';
+const partsCache=new Map();
 export function furnitureParts(item){
+  const cacheKey=item.t+':'+item.c+':'+(item.v||0);if(partsCache.has(cacheKey))return partsCache.get(cacheKey);
   const f=furnitureDefinition(item),paint=FURNITURE_COLORS[item.c],parts=[];
   // Keep designed front/top layers separate, never clamp their centres onto
   // the body surface. Reserve a small border inside the placement envelope.
@@ -84,7 +86,7 @@ export function furnitureParts(item){
       for(const sign of [-1,1])if(Math.abs(small[axis]+sign*small[size]/2-large[axis]-sign*large[size]/2)<.000001){const separation=.003;small[axis]+=sign*separation;if(small.pivot)small.pivot[axes.findIndex(([key])=>key===axis)]+=sign*separation;break;}
     }
   }
-  return parts;
+  if(partsCache.size>=192)partsCache.delete(partsCache.keys().next().value);partsCache.set(cacheKey,parts);return parts;
 }
 const thumbnailCache=new Map();
 export function furnitureThumbnail(def,color=10){

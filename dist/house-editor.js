@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import {HOUSES,houseDescriptor,replaceMirrorRealms,registerMirrorRealm,MIRROR_REALMS,ROOM,GRID,HEIGHT_GRID,MAX_FURNITURE,FURNITURE,FURNITURE_BY_ID,FURNITURE_COLORS,FINISHES,emptyHouse,cleanHouse,furniturePose,pairFurniture,placementError,findPlacement,applyHouseOperation,mirrorPassageError} from './housing-data.js';
-import {furnitureThumbnail,furnitureParts} from './furniture-models.js';
-import {furnitureGeometry} from './furniture-geometry.js';
+import {HOUSES,houseDescriptor,replaceMirrorRealms,registerMirrorRealm,MIRROR_REALMS,ROOM,GRID,HEIGHT_GRID,MAX_FURNITURE,FURNITURE,FURNITURE_BY_ID,FURNITURE_COLORS,FINISHES,emptyHouse,cleanHouse,furniturePose,pairFurniture,placementError,findPlacement,applyHouseOperation,mirrorPassageError} from './housing-data.js?v=20261010-mirror-modules66';
+import {furnitureThumbnail,furnitureParts} from './furniture-models.js?v=20261010-mirror-modules66';
+import {furnitureGeometry} from './furniture-geometry.js?v=20261010-mirror-modules66';
 
 export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPlayer,isConnected,send,onOpen,onClose,notify}){
   const $=id=>document.getElementById(id),panel=$('houseEditor'),ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),intersection=new THREE.Vector3(),plane=new THREE.Plane(),normal=new THREE.Vector3();

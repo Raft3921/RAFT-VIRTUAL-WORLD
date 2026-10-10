@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import {createPortalViews,portalFrame,passageTransform} from './portal-view.js?v=20261010-mirror-entry65';
-import {HOUSES,ROOM,mirrorRealmKey,mirrorRealm,mirrorHouseKey,houseDescriptor} from './housing-data.js';
+import {createPortalViews,portalFrame,passageTransform} from './portal-view.js?v=20261010-mirror-modules66';
+import {HOUSES,ROOM,mirrorRealmKey,mirrorRealm,mirrorHouseKey,houseDescriptor} from './housing-data.js?v=20261010-mirror-modules66';
 
 // Portal windows render their linked rooms from the viewer’s perspective. A source mirror owns
 // the same reversed residential avenue as every other member mirror.
@@ -92,8 +92,12 @@ export function createHousingMirrors(scene,world){
     return pairs;
   }
   function intersectsBody(mesh,position,height){
-    mesh.updateWorldMatrix(true,false);inverse.copy(mesh.matrixWorld).invert();
-    for(const lift of [.18,height*.5,height-.1]){probe.set(position.x,position.y+lift,position.z).applyMatrix4(inverse);if(Math.abs(probe.x)<.49&&Math.abs(probe.y)<.5)return true;}return false;
+    // Compare the whole actor segment with the mirror opening. Three sample
+    // heights can miss a small or rotated wall mirror between those samples.
+    const f=portalFrame(mesh),bottom=position.clone().sub(f.center),top=bottom.clone().add(new THREE.Vector3(0,height,0));
+    const low=Math.min(bottom.dot(f.up),top.dot(f.up)),high=Math.max(bottom.dot(f.up),top.dot(f.up));
+    const left=Math.min(bottom.dot(f.right),top.dot(f.right)),right=Math.max(bottom.dot(f.right),top.dot(f.right));
+    return high> -f.height*.5&&low<f.height*.5&&right> -f.width*.5-.12&&left<f.width*.5+.12;
   }
   function crossing(mesh,position,previous,height){
     const f=portalFrame(mesh),before=previous.clone().sub(f.center).dot(f.normal),after=position.clone().sub(f.center).dot(f.normal);
@@ -120,10 +124,7 @@ export function createHousingMirrors(scene,world){
   }
   function approaching(mesh,position,previous,velocity,height){
     const f=portalFrame(mesh),before=previous.clone().sub(f.center).dot(f.normal),after=position.clone().sub(f.center).dot(f.normal);
-    if(after<-.2||after>.82||(after>=before&&velocity.dot(f.normal)>=-.02))return false;
-    mesh.updateWorldMatrix(true,false);inverse.copy(mesh.matrixWorld).invert();
-    for(const lift of [.18,height*.5,height-.1]){probe.set(position.x,position.y+lift,position.z).applyMatrix4(inverse);if(Math.abs(probe.x)<.62&&Math.abs(probe.y)<.62)return true;}
-    return false;
+    return after>=-.05&&after<=.85&&(after<before-.001||velocity.dot(f.normal)<-.02)&&intersectsBody(mesh,position,height);
   }
   function classicTravel(destination,realm,time){
     const f=portalFrame(destination),position=f.center.clone().addScaledVector(f.normal,1.1);position.y=ROOM.floor+.02;
@@ -132,10 +133,10 @@ export function createHousingMirrors(scene,world){
   }
   function step(position,velocity,height,time,previous){
     if(!previous||time<cooldownUntil)return null;
-    const enters=mesh=>{if(travelMode==='classic')return approaching(mesh,position,previous,velocity,height);if(crossing(mesh,position,previous,height))return true;const f=portalFrame(mesh),distance=position.clone().sub(f.center).dot(f.normal);return distance>=0&&distance<=.6&&velocity.dot(f.normal)<-.02&&intersectsBody(mesh,position,height);};
+    const enters=mesh=>approaching(mesh,position,previous,velocity,height)||(travelMode!=='classic'&&crossing(mesh,position,previous,height));
     if(active){const space=createSpace(active);if(!space)return null;refreshGateways(space);for(const gate of space.gates.values())if(enters(gate.mesh))return travelMode==='classic'?classicTravel(counterpart(gate),null,time):travel(gate.mesh,counterpart(gate),position,false,null,time);
       for(const e of entries){const h=houseDescriptor(e.house);if(h?.realm===active&&originals().some(p=>p.house===h.sourceIndex&&p.id===e.id)&&enters(e.mesh))return travelMode==='classic'?classicTravel(counterpart({house:h.sourceIndex,id:e.id}),null,time):travel(e.mesh,counterpart({house:h.sourceIndex,id:e.id}),position,false,null,time);}return null;}
-    for(const entry of originals()){if(!enters(entry.mesh))continue;const key=mirrorRealmKey(entry.house,entry.id),space=createSpace(key);if(!space)continue;const gate=space.gates.get(entry.house+':'+entry.id);if(gate)return travelMode==='classic'?classicTravel(gate,key,time):travel(entry.mesh,gate.mesh,position,true,key,time);}return null;
+    for(const entry of originals()){if(!enters(entry.mesh))continue;const key=mirrorRealmKey(entry.house,entry.id),space=createSpace(key);if(!space)continue;const gate=space.gates.get(entry.house+':'+entry.id);if(gate)return travelMode==='classic'?classicTravel(gate.mesh,key,time):travel(entry.mesh,gate.mesh,position,true,key,time);}return null;
   }
   // A follow camera remains on its own side of the window after the actor
   // crosses. It changes coordinate space only when the camera crosses too.

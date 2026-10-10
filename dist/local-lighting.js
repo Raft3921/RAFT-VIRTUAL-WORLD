@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import {houseDescriptor,ROOM,furnitureDefinition,furniturePose} from './housing-data.js';
-import {furnitureParts} from './furniture-models.js';
+import {houseDescriptor,ROOM,furnitureDefinition,furniturePose} from './housing-data.js?v=20261010-mirror-modules66';
+import {furnitureParts} from './furniture-models.js?v=20261010-mirror-modules66';
 
-import {STREET_LAMPS} from './street-lamps.js';
+import {STREET_LAMPS} from './street-lamps.js?v=20261010-mirror-modules66';
 export {STREET_LAMPS};
 export const nightLight={value:0};
 const patched=new WeakSet();

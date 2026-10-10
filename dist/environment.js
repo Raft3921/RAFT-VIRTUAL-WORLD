@@ -1,4 +1,4 @@
-import {GUN_ZONE} from './gun-layout.js';
+import {GUN_ZONE} from './gun-layout.js?v=20261010-mirror-modules66';
 import * as THREE from 'three';
 
 // All vegetation and terrain are geometry/shaders: no image textures or downloads.

@@ -1,4 +1,4 @@
-import {DOWN_REST_SECONDS,RECOVERY_SECONDS} from './combat-policy.js';
+import {DOWN_REST_SECONDS,RECOVERY_SECONDS} from './combat-policy.js?v=20261010-mirror-modules66';
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const smooth=v=>{v=clamp(v);return v*v*(3-2*v);};
 export function createHit(strength=.5){return {phase:'air',elapsed:0,downTime:0,recovery:0,strength:clamp(strength),groundTime:0};}

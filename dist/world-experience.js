@@ -1,12 +1,12 @@
-import {createGunEffects} from './gun-effects.js';
-import {createBodycam} from './bodycam.js';
-import {createWorldAudio} from './world-audio.js';
-import {createWorldInteraction} from './world-interaction.js?v=20261010-mirror-entry65';
-import {fallbackMuzzle} from './weapon-dimensions.js';
-import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-mirror-entry65';
+import {createGunEffects} from './gun-effects.js?v=20261010-mirror-modules66';
+import {createBodycam} from './bodycam.js?v=20261010-mirror-modules66';
+import {createWorldAudio} from './world-audio.js?v=20261010-mirror-modules66';
+import {createWorldInteraction} from './world-interaction.js?v=20261010-mirror-modules66';
+import {fallbackMuzzle} from './weapon-dimensions.js?v=20261010-mirror-modules66';
+import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-mirror-modules66';
 import * as THREE from 'three';
-import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js';
-import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js';
+import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js?v=20261010-mirror-modules66';
+import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261010-mirror-modules66';
 export function createWorldExperience({scene,camera,get,send,notify,openChat,openMenu,onModal,onTeleport,onCharacter,onAim,makeFace,skinURL,names}){
  const positionKey='vrs-last-position'+(new URL(location.href).searchParams.get('vrsDepth')?'-embedded-'+new URL(location.href).searchParams.get('vrsDepth'):'');
  const shell=document.createElement('div');shell.innerHTML=`

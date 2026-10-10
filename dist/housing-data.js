@@ -1,4 +1,4 @@
-import {EXPANDED_FURNITURE} from './furniture-catalogue.js';
+import {EXPANDED_FURNITURE} from './furniture-catalogue.js?v=20261010-mirror-modules66';
 export const GRID=.25,HEIGHT_GRID=.05,MAX_FURNITURE=64,ROOM={x:7.4,z:6.9,height:5.25,floor:.245};
 export const OWNER_SKINS=[3,5,6,2,4,1,0,7];
 export const HOUSE_COLORS=['#d84a42','#52a96d','#48b8d4','#e88a38','#87929a','#9a70c5','#e4c84d','#9a6748'];
@@ -7,14 +7,14 @@ export const HOUSES=OWNER_SKINS.map((owner,index)=>({index,owner,x:-39+(index%4)
 HOUSES.push(...[-20,20].map((x,i)=>({index:8+i,owner:8,x,z:-77,front:1,color:'#f4eee2',guest:true})));
 // All member mirrors share the same residential world.
 export function mirrorRealmKey(){return 'm|0|shared';}
-export const MIRROR_REALMS=new Map();
+export const MIRROR_REALMS=new Map([[mirrorRealmKey(),0]]);
 export function mirrorRealm(key,realms=MIRROR_REALMS){
   const match=typeof key==='string'&&/^m\|([0-7])\|([-a-z0-9_]{1,32})$/.exec(key);if(!match)return null;
   const slot=realms.get(key);if(slot===undefined)return null;
   return {key,source:Number(match[1]),id:match[2],slot,x:2000+(slot%32)*180,z:2000+Math.floor(slot/32)*160};
 }
 export function registerMirrorRealm(key,slot=MIRROR_REALMS.size){
-  if(!/^m\|[0-7]\|[-a-z0-9_]{1,32}$/.test(key)||!Number.isInteger(slot)||slot<0||slot>=4096)return null;
+  if(key!==mirrorRealmKey())return null;slot=0;
   if(!MIRROR_REALMS.has(key)){if([...MIRROR_REALMS.values()].includes(slot))return null;MIRROR_REALMS.set(key,slot);}
   const realm=mirrorRealm(key);if(!realm)return null;
   for(const source of HOUSES.slice(0,8)){const index=`${key}|${source.index}`;HOUSES[index]??={...source,index,sourceIndex:source.index,realm:key,x:realm.x+source.x,z:realm.z-source.z,front:-source.front};}
@@ -26,7 +26,7 @@ export function houseDescriptor(index,realms=MIRROR_REALMS){
   if(typeof index==='string'){const end=index.lastIndexOf('|'),key=index.slice(0,end),target=index.slice(end+1);const realm=mirrorRealm(key,realms);if(/^[0-7]$/.test(target)&&realm){const source=HOUSES[Number(target)];const home={...source,index,sourceIndex:source.index,realm:key,x:realm.x+source.x,z:realm.z-source.z,front:-source.front};if(realms===MIRROR_REALMS)HOUSES[index]=home;return home;}}
   return null;
 }
-export function replaceMirrorRealms(records){MIRROR_REALMS.clear();for(const key of Object.keys(HOUSES))if(HOUSES[key].realm)delete HOUSES[key];for(const [key,slot]of Object.entries(records||{}).sort((a,b)=>a[1]-b[1]))registerMirrorRealm(key,slot);}
+export function replaceMirrorRealms(records){MIRROR_REALMS.clear();MIRROR_REALMS.set(mirrorRealmKey(),0);for(const key of Object.keys(HOUSES))if(HOUSES[key].realm)delete HOUSES[key];for(const [key,slot]of Object.entries(records||{}).sort((a,b)=>a[1]-b[1]))registerMirrorRealm(key,slot);}
 export const allHouses=()=>Object.values(HOUSES);
 export function mirrorHouseKey(realm,index){return `${realm}|${index}`;}
 export const memberColor=skin=>HOUSES.slice(0,8).find(h=>h.owner===skin)?.color||'#eeeeee';

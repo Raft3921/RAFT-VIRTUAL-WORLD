@@ -86,6 +86,14 @@ export function buildGunTown({box,board=()=>{},sign=()=>{}}){
  box(pcX-.22,1.14,pcZ+.28,.90,.07,.31,dark);for(let i=0;i<3;i++)detail(pcX-.22,1.18,pcZ+.18+i*.09,.80,.008,.025,trim);
  box(pcX+.56,1.15,pcZ+.29,.14,.09,.22,stone);box(pcX+1.04,1.38,pcZ-.15,.35,.64,.62,dark);detail(pcX+1.04,1.44,pcZ+.168,.16,.035,.012,teal);
  board(pcX,.09,pcZ,'pc');
+ // A desktop beside the entry board, clear of the return positions.
+ const pcX=GUN_ENTRY.x,pcZ=GUN_ENTRY.z-4;
+ box(pcX,1.02,pcZ,2.6,.16,1.3,dark);for(const dx of [-1.05,1.05])for(const dz of [-.48,.48])box(pcX+dx,.52,pcZ+dz,.12,1.04,.12,stone);
+ box(pcX,1.14,pcZ-.18,.52,.08,.34,dark);box(pcX,1.35,pcZ-.26,.14,.38,.13,dark);box(pcX,1.68,pcZ-.30,1.40,.85,.12,dark);
+ detail(pcX,1.68,pcZ-.226,1.22,.68,.025,teal);detail(pcX,1.76,pcZ-.208,1.06,.035,.01,trim);for(let i=0;i<3;i++)detail(pcX-.26+i*.26,1.59,pcZ-.207,.18,.16,.012,i===2?rust:blue);
+ box(pcX-.22,1.14,pcZ+.28,.90,.07,.31,dark);for(let i=0;i<3;i++)detail(pcX-.22,1.18,pcZ+.18+i*.09,.80,.008,.025,trim);
+ box(pcX+.56,1.15,pcZ+.29,.14,.09,.22,stone);box(pcX+1.04,1.38,pcZ-.15,.35,.64,.62,dark);detail(pcX+1.04,1.44,pcZ+.168,.16,.035,.012,teal);
+ board(pcX,.09,pcZ,'pc');
 
 }
 const solids=[];buildGunTown({box:(x,y,z,w,h,d,color,solid=true)=>{if(solid)solids.push({x,y,z,w,h,d});}});

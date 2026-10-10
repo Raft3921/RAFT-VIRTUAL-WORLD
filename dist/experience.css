@@ -28,6 +28,7 @@ body[data-screen=lobby] :is(#gunHealthHud,#gunCountdown){display:none!important;
 
 #gunDamageTint{position:fixed;inset:0;z-index:22;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(182,12,8,.08) 24%,rgba(190,15,10,.4) 68%,rgba(140,0,0,.85) 100%);}
 body[data-screen=lobby] #gunDamageTint{display:none!important;}
+#gunResult{position:fixed;z-index:60;left:50%;top:50%;transform:translate(-50%,-50%);font:clamp(72px,20vmin,190px)/1 DotGothic16,monospace;letter-spacing:.12em;text-shadow:6px 6px 0 #101e2b,-3px -3px 0 #101e2b;pointer-events:none;white-space:nowrap}#gunResult[data-result=win]{color:#d9ffd3}#gunResult[data-result=lose]{color:#ffb3a1}#gunResult[data-result=draw]{color:#ffe7a8}body[data-screen=lobby] #gunResult{display:none!important;}
 
 .room-player-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:2px solid #426779}.room-player-row>span:nth-child(2){flex:1;font-size:14px;overflow-wrap:anywhere}.room-player-row canvas{width:32px;height:32px;image-rendering:pixelated}.room-player-row button{min-height:48px;padding:8px 16px}
 

@@ -123,7 +123,7 @@ sockets.on('connection', (socket, request) => {
 
   socket.on('message', raw => {
     const entry = players.get(socket);
-    if (!entry || raw.length > 2048) return;
+    if (!entry || raw.length > 8192) return;
     let message;
     try { message = JSON.parse(raw.toString()); } catch { return; }
     if(!message||typeof message!=='object'||Array.isArray(message))return;

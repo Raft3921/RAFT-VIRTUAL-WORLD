@@ -1,29 +1,29 @@
-import {createCooking} from './cooking.js?v=20261010-cooking68b';
-import {createPlazaMap} from './plaza-map.js?v=20261010-cooking68';
-import {createWorldExperience} from './world-experience.js?v=20261010-cooking68';
-import {inGunZone,weaponById} from './gun-layout.js?v=20261010-cooking68';
-import {createWorldChat} from './world-chat.js?v=20261010-cooking68';
-import {startUpdateNotice} from './update-notice.js?v=20261010-cooking68';
-import {memberColor} from './housing-data.js?v=20261010-cooking68';
+import {createCooking} from './cooking.js?v=20261010-free-cook69';
+import {createPlazaMap} from './plaza-map.js?v=20261010-free-cook69';
+import {createWorldExperience} from './world-experience.js?v=20261010-free-cook69';
+import {inGunZone,weaponById} from './gun-layout.js?v=20261010-free-cook69';
+import {createWorldChat} from './world-chat.js?v=20261010-free-cook69';
+import {startUpdateNotice} from './update-notice.js?v=20261010-free-cook69';
+import {memberColor} from './housing-data.js?v=20261010-free-cook69';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261010-cooking68';
-import { createEnvironment } from './environment.js?v=20261010-cooking68';
-import { createWorld } from './world.js?v=20261010-cooking68';
-import { ARENA,insideArena } from './world-layout.js?v=20261010-cooking68';
-import { SYNC_ENDPOINT } from './sync-config.js?v=20261010-cooking68';
-import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261010-cooking68';
-import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js?v=20261010-cooking68';
-import { createCombatEffects } from './combat-effects.js?v=20261010-cooking68';
-import { createBrownProjectiles } from './brown-projectiles.js?v=20261010-cooking68';
-import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-cooking68';
-import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261010-cooking68';
-import { cleanCharacter } from './character-store.js?v=20261010-cooking68';
-import { createHousingRenderer } from './housing-renderer.js?v=20261010-cooking68';
+import { createAvatar } from './avatar.js?v=20261010-free-cook69';
+import { createEnvironment } from './environment.js?v=20261010-free-cook69';
+import { createWorld } from './world.js?v=20261010-free-cook69';
+import { ARENA,insideArena } from './world-layout.js?v=20261010-free-cook69';
+import { SYNC_ENDPOINT } from './sync-config.js?v=20261010-free-cook69';
+import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261010-free-cook69';
+import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js?v=20261010-free-cook69';
+import { createCombatEffects } from './combat-effects.js?v=20261010-free-cook69';
+import { createBrownProjectiles } from './brown-projectiles.js?v=20261010-free-cook69';
+import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-free-cook69';
+import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261010-free-cook69';
+import { cleanCharacter } from './character-store.js?v=20261010-free-cook69';
+import { createHousingRenderer } from './housing-renderer.js?v=20261010-free-cook69';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261010-cooking68';
-import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261010-cooking68';
-import {cleanCycle,dayPhase,clockLabel} from './world-clock.js?v=20261010-cooking68';
-import {createWorldGuide} from './world-guide.js?v=20261010-cooking68';
+import { createHouseEditor } from './house-editor.js?v=20261010-free-cook69';
+import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261010-free-cook69';
+import {cleanCycle,dayPhase,clockLabel} from './world-clock.js?v=20261010-free-cook69';
+import {createWorldGuide} from './world-guide.js?v=20261010-free-cook69';
 
 const $ = id => document.getElementById(id);
 const clamp = THREE.MathUtils.clamp;
@@ -124,7 +124,7 @@ const profile=safeRead(profileKey)||(crypto.randomUUID?.()||'xxxxxxxx-xxxx-4xxx-
 function cachedCharacter(skin=selected){return characterCache[skin]||cleanCharacter();}
 function cacheCharacter(skin,value){const record=cleanCharacter(value);record.checkpoint=Math.max(record.checkpoint,cachedCharacter(skin).checkpoint);characterCache[skin]=record;safeSave('raft-character-state',JSON.stringify(characterCache));actors[skin]?.setAppearance(record.appearanceLevel,record.crownEnabled);if(skin===selected){updateFisheyeControls();crownScore=record.score;crownEnabled=record.crownEnabled;updateCrown();}}
 function saveCheckpoint(id){cacheCharacter(selected,{...cachedCharacter(),checkpoint:id});if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'checkpoint',id:cachedCharacter().checkpoint}));}
-function receiveCharacter(skin,value){
+function receiveCharacter(skin,value){if(value.cookingDishes===undefined)value={...value,cookingDishes:cachedCharacter(skin).cookingDishes};
   
   const wanted=pendingCrown[skin];if(wanted!==undefined&&value.crownEnabled===wanted){delete pendingCrown[skin];safeSave('raft-character-crown-pending',JSON.stringify(pendingCrown));}
   cacheCharacter(skin,{...value,crownEnabled:wanted!==undefined?wanted:value.crownEnabled});

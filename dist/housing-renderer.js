@@ -1,13 +1,13 @@
 import * as THREE from 'three';
-import {HOUSES,houseDescriptor,ROOM,FURNITURE_BY_ID,furnitureDefinition,FINISHES,emptyHouse,furniturePose} from './housing-data.js?v=20261010-cooking68';
-import {furnitureParts} from './furniture-models.js?v=20261010-cooking68';
-import {createHousingMirrors} from './housing-mirror.js?v=20261010-cooking68';
-import {createFurnitureEffects} from './furniture-effects.js?v=20261010-cooking68';
-import {createRecordAudio} from './record-audio.js?v=20261010-cooking68';
-import {withLocalLighting,setHouseLighting,updateFurnitureLighting,setFurnitureEnabled} from './local-lighting.js?v=20261010-cooking68';
-import {furnitureGeometry} from './furniture-geometry.js?v=20261010-cooking68';
-import {furnitureAction} from './furniture-actions.js?v=20261010-cooking68';
-import {PIANO_MELODY} from './world-clock.js?v=20261010-cooking68';
+import {HOUSES,houseDescriptor,ROOM,FURNITURE_BY_ID,furnitureDefinition,FINISHES,emptyHouse,furniturePose} from './housing-data.js?v=20261010-free-cook69';
+import {furnitureParts} from './furniture-models.js?v=20261010-free-cook69';
+import {createHousingMirrors} from './housing-mirror.js?v=20261010-free-cook69';
+import {createFurnitureEffects} from './furniture-effects.js?v=20261010-free-cook69';
+import {createRecordAudio} from './record-audio.js?v=20261010-free-cook69';
+import {withLocalLighting,setHouseLighting,updateFurnitureLighting,setFurnitureEnabled} from './local-lighting.js?v=20261010-free-cook69';
+import {furnitureGeometry} from './furniture-geometry.js?v=20261010-free-cook69';
+import {furnitureAction} from './furniture-actions.js?v=20261010-free-cook69';
+import {PIANO_MELODY} from './world-clock.js?v=20261010-free-cook69';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1),materials=new Map();
 function material(color,detail=false,glow=false){const key=color+':'+detail+':'+glow;if(!materials.has(key)){const mat=withLocalLighting(new THREE.MeshStandardMaterial({color,roughness:.84,polygonOffset:detail,polygonOffsetFactor:-1,polygonOffsetUnits:-1,emissive:glow?color:'#000000',emissiveIntensity:glow?.65:0}));if(glow){const compile=mat.onBeforeCompile,cache=mat.customProgramCacheKey();mat.onBeforeCompile=function(shader,renderer){compile.call(this,shader,renderer);shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n#ifdef USE_COLOR\n totalEmissiveRadiance*=vColor.rgb;\n#endif');};mat.customProgramCacheKey=()=>cache+'|fixture-power-1';}materials.set(key,mat);}return materials.get(key);}

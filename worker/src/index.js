@@ -74,7 +74,7 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
 
   receive(socket, raw) {
     const entry = this.players.get(socket);
-    if (!entry || typeof raw !== 'string' || raw.length > 2048) return;
+    if (!entry || typeof raw !== 'string' || raw.length > 8192) return;
     let message;
     try { message = JSON.parse(raw); } catch { return; }
     if(!message||typeof message!=='object'||Array.isArray(message))return;

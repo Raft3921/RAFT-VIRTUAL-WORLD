@@ -1,7 +1,7 @@
-import {fallbackMuzzle} from './weapon-dimensions.js?v=20261010-cooking68';
-import {WEAPONS,weaponById,inGunZone,GUN_SPAWNS,GUN_SOLIDS,GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261010-cooking68';
-import {segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261010-cooking68';
-import {buildDistrict} from './district.js?v=20261010-cooking68';
+import {fallbackMuzzle} from './weapon-dimensions.js?v=20261010-free-cook69';
+import {WEAPONS,weaponById,inGunZone,GUN_SPAWNS,GUN_SOLIDS,GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261010-free-cook69';
+import {segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261010-free-cook69';
+import {buildDistrict} from './district.js?v=20261010-free-cook69';
 const district=[];buildDistrict({box:(x,y,z,w,h,d,color,solid=true)=>{if(solid)district.push({x,y,z,w,h,d});},board:()=>{},sign:()=>{},seats:[],clockHands:[]});
 const interpolate=(a,b,t)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,z:a.z+(b.z-a.z)*t});
 export class GunRules{

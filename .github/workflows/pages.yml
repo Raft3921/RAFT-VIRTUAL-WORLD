@@ -27,13 +27,13 @@ jobs:
       - name: Stamp player update notification
         run: |
           python3 - <<'PYBUILD'
-          import json
+          import json, re
           from pathlib import Path
           build_id = '${{ github.sha }}'
           Path('dist/build-info.js').write_text('export const BUILD_ID='+json.dumps(build_id)+';\n')
           Path('dist/release.json').write_text(json.dumps({'buildId':build_id}))
           page = Path('dist/index.html')
-          page.write_text(page.read_text().replace('name="vrs-build" content="vrs-roster46"', 'name="vrs-build" content="'+build_id+'"'))
+          page.write_text(re.sub(r'name="vrs-build" content="[^"]*"', 'name="vrs-build" content="'+build_id+'"', page.read_text()))
           PYBUILD
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

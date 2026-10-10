@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { cleanState, GameRules,applyPlayerState,SYNC_VERSION } from '../../dist/game-rules.js';
+import { cleanState, GameRules,applyPlayerState,SYNC_VERSION,SYNC_PROTOCOL } from '../../dist/game-rules.js';
 import {GUEST_SKIN,MAX_PLAYERS,playableSkin} from '../../dist/player-types.js';
 
 function json(data) {
@@ -10,7 +10,7 @@ function json(data) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if(url.pathname==='/version')return new Response(JSON.stringify({version:SYNC_VERSION,buildId:env.DEPLOYMENT_REVISION||SYNC_VERSION}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
+    if(url.pathname==='/version')return new Response(JSON.stringify({version:SYNC_VERSION,protocol:SYNC_PROTOCOL,buildId:env.DEPLOYMENT_REVISION||SYNC_VERSION}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
     if (url.pathname === '/health') return new Response('ok');
     if (url.pathname !== '/room') return new Response('Not found', { status: 404 });
     if (request.headers.get('Upgrade') !== 'websocket') {
@@ -62,7 +62,7 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
     this.players.set(server, { player, lastStateAt: 0 });
 
     this.roomContext.waitUntil(this.rules.characters.pending);
-    server.send(json({ type: 'joined', version:SYNC_VERSION, gunShots:this.rules.guns.shots, chat:this.rules.chat.page(), projectiles:this.rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:this.rules.houses.snapshots(), characters:this.rules.characters.snapshots(), self: player, players: [...this.players.values()].map(entry => entry.player).filter(other => other.id !== id) }));
+    server.send(json({ type: 'joined', version:SYNC_VERSION,protocol:SYNC_PROTOCOL, gunShots:this.rules.guns.shots, chat:this.rules.chat.page(), projectiles:this.rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:this.rules.houses.snapshots(), characters:this.rules.characters.snapshots(), self: player, players: [...this.players.values()].map(entry => entry.player).filter(other => other.id !== id) }));
     this.broadcast({ type: 'player-joined', player }, server);
     server.send(json(this.rules.snapshot()));
     server.addEventListener('message', event => this.receive(server, event.data));

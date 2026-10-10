@@ -1,5 +1,5 @@
 import { createReadStream, existsSync, statSync, readFileSync, writeFileSync,renameSync,appendFileSync } from 'node:fs';
-import { cleanState, GameRules,applyPlayerState,SYNC_VERSION } from '../dist/game-rules.js';
+import { cleanState, GameRules,applyPlayerState,SYNC_VERSION,SYNC_PROTOCOL } from '../dist/game-rules.js';
 import {BUILD_ID} from '../dist/build-info.js';
 import {GUEST_SKIN,MAX_PLAYERS,playableSkin} from '../dist/player-types.js';
 import { createServer } from 'node:http';
@@ -58,7 +58,7 @@ const server = createServer((request, response) => {
     response.writeHead(400).end('Bad request');
     return;
   }
-  if(pathname==='/version'){response.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}).end(JSON.stringify({version:SYNC_VERSION,buildId:serverBuildId}));return;}
+  if(pathname==='/version'){response.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}).end(JSON.stringify({version:SYNC_VERSION,protocol:SYNC_PROTOCOL,buildId:serverBuildId}));return;}
   if (pathname === '/health') {
     response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }).end('ok');
     return;
@@ -115,7 +115,7 @@ sockets.on('connection', (socket, request) => {
   };
   Object.assign(player,rules.savedPosition(profile)||{});
   players.set(socket, { player, lastStateAt: 0 });
-  send(socket, { type: 'joined', version:SYNC_VERSION, gunShots:rules.guns.shots, chat:rules.chat.page(), projectiles:rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:rules.houses.snapshots(), characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
+  send(socket, { type: 'joined', version:SYNC_VERSION,protocol:SYNC_PROTOCOL, gunShots:rules.guns.shots, chat:rules.chat.page(), projectiles:rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:rules.houses.snapshots(), characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
   broadcast({ type: 'player-joined', player }, socket);
   send(socket,rules.snapshot());
 

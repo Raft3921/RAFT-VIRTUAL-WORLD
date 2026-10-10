@@ -1,24 +1,24 @@
-import {createWorldExperience} from './world-experience.js?v=20261010-clear45';
+import {createWorldExperience} from './world-experience.js?v=20261010-roster46';
 import {inGunZone,weaponById} from './gun-layout.js';
-import {createWorldChat} from './world-chat.js?v=20261010-clear45';
-import {startUpdateNotice} from './update-notice.js?v=20261010-clear45';
+import {createWorldChat} from './world-chat.js?v=20261010-roster46';
+import {startUpdateNotice} from './update-notice.js?v=20261010-roster46';
 import {memberColor} from './housing-data.js';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261010-clear45';
+import { createAvatar } from './avatar.js?v=20261010-roster46';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261010-clear45';
+import { createWorld } from './world.js?v=20261010-roster46';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION } from './game-rules.js?v=20261010-clear45';
+import { SYNC_VERSION } from './game-rules.js?v=20261010-roster46';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261010-clear45';
+import { createHousingRenderer } from './housing-renderer.js?v=20261010-roster46';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261010-clear45';
+import { createHouseEditor } from './house-editor.js?v=20261010-roster46';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js';
 import {createWorldGuide} from './world-guide.js';
@@ -275,7 +275,7 @@ const guestButton=document.createElement('button');guestButton.className='charac
 async function replaceSkin(i,url){const actor=await playerAvatar(i,url);const old=actors[i];if(old){actor.root.position.copy(old.root.position);actor.root.rotation.copy(old.root.rotation);scene.remove(old.root);old.dispose()}actors[i]=actor;const appearance=cachedCharacter(i);actor.setAppearance(appearance.appearanceLevel,appearance.crownEnabled);scene.add(actor.root);makeFace(url,faces[i]);updateSelection();updateVisibility()}
 worldChat=createWorldChat({names:skinDefs.map(s=>s[0]),skinURL,makeFace,getSelfId:()=>roomSelfId,isConnected:()=>roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,send:message=>roomSocket.send(JSON.stringify(message)),onOpen(){if(housingEditor?.active)housingEditor.close();worldGuide?.close(false);setClean(false);unlocked();punchSwing=0;pendingAttack=null;queuedAttack=null;},onClose(){clearInput();canvas.focus();}});
 experience=createWorldExperience({scene,camera,names:skinDefs.map(s=>s[0]),skinURL,makeFace,
- get:()=>({skin:selected,targets:[...remoteActors.values()].map(r=>r.actor.root),remoteTeleport:(id,position)=>{const r=remoteActors.get(id);if(r){r.target.set(position.x,position.y,position.z);r.actor.root.position.copy(r.target);r.yaw=position.yaw;}},avatar:actors[selected],houseInteraction:housingEditor?.interaction,flashActor:id=>{if(id===roomSelfId)actors[selected]?.fireGun();else remoteActors.get(id)?.actor.fireGun();},selfId:roomSelfId,player:actors[selected]?.root,character:cachedCharacter(),connected:roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,paused:paused(),ragdoll:localRagdoll,seated,seat,inStudio,world,housing:housingView,now:serverNow(),time,yaw,pitch,cameraMode,eyeHeight:actors[selected]?.eyeHeight||1.68,speed:velocity.length(),moveX:velocity.x,moveZ:velocity.z,grounded,verticalSpeed,fov,duelPlaying:duelIds.length>0,muzzle:point=>emitParticles(point,'#ffe4a0',2,.6,0),impact:(point,explosion)=>{emitParticles(point,explosion?'#ffad52':'#ded0b7',explosion?32:5,explosion?7:1.5,7);if(explosion)shockwave(point,.8);}}),
+ get:()=>({roster:[...(roomSelfId?[{id:roomSelfId,skin:selected}]:[]),...[...new Map([...remoteLoading.entries()].map(([id,p])=>[id,{id,skin:p.skin}]).concat([...remoteActors.entries()].map(([id,p])=>[id,{id,skin:p.skin}]))).values()]],skin:selected,targets:[...remoteActors.values()].map(r=>r.actor.root),remoteTeleport:(id,position)=>{const r=remoteActors.get(id);if(r){r.target.set(position.x,position.y,position.z);r.actor.root.position.copy(r.target);r.yaw=position.yaw;}},avatar:actors[selected],houseInteraction:housingEditor?.interaction,flashActor:id=>{if(id===roomSelfId)actors[selected]?.fireGun();else remoteActors.get(id)?.actor.fireGun();},selfId:roomSelfId,player:actors[selected]?.root,character:cachedCharacter(),connected:roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,paused:paused(),ragdoll:localRagdoll,seated,seat,inStudio,world,housing:housingView,now:serverNow(),time,yaw,pitch,cameraMode,eyeHeight:actors[selected]?.eyeHeight||1.68,speed:velocity.length(),moveX:velocity.x,moveZ:velocity.z,grounded,verticalSpeed,fov,duelPlaying:duelIds.length>0,muzzle:point=>emitParticles(point,'#ffe4a0',2,.6,0),impact:(point,explosion)=>{emitParticles(point,explosion?'#ffad52':'#ded0b7',explosion?32:5,explosion?7:1.5,7);if(explosion)shockwave(point,.8);}}),
  send:message=>{if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));else notify('サーバーに接続してください');},notify,
  openChat:()=>{closeWorldMenu();worldChat.open();if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'chat-open'}));},openMenu:openWorldMenu,
  onModal:active=>{if(active){if(housingEditor?.active)housingEditor.close();worldGuide?.close(false);closeWorldMenu();$('menu').hidden=$('master').hidden=true;unlocked();setClean(false);}clearInput();},
@@ -332,8 +332,9 @@ addEventListener('keydown',e=>{if(experience?.key(e))return;if(worldChat?.key(e)
 addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',clearInput);document.addEventListener('visibilitychange',()=>{clearInput();lastTime=0});
 function updateRoomStatus(message){$('roomStatus').textContent=message}
 const brownProjectiles=createBrownProjectiles(scene,{world:()=>world,targets:()=>actors.flatMap((actor,index)=>actor&&index!==selected&&actor.root.visible&&!protectedFromHit(bodies[index],time)?[{index,position:actor.root.position,height:actor.collisionShape?.height||1.9}]:[]),onLocalHit:(index,shot)=>{const body=bodies[index];if(protectedFromHit(body,time))return;body.vel.set(shot.vx*.8,4,shot.vz*.8);body.ragdoll=true;body.hit=createHit(.2);body.grounded=false;body.inArena=insideArena(actors[index].root.position);actors[index].root.rotation.y=Math.atan2(-shot.vx,-shot.vz);},onImpact:position=>{particleOrigin.set(position.x,position.y,position.z);emitParticles(particleOrigin,'#ad7844',10,2,5);}});
-function clearRemoteActors(){remoteActors.forEach(entry=>entry.actor.dispose());remoteActors.clear();remoteLoading.clear();brownProjectiles.clear();housingView?.recordAudio.clear();housingView?.hydrateFurnitureStates([])}
-function removeRemotePlayer(id){remoteLoading.delete(id);const entry=remoteActors.get(id);if(entry){entry.actor.dispose();remoteActors.delete(id)}}
+const remoteLoadTokens=new Map();
+function clearRemoteActors(){remoteLoadTokens.clear();remoteActors.forEach(entry=>entry.actor.dispose());remoteActors.clear();remoteLoading.clear();brownProjectiles.clear();housingView?.recordAudio.clear();housingView?.hydrateFurnitureStates([])}
+function removeRemotePlayer(id){remoteLoadTokens.delete(id);remoteLoading.delete(id);const entry=remoteActors.get(id);if(entry){entry.actor.dispose();remoteActors.delete(id)}}
 function updateRemotePlayer(player){
   if(!player?.id||player.id===roomSelfId||!roomSocket)return;
   let entry=remoteActors.get(player.id);
@@ -341,19 +342,20 @@ function updateRemotePlayer(player){
   if(entry){if((player.hitSerial||0)<(entry.hitSerial||0)){player={...player,ragdoll:entry.ragdoll,sleeping:entry.sleeping,hitPhase:entry.hitPhase,hitTime:entry.hitTime,hitDownTime:entry.hitDownTime,hitRecovery:entry.hitRecovery,hitStrength:entry.hitStrength,hitSerial:entry.hitSerial};}entry.actor.reactHit(player.flinchSerial,player.flinchStrength,Math.max(0,(Date.now()-(player.flinchAt||0))/1000));entry.equippedWeapon=player.equippedWeapon||null;entry.hitSerial=player.hitSerial||0;entry.target.set(player.x,player.y,player.z);if(entry.actor.root.position.distanceToSquared(entry.target)>900)entry.actor.root.position.copy(entry.target);entry.velocity.set(player.vx||0,player.vy||0,player.vz||0);entry.receivedAt=performance.now();entry.yaw=player.yaw;entry.headYaw=player.headYaw;entry.headPitch=player.headPitch;entry.speed=player.speed;entry.grounded=player.grounded;entry.verticalSpeed=player.verticalSpeed;entry.gesture=player.gesture;entry.flight=player.flight;entry.ragdoll=player.ragdoll;entry.seated=player.seated;entry.sleeping=player.sleeping;entry.crownEnabled=player.crownEnabled;entry.attackRushing=player.attackRushing;entry.punchCharge=player.punchCharge;entry.attackDuration=player.attackDuration;entry.hitPhase=player.hitPhase;entry.hitTime=player.hitTime;entry.hitDownTime=player.hitDownTime;entry.hitRecovery=player.hitRecovery;entry.hitStrength=player.hitStrength;entry.attackKind=player.attackKind||0;entry.attackProgress=player.attackProgress||0;entry.attackStrength=player.attackStrength||0;entry.attackSerial=player.attackSerial||0;entry.appearanceLevel=player.appearanceLevel??Math.max(-8,player.score||0);entry.actor.setAppearance(entry.appearanceLevel,player.crownEnabled);return}
   if(remoteLoading.has(player.id)){remoteLoading.set(player.id,player);return}
   remoteLoading.set(player.id,player);
-  const loadingSocket=roomSocket,index=playableSkin(player.skin);
+  const loadingSocket=roomSocket,index=playableSkin(player.skin),loadToken={};remoteLoadTokens.set(player.id,loadToken);
   playerAvatar(index).then(actor=>{
     const latest=remoteLoading.get(player.id);
-    if(!latest||roomSocket!==loadingSocket){actor.dispose();return}
-    remoteLoading.delete(player.id);actor.root.position.set(latest.x,latest.y,latest.z);actor.root.rotation.y=latest.yaw;scene.add(actor.root);
+    if(!latest||roomSocket!==loadingSocket||remoteLoadTokens.get(player.id)!==loadToken){actor.dispose();return}
+    remoteLoading.delete(player.id);remoteLoadTokens.delete(player.id);actor.root.position.set(latest.x,latest.y,latest.z);actor.root.rotation.y=latest.yaw;scene.add(actor.root);
     actor.reactHit(latest.flinchSerial,latest.flinchStrength,Math.max(0,(Date.now()-(latest.flinchAt||0))/1000));actor.setAppearance(latest.appearanceLevel??Math.max(-8,latest.score||0),latest.crownEnabled);
     remoteActors.set(player.id,{actor,equippedWeapon:latest.equippedWeapon||null,appearanceLevel:latest.appearanceLevel??Math.max(-8,latest.score||0),hitSerial:latest.hitSerial||0,punchCharge:latest.punchCharge||0,attackRushing:latest.attackRushing,attackDuration:latest.attackDuration,hitPhase:latest.hitPhase,hitTime:latest.hitTime,hitDownTime:latest.hitDownTime,hitRecovery:latest.hitRecovery,hitStrength:latest.hitStrength,attackKind:latest.attackKind||0,attackProgress:latest.attackProgress||0,attackStrength:latest.attackStrength||0,attackSerial:latest.attackSerial||0,effectSerial:0,skin:latest.skin,seated:latest.seated,sleeping:latest.sleeping,crownEnabled:latest.crownEnabled,target:new THREE.Vector3(latest.x,latest.y,latest.z),velocity:new THREE.Vector3(latest.vx||0,latest.vy||0,latest.vz||0),renderTarget:new THREE.Vector3(),receivedAt:performance.now(),yaw:latest.yaw,headYaw:latest.headYaw,headPitch:latest.headPitch,speed:latest.speed,grounded:latest.grounded,verticalSpeed:latest.verticalSpeed,gesture:latest.gesture,flight:latest.flight,ragdoll:latest.ragdoll});
     updateRoomStatus(`${roomCode} · ${remoteActors.size+1}/${MAX_PLAYERS}人`);
-  }).catch(error=>{remoteLoading.delete(player.id);console.error('remote skin load failed',error)});
+  }).catch(error=>{if(remoteLoadTokens.get(player.id)===loadToken){remoteLoading.delete(player.id);remoteLoadTokens.delete(player.id);}console.error('remote skin load failed',error)});
 }
 function handleRoomMessage(socket,event){
   let message;try{message=JSON.parse(event.data)}catch{return}
   if(experience?.receive(message))return;if(worldChat?.receive(message))return;
+  if(message.type==='room-removed'){roomFailure=message.reason||'メニューボードから退出しました';returnLobby();notify(roomFailure,5000);return;}
   if(message.type==='server-update'){updateNotice.show();return;}
   if(message.type==='projectile-spawn'){brownProjectiles.spawn(message.projectile);return;}
   if(message.type==='projectile-impact'){brownProjectiles.finish(message);return;}

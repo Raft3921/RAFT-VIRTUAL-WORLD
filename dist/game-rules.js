@@ -1,3 +1,5 @@
+import {buildDistrict} from './district.js';
+import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js';
 import {GunRules} from './gun-rules.js';
 import {weaponById} from './gun-layout.js';
 import {WorldChatStore} from './world-chat-store.js';
@@ -12,7 +14,9 @@ import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} f
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js';
 import {furnitureAction} from './furniture-actions.js';
-export const SYNC_VERSION='2026-10-10-vrs-feedback-41';
+const menuBoards=[{x:6,z:11},{x:ARENA.x+3,z:ARENA.z+20},GUN_ENTRY,...GUN_EXIT_BOARDS,...HOUSES.slice(0,8).map(h=>({x:h.x-6,z:h.z+h.front*9}))];
+buildDistrict({box:()=>{},sign:()=>{},board:(x,y,z)=>menuBoards.push({x,y,z}),seats:[],clockHands:[]});
+export const SYNC_VERSION='2026-10-10-vrs-roster-46';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin,realms){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||s.y<0||s.y>512)return null;
@@ -163,6 +167,7 @@ export class GameRules{
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
+    if(m.type==='room-kick'){if(!menuBoards.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<7&&Math.abs(p.y-(b.y||0))<5)||now-(p.lastKickAt||0)<1000)return;p.lastKickAt=now;if(typeof m.playerId==='string'&&this.entries().some(e=>e.player.id===m.playerId))this.disconnectPlayer?.(m.playerId);return;}
     if(m.type==='chat-history'){this.broadcast({type:'chat-history',playerId:p.id,...this.chat.page(m.before)});return;}
     if(m.type==='position-save'){this.savePosition(p,true);return this.settingsQueue;}
     if(this.guns.receive(entry,m,now))return;

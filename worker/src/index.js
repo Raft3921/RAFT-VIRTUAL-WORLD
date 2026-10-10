@@ -37,6 +37,7 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
 
   async fetch(request) {
     await this.ready;
+    this.rules.disconnectPlayer=id=>{const match=[...this.players].find(([,e])=>e.player.id===id);if(!match)return;const [socket]=match;try{socket.send(json({type:'room-removed',reason:'メニューボードから退出しました'}));}catch{}this.remove(socket);try{socket.close(1000,'removed from menu board');}catch{}};
     if (this.players.size >= MAX_PLAYERS) return new Response('Room is full', { status: 409 });
 
     const url = new URL(request.url);

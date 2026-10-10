@@ -28,3 +28,5 @@ body[data-screen=lobby] :is(#gunHealthHud,#gunCountdown){display:none!important;
 
 #gunDamageTint{position:fixed;inset:0;z-index:22;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(182,12,8,.08) 24%,rgba(190,15,10,.4) 68%,rgba(140,0,0,.85) 100%);}
 body[data-screen=lobby] #gunDamageTint{display:none!important;}
+
+.room-player-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:2px solid #426779}.room-player-row>span:nth-child(2){flex:1;font-size:14px;overflow-wrap:anywhere}.room-player-row canvas{width:32px;height:32px;image-rendering:pixelated}.room-player-row button{min-height:48px;padding:8px 16px}

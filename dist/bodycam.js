@@ -17,7 +17,7 @@ export function createBodycam(){
  const scene=new THREE.Scene(),camera=new THREE.Camera();scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),material));
  return {mapNdc(p,strength=1){const amount=Number.isFinite(strength)?THREE.MathUtils.clamp(strength,0,2):1;const f=1+amount*(-.12+.18*p.lengthSq());p.multiplyScalar(f);},reset(){primed=false;},render(renderer,world,view,state){
   renderer.getDrawingBufferSize(size);const scale=Math.min(1,1280/size.x),w=Math.max(1,Math.floor(size.x*scale)),h=Math.max(1,Math.floor(size.y*scale));
-  if(!target){target=new THREE.WebGLRenderTarget(w,h,{depthBuffer:true,depthTexture:new THREE.DepthTexture(w,h,THREE.UnsignedShortType)});material.uniforms.image.value=target.texture;material.uniforms.depthImage.value=target.depthTexture;}else if(target.width!==w||target.height!==h)target.setSize(w,h);
+  if(!target){target=new THREE.WebGLRenderTarget(w,h,{depthBuffer:true,depthTexture:new THREE.DepthTexture(w,h,THREE.UnsignedIntType)});material.uniforms.image.value=target.texture;material.uniforms.depthImage.value=target.depthTexture;}else if(target.width!==w||target.height!==h)target.setSize(w,h);
   view.getWorldDirection(forward);const yaw=Math.atan2(forward.x,forward.z),pitch=Math.asin(THREE.MathUtils.clamp(forward.y,-1,1)),dt=Math.max(.008,Math.min(.05,state.time-lastTime)),yawDelta=primed?Math.atan2(Math.sin(yaw-lastYaw),Math.cos(yaw-lastYaw)):0,pitchDelta=primed?pitch-lastPitch:0;
   lastYaw=yaw;lastPitch=pitch;lastTime=state.time;primed=true;const walking=state.grounded?state.speed:0;
   blur.set(THREE.MathUtils.clamp(yawDelta/dt*.0025,-.005,.005)+walking*.000035,THREE.MathUtils.clamp(pitchDelta/dt*.002,-.003,.003));if(state.scoped)blur.multiplyScalar(.3);

@@ -198,12 +198,12 @@ export function createWorld(scene){
   box(COURSE.exit.x,.08,COURSE.exit.z,10,.16,10,STONE);board(COURSE.exit.x+3,.16,COURSE.exit.z,'world');
   buildDistrict({box,board,sign,seats,clockHands});
   buildGunTown({box,board,sign});
-  // The roof underside is an unlit cloudy dome surface, opaque from inside.
-  const cloudMaterial=new THREE.ShaderMaterial({side:THREE.DoubleSide,depthWrite:true,uniforms:{uTime:{value:0}},vertexShader:'varying vec2 vCloud;void main(){vCloud=position.xy;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',fragmentShader:`varying vec2 vCloud;uniform float uTime;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x),f.y);}void main(){vec2 p=vCloud*.035+vec2(uTime*.002,0.);float c=noise(p)*.65+noise(p*2.1)*.25+noise(p*4.2)*.1;gl_FragColor=vec4(mix(vec3(.79,.82,.84),vec3(1.),smoothstep(.15,.8,c)),1.);
-#include <tonemapping_fragment>
- #include <colorspace_fragment>
- }`});
-  const cloudRoof=new THREE.Mesh(new THREE.PlaneGeometry(GUN_ZONE.width+1,GUN_ZONE.depth+1),cloudMaterial);cloudRoof.rotation.x=-Math.PI/2;cloudRoof.position.set(GUN_ZONE.x,24.58,GUN_ZONE.z);cloudRoof.name='Cloud-white inside roof';group.add(cloudRoof);
+  // Keep the white sky lining well below the solid slab to avoid depth fighting.
+  const skyCanvas=document.createElement('canvas');skyCanvas.width=skyCanvas.height=512;const skyContext=skyCanvas.getContext('2d');skyContext.fillStyle='#f6f7f7';skyContext.fillRect(0,0,512,512);
+  for(const [x,y,r]of [[90,110,200],[370,80,180],[280,360,230],[500,480,190]]){const veil=skyContext.createRadialGradient(x,y,0,x,y,r);veil.addColorStop(0,'rgba(210,218,222,.25)');veil.addColorStop(1,'rgba(210,218,222,0)');skyContext.fillStyle=veil;skyContext.fillRect(0,0,512,512);}
+  const cloudTexture=new THREE.CanvasTexture(skyCanvas);cloudTexture.colorSpace=THREE.SRGBColorSpace;cloudTexture.magFilter=THREE.LinearFilter;cloudTexture.minFilter=THREE.LinearMipmapLinearFilter;
+  const cloudMaterial=new THREE.MeshBasicMaterial({map:cloudTexture,toneMapped:false,side:THREE.FrontSide});
+  const cloudRoof=new THREE.Mesh(new THREE.PlaneGeometry(GUN_ZONE.width+1,GUN_ZONE.depth+1),cloudMaterial);cloudRoof.rotation.x=Math.PI/2;cloudRoof.position.set(GUN_ZONE.x,23.95,GUN_ZONE.z);cloudRoof.name='Cloud-white inside roof';group.add(cloudRoof);
   // Flush repeated parts to one draw per material, with instance indices for moving pads.
   for(const {color,list} of batches.values()){
     const mesh=new THREE.InstancedMesh(boxGeometry,list[0].streetLamp?lampMaterial:material(color),list.length);mesh.userData.noShadow=!!list[0].noShadow;
@@ -322,7 +322,7 @@ export function createWorld(scene){
     for(let i=0;i<balls.length;i++){const b=balls[i],visible=Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<130;transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,worldTime,worldTime*.8);transform.scale.setScalar(visible?b.radius:0);transform.updateMatrix();ballMesh.setMatrixAt(i,transform.matrix);}ballMesh.instanceMatrix.needsUpdate=true;
   }
   function update(t,p,clockPhase=.5){
-    worldTime=t;cloudMaterial.uniforms.uTime.value=t;
+    worldTime=t;
     for(const hand of clockHands){const angle=hand.clockSide*(hand.clockHand==='hour'?Math.PI/2-clockPhase*Math.PI*4:-clockPhase*Math.PI*48);transform.position.set(hand.clockX+Math.cos(angle)*hand.clockDX-Math.sin(angle)*hand.clockDY,hand.clockY+Math.sin(angle)*hand.clockDX+Math.cos(angle)*hand.clockDY,hand.z);transform.rotation.set(0,0,angle);transform.scale.set(hand.w,hand.h,hand.d);transform.updateMatrix();hand.mesh.setMatrixAt(hand.instance,transform.matrix);hand.mesh.instanceMatrix.needsUpdate=true;}
     transform.rotation.set(0,0,0);
     barrierMaterial.uniforms.uPlayer.value.copy(p).y+=1;barrierMaterial.uniforms.uTime.value=t;

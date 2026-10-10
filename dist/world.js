@@ -44,6 +44,8 @@ export function createWorld(scene){
     mesh.position.set(x,y,z);mesh.rotation.y=yaw;group.add(mesh);return mesh;
   }
   function board(x,floor,z,kind='world',checkpoint=null,face=-1){
+    if(kind==='pc'){const label=new THREE.Object3D();label.position.set(x,floor+1.5,z);group.add(label);const entry={boardId:boards.length,x,y:floor+1.5,z,kind,label,pick:label};boards.push(entry);return entry;}
+
     if(checkpoint)face=Math.sign(checkpoint.z-z)||-1;
     const boardId=boards.length,boardPart=(...args)=>box(...args,true,{boardId});
     if(floor>0&&floor<1)boardPart(x,floor/2,z,1.5,floor,1.5,TRIM);

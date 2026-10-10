@@ -101,7 +101,7 @@ export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPla
     const worldYaw=p.yaw+(HOUSES[index].front<0?Math.PI:0);normal.set(f.mount==='wall'?Math.sin(worldYaw):0,f.mount==='wall'?0:1,f.mount==='wall'?Math.cos(worldYaw):0);
     if(chosen!=='rotate'&&chosen!=='plane'){const vector=new THREE.Vector3(chosen==='x'?1:0,chosen==='y'?1:0,chosen==='z'?1:0);camera.getWorldDirection(normal);normal.addScaledVector(vector,-normal.dot(vector)).normalize();}
     plane.setFromNormalAndCoplanarPoint(normal,centre);if(!ray.ray.intersectPlane(plane,intersection))return true;
-    drag={original:{...selected},candidate:{...selected},start:intersection.clone(),centre,axis:chosen,error:'',sideWall,pointerId:e.pointerId,tapRotate:false,screenX:e.clientX,screenY:e.clientY,pressedAt:performance.now(),moved:false};canvas.setPointerCapture(e.pointerId);return true;
+    drag={original:{...selected},candidate:{...selected},start:intersection.clone(),centre,axis:chosen,error:'',sideWall,pointerId:e.pointerId,tapRotate:!axis&&(!draft||ray.intersectObject(ghost,true).length>0),screenX:e.clientX,screenY:e.clientY,pressedAt:performance.now(),moved:false};canvas.setPointerCapture(e.pointerId);return true;
   }
   function moveDrag(e){
     if(!active())return false;if(!pointers.has(e.pointerId)){if(e.pointerType==='mouse'&&draft&&mode==='move')pointDraft(e);return true;}e.preventDefault();pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size>1){const next=gesture();if(pinch){radius=Math.max(12,Math.min(65,radius*pinch.distance/Math.max(12,next.distance)));panCamera(next.x-pinch.x,next.y-pinch.y);}pinch=next;return true;}if(!drag||drag.pointerId!==e.pointerId)return true;

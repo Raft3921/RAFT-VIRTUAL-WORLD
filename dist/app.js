@@ -1,24 +1,24 @@
-import {createWorldExperience} from './world-experience.js?v=20261010-sky49';
+import {createWorldExperience} from './world-experience.js?v=20261010-focus50';
 import {inGunZone,weaponById} from './gun-layout.js';
-import {createWorldChat} from './world-chat.js?v=20261010-sky49';
-import {startUpdateNotice} from './update-notice.js?v=20261010-sky49';
+import {createWorldChat} from './world-chat.js?v=20261010-focus50';
+import {startUpdateNotice} from './update-notice.js?v=20261010-focus50';
 import {memberColor} from './housing-data.js';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261010-sky49';
+import { createAvatar } from './avatar.js?v=20261010-focus50';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261010-sky49';
+import { createWorld } from './world.js?v=20261010-focus50';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-sky49';
+import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-focus50';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261010-sky49';
+import { createHousingRenderer } from './housing-renderer.js?v=20261010-focus50';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261010-sky49';
+import { createHouseEditor } from './house-editor.js?v=20261010-focus50';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js';
 import {createWorldGuide} from './world-guide.js';
@@ -308,11 +308,14 @@ $('quality').onchange=e=>{qualityChoice=e.target.value;quality(qualityChoice==='
 function updateFisheyeControls(){const percent=Math.round((cachedCharacter().fisheye??1)*100);for(const id of ['fisheyeStrength','gunFisheyeStrength']){const input=$(id);if(input&&document.activeElement!==input)input.value=String(percent);if($(id+'Out'))$(id+'Out').textContent=percent===0?'OFF':percent+'%';}}
 for(const id of ['fisheyeStrength','gunFisheyeStrength']){const input=$(id);input.oninput=()=>{const value=Number(input.value)/100;cacheCharacter(selected,{...cachedCharacter(),fisheye:value});$(id+'Out').textContent=value===0?'OFF':Math.round(value*100)+'%';};input.onchange=()=>{const value=Number(input.value)/100;if(selected!==GUEST_SKIN&&roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'character-fisheye',skin:selected,value}));};}
 updateFisheyeControls();
+let touchSensitivity=Number(safeRead('vrs-touch-sensitivity')||1.5);if(!Number.isFinite(touchSensitivity))touchSensitivity=1.5;touchSensitivity=clamp(touchSensitivity,.2,4);
+function updateTouchSensitivity(){for(const id of ['touchSensitivity','gunTouchSensitivity']){if($(id))$(id).value=String(touchSensitivity);if($(id+'Out'))$(id+'Out').textContent=touchSensitivity.toFixed(2)+'×';}}
+for(const id of ['touchSensitivity','gunTouchSensitivity'])$(id).oninput=e=>{touchSensitivity=clamp(Number(e.target.value),.2,4);safeSave('vrs-touch-sensitivity',String(touchSensitivity));updateTouchSensitivity();};updateTouchSensitivity();
 let mouseSensitivity=Number(safeRead('vrs-mouse-sensitivity')||1);if(!Number.isFinite(mouseSensitivity))mouseSensitivity=1;mouseSensitivity=clamp(mouseSensitivity,.2,3);
 $('mouseSensitivity').value=String(mouseSensitivity);$('mouseSensitivityOut').textContent=mouseSensitivity.toFixed(2)+'×';$('mouseSensitivity').oninput=e=>{mouseSensitivity=Number(e.target.value);$('mouseSensitivityOut').textContent=mouseSensitivity.toFixed(2)+'×';safeSave('vrs-mouse-sensitivity',String(mouseSensitivity));};
 let mirrorTravelMode=safeRead('vrs-mirror-travel-mode')==='classic'?'classic':'seamless';
 $('mirrorTravelMode').value=mirrorTravelMode;$('mirrorTravelMode').onchange=e=>{mirrorTravelMode=e.target.value==='classic'?'classic':'seamless';safeSave('vrs-mirror-travel-mode',mirrorTravelMode);housingView?.portals.setTravelMode(mirrorTravelMode);notify(mirrorTravelMode==='classic'?'鏡をクラシック移動にしました':'鏡をシームレス移動にしました');};
-function look(dx,dy){if(!inStudio){lobbyYaw+=dx*.008;return}if(paused())return;const aimScale=experience?.scoped ? .24 : 1;yaw-=dx*(touch?.004:.0025*mouseSensitivity)*aimScale;pitch=clamp(pitch-dy*(touch?.0035:.002*mouseSensitivity)*aimScale,-1.15,1.1);scheduleShare()}
+function look(dx,dy){if(!inStudio){lobbyYaw+=dx*.008;return}if(paused())return;const aimScale=experience?.scoped ? .24 : 1;yaw-=dx*(touch?.004*touchSensitivity:.0025*mouseSensitivity)*aimScale;pitch=clamp(pitch-dy*(touch?.0035*touchSensitivity:.002*mouseSensitivity)*aimScale,-1.15,1.1);scheduleShare()}
 canvas.addEventListener('pointerdown',e=>{canvas.focus();if(!paused()&&experience?.pointer(e))return;if(housingEditor?.active){housingEditor.pointerDown(e);return;}if(inStudio&&!paused()&&!localRagdoll&&!duelActive&&housingEditor?.clickBoard(e))return;
  if(e.pointerType==='mouse'&&e.button===0&&inStudio&&!paused()&&document.pointerLockElement!==canvas){e.preventDefault();cancelCharge();lookId=null;pointerPunchTarget=null;lockClickActive=true;if(!mouseLockPending&&typeof canvas.requestPointerLock==='function'){mouseLockPending=true;try{canvas.requestPointerLock()?.catch(()=>{mouseLockPending=false;lockClickActive=false;});}catch{mouseLockPending=false;lockClickActive=false;}}return;}
 if(e.pointerType==='touch'&&!touch)mobileUI(true);else if(e.pointerType==='mouse'&&touch&&matchMedia('(any-pointer:fine)').matches)mobileUI(false);if(lookId!==null)return;lookId=e.pointerId;lookX=e.clientX;lookY=e.clientY;pointerStart.x=lookX;pointerStart.y=lookY;try{if(document.pointerLockElement!==canvas)canvas.setPointerCapture(e.pointerId);}catch{}if(e.pointerType==='mouse'&&inStudio&&!paused()&&document.pointerLockElement!==canvas){pointerPunchTarget=remotePlayerAt(e.clientX,e.clientY);if(e.button===0||e.pointerType==='touch')beginCharge()}if(clean&&e.pointerType==='touch'){cleanTimer=setTimeout(()=>{setClean(false);lookId=null},650)}});

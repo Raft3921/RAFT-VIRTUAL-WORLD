@@ -1,9 +1,9 @@
 import {createGunEffects} from './gun-effects.js';
 import {createBodycam} from './bodycam.js';
 import {createWorldAudio} from './world-audio.js';
-import {createWorldInteraction} from './world-interaction.js?v=20261010-sky49';
+import {createWorldInteraction} from './world-interaction.js?v=20261010-focus50';
 import {fallbackMuzzle} from './weapon-dimensions.js';
-import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-sky49';
+import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-focus50';
 import * as THREE from 'three';
 import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js';
 import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash} from './gun-visual.js';
@@ -14,7 +14,7 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
  <button id="nearBoard" hidden>開く</button><div id="gunCrosshair" hidden></div><div id="gunHud" hidden></div><div id="gunBattleHud" hidden></div><div id="gunHealthHud" hidden></div><div id="gunCountdown" hidden aria-live="polite"></div><div id="gunDamageTint" aria-hidden="true"></div>
  <section id="roomPlayersPanel" class="experience-panel" hidden><header><strong>接続中のプレイヤー</strong><button id="closeRoomPlayers">閉じる</button></header><p>増殖したプレイヤーは、名前と接続IDで選んで退出できます。</p><div id="roomPlayersList"></div></section>
  <section id="pcDesktop" class="experience-panel" hidden><header><strong>VRS Desktop</strong><button id="closePC">閉じる</button></header><div id="desktopApps"><button id="pcChat">▤ チャット</button><button id="pcWeb">◎ ウェブ</button><button id="pcStore">▣ ストア</button></div><div id="pcContent"></div></section>
- <section id="teamPanel" class="experience-panel" hidden><header><strong>SAND TOWN · チーム</strong><button id="closeTeams">閉じる</button></header><p>入場順に自動割り振り。4人は2対2。開始前にアイコンを選び、移動先チームを押せます。配置地点は毎回ランダムです。</p><div id="teamModes"><button data-mode="auto">自動</button><button data-mode="solo">個人戦</button><button data-mode="teams">2チーム</button></div><label for="gunFisheyeStrength">魚眼度 <output id="gunFisheyeStrengthOut">100%</output></label><input id="gunFisheyeStrength" type="range" min="0" max="200" step="5" value="100"><p>選択中のキャラクターごとに保存します。</p><div id="teamList"></div><button id="gunTravel">入場</button><p id="teamStatus"></p></section>
+ <section id="teamPanel" class="experience-panel" hidden><header><strong>SAND TOWN · チーム</strong><button id="closeTeams">閉じる</button></header><p>入場順に自動割り振り。4人は2対2。開始前にアイコンを選び、移動先チームを押せます。配置地点は毎回ランダムです。</p><div id="teamModes"><button data-mode="auto">自動</button><button data-mode="solo">個人戦</button><button data-mode="teams">2チーム</button></div><label for="gunTouchSensitivity">スマホ・iPadの視点感度 <output id="gunTouchSensitivityOut">1.50×</output></label><input id="gunTouchSensitivity" type="range" min=".2" max="4" step=".05" value="1.5"><label for="gunFisheyeStrength">魚眼度 <output id="gunFisheyeStrengthOut">100%</output></label><input id="gunFisheyeStrength" type="range" min="0" max="200" step="5" value="100"><p>選択中のキャラクターごとに保存します。</p><div id="teamList"></div><button id="gunTravel">入場</button><p id="teamStatus"></p></section>
  <div id="scopeOverlay" hidden><div class="scope-circle"></div><span>離すと発砲</span></div>
  <button id="eliminatedSpectate" hidden>観戦カメラ</button><div id="broadcastHud" hidden><button id="broadcastPrev" aria-label="前の観戦カメラ">❮</button><span id="broadcastLabel"></span><button id="broadcastNext" aria-label="次の観戦カメラ">❯</button></div>`;
  document.body.append(shell);const $=id=>document.getElementById(id);let battle={phase:'waiting',members:[]},ammo=null,held=false,scoped=false,lastFire=0,recoil=0,recoilVelocity=0,startFlashUntil=0,nearBoard=null,memberSelection=null,watching=false,eliminationView=false,channel=0,lastUi=0,lastSave=0,weaponId=null,firstHandOwner=null,firstModel=null,shotSequence=0,wasZone=false,positionCache=null,audio=null;

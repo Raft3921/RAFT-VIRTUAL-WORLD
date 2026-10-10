@@ -180,3 +180,12 @@ The uniform 24-building grid was replaced with 18 varied, traversable building s
 A desktop left click on the scene now prioritises acquiring pointer lock, consuming that first click without charging, firing or counting a camera-return click. DOM controls, editable panels and ray-hit 3D interaction buttons retain their own input. Mouse input after acquisition aims and attacks normally; Esc still releases the lock. Touch controls retain their prior interaction. The double-click-only locking gesture was removed.
 
 The first-person firing hand and forearm now use the selected avatar's actual right-arm atlas UVs, original nearest-filtered skin texture, base material and overlay sleeve material, including custom/JEM skin mappings. Switching character or replacing its skin rebuilds the view arm even when the equipped weapon remains the same. Leaving Sand Town releases its forced first-person camera and restores follow mode. This is a client change; the server protocol remains `2026-10-10-vrs-sandtown-33`. No tests, validation commands, runtime checks or browser verification were performed, per the standing user instruction.
+
+
+### 2026-10-10 · 砂の街 / ボディカム視点
+- 銃撃戦は外の専用ボードから入場し、内側の四隅のボードから退出・チーム設定。物理的な入口を閉じ、外壁と同じ素材の屋根と、白い曇り空に見える内側を追加。
+- 固定のチーム台と文字看板を撤去。外周の空き地にも迷路を追加し、共有の当たり判定から選んだ空き地点へランダム配置。壁の模様は面の大きさに合わせて繰り返す。
+- 購入済みの銃があれば入場時に自動装備し、退出時に入場前の装備へ戻す。未購入では入場不可。
+- 小さな白い円の照準。一人称では操作以外の通常HUDを隠し、魚眼・周辺減光・歩行に同期した揺れ・軽い3サンプルの方向ブラーを追加。追加描画は横1280pxを上限とする単一画面パス。
+- 指定の銃声MP3と2種類の足音WAVを使用。足音はキャラクターの接地中の歩行位相で左右交互に鳴らし、同時音源数を制限。
+- ユーザーの指定により、テスト・検証コマンド・ブラウザでの動作確認は実施していない。

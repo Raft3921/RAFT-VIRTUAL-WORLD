@@ -481,6 +481,7 @@ export async function createAvatar(url,{model=null}={}) {
 
   root.traverse(object=>{if(object.isMesh)withLocalLighting(object.material);});
   return {
+    animation,
     root, update, dispose, head, setAppearance,gripColor:skinColor,createFirstPersonHand:()=>createSkinnedFiringHand({forearm:true}),
     getGunMuzzle(target=new THREE.Vector3()){if(!gunModel?.visible)return null;root.updateMatrixWorld(true);return gunModel.userData.muzzle.getWorldPosition(target);},fireGun(){triggerGunFlash(gunModel);},
     reactHit(serial,strength=.2,age=0){if(!Number.isFinite(serial)||serial<=flinchSerial)return;flinchSerial=serial;if(age>=.24)return;flinchStart=elapsed-Math.max(0,age);flinchStrength=clamp(strength,0,1);},

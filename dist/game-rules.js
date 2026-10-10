@@ -12,7 +12,7 @@ import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} f
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js';
 import {furnitureAction} from './furniture-actions.js';
-export const SYNC_VERSION='2026-10-10-vrs-sandtown-33';
+export const SYNC_VERSION='2026-10-10-vrs-bodycam-35';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin,realms){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||s.y<0||s.y>512)return null;

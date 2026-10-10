@@ -2,18 +2,18 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="vrs-build" content="vrs-controls34">
+<meta name="vrs-build" content="vrs-bodycam35">
 <meta name="theme-color" content="#122c2b"><meta name="description" content="Minecraft Javaスキンで歩ける、草原の撮影スタジオ。">
 <title>RAFT Studio · Meadow</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23122c2b'/%3E%3Cpath d='M8 24V8h10l6 6-6 5 6 5h-7l-5-5v5zm4-10h6l-2-2h-4z' fill='%23c9eaae'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="studio.css">
-<link rel="stylesheet" href="experience.css?v=20261010-controls34">
-<link rel="stylesheet" href="chat.css?v=20261010-controls34">
+<link rel="stylesheet" href="experience.css?v=20261010-bodycam35">
+<link rel="stylesheet" href="chat.css?v=20261010-bodycam35">
 <link rel="stylesheet" href="room.css">
 <link rel="stylesheet" href="world.css">
-<link rel="stylesheet" href="pixel.css?v=20261010-controls34">
-<script defer src="ui-guard.js?v=20261010-controls34"></script>
-<script type="importmap">{"imports":{"./furniture-catalogue.js":"./furniture-catalogue.js?v=20261010-controls34","./furniture-shapes.js":"./furniture-shapes.js?v=20261010-controls34","./furniture-actions.js":"./furniture-actions.js?v=20261010-controls34","./furniture-geometry.js":"./furniture-geometry.js?v=20261010-controls34","./world-guide.js":"./world-guide.js?v=20261010-controls34","./local-lighting.js":"./local-lighting.js?v=20261010-controls34","three":"./vendor/three.module.js","./world-clock.js":"./world-clock.js?v=20261010-controls34","./environment.js":"./environment.js?v=20261010-controls34","./district.js":"./district.js?v=20261010-controls34","./furniture-effects.js":"./furniture-effects.js?v=20261010-controls34","./record-audio.js":"./record-audio.js?v=20261010-controls34","./combat-policy.js":"./combat-policy.js?v=20261010-controls34","./combat-motion.js":"./combat-motion.js?v=20261010-controls34","./hit-reaction.js":"./hit-reaction.js?v=20261010-controls34","./player-types.js":"./player-types.js?v=20261010-controls34","./character-store.js":"./character-store.js?v=20261010-controls34","./housing-data.js":"./housing-data.js?v=20261010-controls34","./portal-view.js":"./portal-view.js?v=20261010-controls34","./housing-mirror.js":"./housing-mirror.js?v=20261010-controls34","./furniture-models.js":"./furniture-models.js?v=20261010-controls34","./projectile-motion.js":"./projectile-motion.js?v=20261010-controls34","./build-info.js":"./build-info.js?v=20261010-controls34","./world-chat-store.js":"./world-chat-store.js?v=20261010-controls34","./housing-store.js":"./housing-store.js?v=20261010-controls34","./game-rules.js":"./game-rules.js?v=20261010-controls34","./gun-visual.js":"./gun-visual.js?v=20261010-controls34","./gun-layout.js":"./gun-layout.js?v=20261010-controls34","./gun-rules.js":"./gun-rules.js?v=20261010-controls34","./world-experience.js":"./world-experience.js?v=20261010-controls34","./weapon-dimensions.js":"./weapon-dimensions.js?v=20261010-controls34","./world-interaction.js":"./world-interaction.js?v=20261010-controls34","./raft-coin.js":"./raft-coin.js?v=20261010-controls34"}}</script>
+<link rel="stylesheet" href="pixel.css?v=20261010-bodycam35">
+<script defer src="ui-guard.js?v=20261010-bodycam35"></script>
+<script type="importmap">{"imports":{"./bodycam.js":"./bodycam.js?v=20261010-bodycam35","./world-audio.js":"./world-audio.js?v=20261010-bodycam35","./furniture-catalogue.js":"./furniture-catalogue.js?v=20261010-bodycam35","./furniture-shapes.js":"./furniture-shapes.js?v=20261010-bodycam35","./furniture-actions.js":"./furniture-actions.js?v=20261010-bodycam35","./furniture-geometry.js":"./furniture-geometry.js?v=20261010-bodycam35","./world-guide.js":"./world-guide.js?v=20261010-bodycam35","./local-lighting.js":"./local-lighting.js?v=20261010-bodycam35","three":"./vendor/three.module.js","./world-clock.js":"./world-clock.js?v=20261010-bodycam35","./environment.js":"./environment.js?v=20261010-bodycam35","./district.js":"./district.js?v=20261010-bodycam35","./furniture-effects.js":"./furniture-effects.js?v=20261010-bodycam35","./record-audio.js":"./record-audio.js?v=20261010-bodycam35","./combat-policy.js":"./combat-policy.js?v=20261010-bodycam35","./combat-motion.js":"./combat-motion.js?v=20261010-bodycam35","./hit-reaction.js":"./hit-reaction.js?v=20261010-bodycam35","./player-types.js":"./player-types.js?v=20261010-bodycam35","./character-store.js":"./character-store.js?v=20261010-bodycam35","./housing-data.js":"./housing-data.js?v=20261010-bodycam35","./portal-view.js":"./portal-view.js?v=20261010-bodycam35","./housing-mirror.js":"./housing-mirror.js?v=20261010-bodycam35","./furniture-models.js":"./furniture-models.js?v=20261010-bodycam35","./projectile-motion.js":"./projectile-motion.js?v=20261010-bodycam35","./build-info.js":"./build-info.js?v=20261010-bodycam35","./world-chat-store.js":"./world-chat-store.js?v=20261010-bodycam35","./housing-store.js":"./housing-store.js?v=20261010-bodycam35","./game-rules.js":"./game-rules.js?v=20261010-bodycam35","./gun-visual.js":"./gun-visual.js?v=20261010-bodycam35","./gun-layout.js":"./gun-layout.js?v=20261010-bodycam35","./gun-rules.js":"./gun-rules.js?v=20261010-bodycam35","./world-experience.js":"./world-experience.js?v=20261010-bodycam35","./weapon-dimensions.js":"./weapon-dimensions.js?v=20261010-bodycam35","./world-interaction.js":"./world-interaction.js?v=20261010-bodycam35","./raft-coin.js":"./raft-coin.js?v=20261010-bodycam35"}}</script>
 </head>
 <body data-screen="lobby">
 <canvas id="scene" aria-label="3D草原スタジオ" tabindex="0"></canvas>
@@ -139,6 +139,6 @@
   <p id="houseSaveStatus" class="house-save-status" role="status">サーバーに保存済み</p>
   </footer>
 </aside>
-<script type="module" src="app.js?v=20261010-controls34"></script>
+<script type="module" src="app.js?v=20261010-bodycam35"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 import {fallbackMuzzle} from './weapon-dimensions.js';
-import {WEAPONS,weaponById,inGunZone,GUN_SPAWNS,GUN_SOLIDS} from './gun-layout.js';
+import {WEAPONS,weaponById,inGunZone,GUN_SPAWNS,GUN_SOLIDS,GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js';
 import {segmentBox,projectileWallFraction} from './projectile-motion.js';
 import {buildDistrict} from './district.js';
 const district=[];buildDistrict({box:(x,y,z,w,h,d,color,solid=true)=>{if(solid)district.push({x,y,z,w,h,d});},board:()=>{},sign:()=>{},seats:[],clockHands:[]});
@@ -13,21 +13,18 @@ export class GunRules{
  reward(p,{coins=0,weapon=null}={}){if(p.guest)return;const c=this.record(p),weaponWins={...c.weaponWins};if(weapon)weaponWins[weapon]=(weaponWins[weapon]||0)+1;return this.rules.characters.change(p.skin,{coins:c.coins+coins,weaponWins});}
  snapshot(){return {phase:this.phase,mode:this.mode,startAt:this.startAt,round:this.round,members:[...this.members.values()].map(m=>({...m,skin:this.players().find(p=>p.id===m.id)?.skin??8}))};}
  publish(){this.send({type:'gun-battle',battle:this.snapshot()});}
- assign(){if(this.phase==='active')return;const members=[...this.members.values()],pairs=this.mode==='teams'||this.mode==='auto'&&members.length===4;members.forEach((m,i)=>{if(!m.manual)m.team=pairs?Math.floor(i/Math.ceil(members.length/2)):i;const p=this.players().find(p=>p.id===m.id);if(p)this.teleport(p,m.team);});}
- teleport(p,team){const spawn=GUN_SPAWNS[team%GUN_SPAWNS.length];Object.assign(p,spawn,{flight:false,seated:false,sleeping:false,ragdoll:false,vx:0,vy:0,vz:0});this.send({type:'gun-teleport',playerId:p.id,position:spawn});}
- state(p){
-  if(inGunZone(p)){p.flight=false;p.seated=false;p.sleeping=false;if(!this.members.has(p.id)&&this.phase!=='active'){
-   if(!p.equippedWeapon){if(!p.gunEntryNotice){p.gunEntryNotice=true;this.send({type:'gun-error',playerId:p.id,message:'銃撃戦への参加は、PCのストアで銃を購入・装備してから入場してください'});}if(this.phase==='active'){const exit={x:113,y:.1,z:-92,yaw:Math.PI/2};Object.assign(p,exit);this.send({type:'gun-teleport',playerId:p.id,position:exit});}return;}
-   this.members.set(p.id,{id:p.id,team:0,damage:0,out:false,manual:false,weapon:p.equippedWeapon});this.assign();
-   this.phase='waiting';this.startAt=this.members.size>=2?Date.now()+15000:0;this.teleport(p,this.members.get(p.id).team);this.publish();this.ensureTimer();
-  }}else if(this.members.has(p.id)){this.remove(p.id);}
-  if(inGunZone(p)&&this.phase==='active'&&!this.members.has(p.id)){const exit={x:113,y:.1,z:-92,yaw:Math.PI/2};Object.assign(p,exit);this.send({type:'gun-teleport',playerId:p.id,position:exit});return;}
-  const m=this.members.get(p.id);if(m?.out&&this.phase==='active'){p.flight=false;p.speed=0;const spot=GUN_SPAWNS[m.team%GUN_SPAWNS.length];p.x=spot.x;p.y=spot.y;p.z=spot.z;p.vx=p.vy=p.vz=0;}
+ assign(){if(this.phase==='active')return;const members=[...this.members.values()],pairs=this.mode==='teams'||this.mode==='auto'&&members.length===4;members.forEach((m,i)=>{if(!m.manual)m.team=pairs?Math.floor(i/Math.ceil(members.length/2)):i;});}
+ teleport(p,team){const occupied=this.players().filter(q=>q.id!==p.id&&this.members.has(q.id));let points=GUN_SPAWNS.filter(s=>occupied.every(q=>Math.hypot(q.x-s.x,q.z-s.z)>8));if(!points.length)points=GUN_SPAWNS;const spawn={...points[Math.floor(Math.random()*points.length)],yaw:Math.random()*Math.PI*2};this.move(p,spawn);}
+ move(p,position){Object.assign(p,position,{flight:false,seated:false,sleeping:false,ragdoll:false,vx:0,vy:0,vz:0});this.send({type:'gun-teleport',playerId:p.id,position});}
+ atBoard(p){return GUN_EXIT_BOARDS.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<5&&p.y<4);}
+ enter(p){if(this.members.has(p.id))return;if(this.phase==='active'||Math.hypot(p.x-GUN_ENTRY.x,p.z-GUN_ENTRY.z)>6||p.y>4)return;const c=this.record(p),weapon=c.ownedWeapons.includes(p.equippedWeapon)?p.equippedWeapon:c.ownedWeapons.at(-1);if(!weapon){this.send({type:'gun-error',playerId:p.id,message:'銃を持っていないため入場できません。PCのストアで購入してください'});return;}
+  const previousWeapon=p.equippedWeapon||null;this.members.set(p.id,{id:p.id,skin:p.skin,team:0,damage:0,out:false,manual:false,weapon,previousWeapon});if(previousWeapon!==weapon){p.equippedWeapon=weapon;this.rules.onAsyncWork(this.rules.characters.change(p.skin,{equippedWeapon:weapon}));}this.economy(p);this.assign();this.teleport(p,this.members.get(p.id).team);this.phase='waiting';this.startAt=this.members.size>=2?Date.now()+15000:0;this.publish();this.ensureTimer();
  }
- remove(id){const m=this.members.get(id);if(!m)return;this.members.delete(id);for(const key of this.ammo.keys())if(key.startsWith(id+':'))this.ammo.delete(key);if(this.phase==='active'){this.phase='finished';this.nextRoundAt=Date.now()+8000;this.send({type:'gun-result',winner:null,round:this.round});}else{this.assign();this.startAt=this.members.size>=2?Date.now()+15000:0;}this.publish();}
+ state(p){if(inGunZone(p)){if(!this.members.has(p.id)){this.move(p,{...GUN_ENTRY,z:GUN_ENTRY.z+3});return;}p.flight=false;p.seated=false;p.sleeping=false;}else if(this.members.has(p.id))this.remove(p.id);const m=this.members.get(p.id);if(m?.out&&this.phase==='active'){p.flight=false;p.speed=0;Object.assign(p,m.outPosition||{x:p.x,y:p.y,z:p.z});p.vx=p.vy=p.vz=0;}}
+ remove(id){const m=this.members.get(id);if(!m)return;this.members.delete(id);const p=this.players().find(p=>p.id===id);if(p)p.equippedWeapon=m.previousWeapon;this.rules.onAsyncWork(this.rules.characters.change(m.skin,{equippedWeapon:m.previousWeapon}));if(p)this.economy(p);for(const key of this.ammo.keys())if(key.startsWith(id+':'))this.ammo.delete(key);if(this.phase==='active'){this.phase='finished';this.nextRoundAt=Date.now()+8000;this.send({type:'gun-result',winner:null,round:this.round});}else{this.assign();this.startAt=this.members.size>=2?Date.now()+15000:0;}this.publish();}
  begin(now){if(this.members.size<2||new Set([...this.members.values()].map(m=>m.team)).size<2){this.startAt=0;this.publish();return;}
-  this.phase='active';this.round++;this.shots=[];this.startAt=0;const slots=new Map();
-  for(const m of this.members.values()){const p=this.players().find(p=>p.id===m.id);if(!p)continue;m.damage=0;m.out=false;m.weapon=p.equippedWeapon||'pistol';this.teleport(p,m.team);const offset=slots.get(m.team)||0;slots.set(m.team,offset+1);p.z+=offset*2.2;this.send({type:'gun-teleport',playerId:p.id,position:{x:p.x,y:p.y,z:p.z,yaw:p.yaw}});for(const key of this.ammo.keys())if(key.startsWith(p.id+':'))this.ammo.delete(key);this.economy(p);}
+  this.phase='active';this.round++;this.shots=[];this.startAt=0;
+  for(const m of this.members.values()){const p=this.players().find(p=>p.id===m.id);if(!p)continue;m.damage=0;m.out=false;m.weapon=p.equippedWeapon||'pistol';this.teleport(p,m.team);for(const key of this.ammo.keys())if(key.startsWith(p.id+':'))this.ammo.delete(key);this.economy(p);}
   this.publish();
  }
  resolve(){if(this.phase!=='active')return;const alive=[...this.members.values()].filter(m=>!m.out),teams=new Set(alive.map(m=>m.team));if(teams.size>1)return;
@@ -39,7 +36,7 @@ export class GunRules{
   const attacker=this.members.get(owner.id),target=this.members.get(victim.id);
   if(inGunZone(owner)||inGunZone(victim)){
    if(this.phase!=='active'||!attacker||!target||attacker.out||target.out||attacker.team===target.team)return;
-   target.damage++;target.out=target.damage>=3;
+   target.damage++;target.out=target.damage>=3;if(target.out)target.outPosition={x:victim.x,y:victim.y,z:victim.z};
   }else if(this.rules.duel?.ids.includes(owner.id)||this.rules.duel?.ids.includes(victim.id))return;
   // Reuse light punch reaction; each pellet scores independently, without stun immunity.
   this.rules.hit(owner,victim,1,now,{kind:0,held:0});
@@ -85,6 +82,8 @@ export class GunRules{
   if(!this.members.size&&!this.shots.length){clearInterval(this.timer);this.timer=null;this.finish?.();this.finish=null;}
  }
  receive(entry,message,now){const p=entry.player,c=this.record(p);
+  if(message.type==='gun-enter'){this.enter(p);return true;}
+  if(message.type==='gun-exit'){if(this.members.has(p.id)&&this.atBoard(p)){this.remove(p.id);this.move(p,{...GUN_ENTRY,z:GUN_ENTRY.z+3});}return true;}
   if(message.type==='gun-buy'){const weapon=weaponById(message.weapon),index=WEAPONS.indexOf(weapon);if(p.guest||!weapon||this.phase==='active'&&this.members.has(p.id))return true;
    const previous=WEAPONS[index-1];if(c.ownedWeapons.includes(weapon.id)||c.coins<weapon.price||previous&&(!c.ownedWeapons.includes(previous.id)||(c.weaponWins[previous.id]||0)<weapon.require)){this.send({type:'gun-error',playerId:p.id,message:'コインまたは前の武器での勝利数が足りません'});return true;}
    this.rules.onAsyncWork(this.rules.characters.change(p.skin,{coins:c.coins-weapon.price,ownedWeapons:[...c.ownedWeapons,weapon.id],equippedWeapon:weapon.id}));p.equippedWeapon=weapon.id;this.economy(p);return true;
@@ -92,9 +91,9 @@ export class GunRules{
   if(message.type==='gun-equip'){if(this.phase==='active'&&this.members.has(p.id))return true;const id=message.weapon;if(id!==null&&!c.ownedWeapons.includes(id))return true;p.equippedWeapon=id;if(!id)this.remove(p.id);this.rules.onAsyncWork(this.rules.characters.change(p.skin,{equippedWeapon:id}));this.economy(p);return true;}
   if(message.type==='gun-fire'){this.fire(p,message,now);return true;}
   if(message.type==='gun-team'||message.type==='gun-mode'){
-   if(this.phase==='active'||!inGunZone(p)&&Math.hypot(p.x-113,p.z+92)>7)return true;
+   if(this.phase==='active'||!(this.atBoard(p)||!inGunZone(p)&&Math.hypot(p.x-GUN_ENTRY.x,p.z-GUN_ENTRY.z)<6))return true;
    if(message.type==='gun-mode'&&['auto','teams','solo'].includes(message.mode)){this.mode=message.mode;for(const m of this.members.values())m.manual=false;this.assign();}
-   if(message.type==='gun-team'){const m=this.members.get(message.member),team=Number(message.team);if(m&&Number.isInteger(team)&&team>=0&&team<GUN_SPAWNS.length){m.team=team;m.manual=true;const q=this.players().find(q=>q.id===m.id);if(q)this.teleport(q,team);}}
+   if(message.type==='gun-team'){const m=this.members.get(message.member),team=Number(message.team);if(m&&Number.isInteger(team)&&team>=0&&team<Math.max(2,Math.min(9,this.members.size))){m.team=team;m.manual=true;const q=this.players().find(q=>q.id===m.id);if(q)this.teleport(q,team);}}
    this.startAt=this.members.size>=2?now+15000:0;this.publish();return true;
   }return false;
  }

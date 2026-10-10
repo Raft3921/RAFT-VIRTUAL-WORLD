@@ -1,7 +1,8 @@
 // Shared geometry: the server sweeps bullets against the same town the client builds.
 export const GUN_ZONE={minX:120,maxX:244,minZ:-140,maxZ:-44,x:182,z:-92,width:124,depth:96};
 export const inGunZone=p=>!!p&&!p.mirrorRealm&&p.x>120&&p.x<244&&p.z>-140&&p.z<-44;
-export const GUN_SPAWNS=[{x:128,y:.12,z:-130,yaw:Math.PI/2},{x:236,y:.12,z:-54,yaw:-Math.PI/2},{x:236,y:.12,z:-130,yaw:-Math.PI/2},{x:128,y:.12,z:-54,yaw:Math.PI/2},{x:180,y:.12,z:-130,yaw:0},{x:180,y:.12,z:-54,yaw:Math.PI},{x:128,y:.12,z:-92,yaw:Math.PI/2},{x:236,y:.12,z:-92,yaw:-Math.PI/2},{x:182,y:.12,z:-92,yaw:0}];
+export const GUN_ENTRY={x:113,y:.12,z:-92,yaw:-Math.PI/2};
+export const GUN_EXIT_BOARDS=[{x:126,z:-132},{x:238,z:-132},{x:126,z:-52},{x:238,z:-52}];
 export const WEAPONS=[
  {id:'pistol',name:'拳銃',price:1,magazine:12,interval:320,speed:1500,pellets:1,spread:.002,range:420,require:0},
  {id:'machine',name:'マシンガン',price:3,magazine:30,interval:100,speed:1900,pellets:1,spread:.013,range:420,require:1},
@@ -21,14 +22,15 @@ export function buildGunTown({box,board=()=>{},sign=()=>{}}){
  // Continuous, thick fortress walls. Only the west entry has a pedestrian gate.
  const wallHeight=18;
  box(182,9,-140,126,wallHeight,2.8,stone);box(182,9,-44,126,wallHeight,2.8,stone);box(244,9,-92,2.8,wallHeight,96,stone);
- box(120,9,-122,2.8,wallHeight,36,stone);box(120,9,-62,2.8,wallHeight,36,stone);
+ box(120,9,-92,2.8,wallHeight,96,stone);
  // Heavy plinth, visible cap and regularly spaced buttresses create depth.
  for(const z of [-140,-44]){box(182,.75,z,126,1.5,3.8,brick);box(182,18.25,z,127,.5,3.7,trim);for(let x=125;x<244;x+=9){box(x,8.9,z,1.5,17.8,3.5,stone);box(x,19.05,z,3,1.2,3.8,trim);}}
  for(const x of [120,244])for(let z=-135;z<-44;z+=9){if(x===120&&z>-105&&z<-79)continue;box(x,8.9,z,3.5,17.8,1.5,stone);box(x,19.05,z,3.8,1.2,3,trim);}
  for(const [x,z]of [[120,-140],[244,-140],[120,-44],[244,-44]]){box(x,11.2,z,7.5,22.4,7.5,brick);box(x,21.7,z,8.2,.6,8.2,trim);for(const side of [-1,1]){box(x+side*3.3,22.8,z,.9,1.6,7.5,stone);box(x,22.8,z+side*3.3,7.5,1.6,.9,stone);}detail(x,13,z-3.77,1.1,3.2,.025,dark);detail(x+3.77,13,z,.025,3.2,1.1,dark);}
- for(const z of [-103,-81]){box(120,7,z,6,14,5,brick);box(120,14.2,z,6.6,.5,5.7,trim);}
- box(120,11.8,-92,6,6.4,18,stone);box(120,8.65,-92,6.6,.5,18.5,trim);
- detail(116.96,10.8,-92,.04,1.5,13,teal);sign('SAND TOWN',116.9,12.9,-92,10,-Math.PI/2);sign('銃撃戦 · 砂の街',111,3.3,-84,4.5);
+ // A completely enclosed roof; only its underside is rendered as cloudy sky.
+ box(182,24.9,-92,126,.6,98,stone,true,{noShadow:true});
+ for(const z of [-140,-44])box(182,21.5,z,126,7,2.8,stone,true,{noShadow:true});
+ for(const x of [120,244])box(x,21.5,-92,2.8,7,96,stone,true,{noShadow:true});
  // Each district has its own footprint, colour, roof level and entrances.
  const buildings=[
  [139,-121,11,11,4.8,sand,teal],[158,-122,12,12,5.5,chalk,rust],[182,-121,11,11,6.6,stone,blue],[204,-122,12,13,4.5,sand,rust],[225,-122,11,12,5.8,chalk,teal],
@@ -68,10 +70,24 @@ export function buildGunTown({box,board=()=>{},sign=()=>{}}){
  for(const [x,z]of [[132,-111],[162,-113],[212,-93],[233,-73],[170,-96],[194,-86]]){box(x,.66,z,1.8,1.32,1.6,dark);box(x+.7,1.65,z+.15,1.1,.66,1.1,brick);for(const y of [.25,.9])detail(x,y,z-.81,1.85,.07,.025,trim);}
  // Quiet courtyards and district signs are recognisable navigation landmarks.
  box(148,.13,-91,9,.04,6,trim);box(215,.13,-92,9,.04,6,paving);
- sign('MARKET',173,3.8,-110,3);sign('COURTYARD',214,3.5,-93,3.2);sign('ROOFTOPS',157,4,-73,3);
+
  for(const [x,z]of [[170,-119],[193,-118],[168,-65],[198,-64]]){box(x,3.2,z,.16,6.4,.16,dark);detail(x,5.65,z+.12,1.25,1.8,.035,x%2?teal:rust);}
- GUN_SPAWNS.forEach((p,i)=>{box(p.x,.105,p.z,4.5,.21,4.5,[teal,rust,blue][i%3]);board(p.x+2,.21,p.z,'gun-team');sign('TEAM '+String.fromCharCode(65+i),p.x,2.8,p.z,2.5);});
- board(113,.09,-92,'gun-team');
+ // The perimeter is a winding part of the maze, not an empty ring road.
+ const outerWall=(x,z,w,d)=>{if(GUN_EXIT_BOARDS.some(p=>Math.abs(p.x-x)<w/2+4&&Math.abs(p.z-z)<d/2+4))return;box(x,1.6,z,w,3.2,d,stone);box(x,3.27,z,w+.15,.14,d+.15,trim);};
+ for(let i=0;i<11;i++){const x=133+i*9;outerWall(x,-132,5.5,.45);outerWall(x+(i%2?2.8:-2.8),-134, .45,5.5);outerWall(x,-51,5.5,.45);outerWall(x+(i%2?-2.8:2.8),-54,.45,5.5);}
+ for(let i=0;i<9;i++){const z=-124+i*8.1;outerWall(127,z,.45,5);outerWall(130,z+(i%2?2.6:-2.6),6,.45);outerWall(237,z,.45,5);outerWall(234,z+(i%2?-2.6:2.6),6,.45);}
+ GUN_EXIT_BOARDS.forEach(p=>{box(p.x,.1,p.z,3.5,.2,3.5,paving);board(p.x,.2,p.z,'gun-exit');});
+ board(GUN_ENTRY.x,.09,GUN_ENTRY.z,'gun-entry');
+
 }
 const solids=[];buildGunTown({box:(x,y,z,w,h,d,color,solid=true)=>{if(solid)solids.push({x,y,z,w,h,d});}});
 export const GUN_SOLIDS=solids;
+
+// Ground-level clear points come from the actual shared maze solids. No fixed team pads.
+const spawnPoints=[];
+for(let x=125;x<=239;x+=3.5)for(let z=-135;z<=-49;z+=3.5){
+ if(GUN_EXIT_BOARDS.some(p=>Math.hypot(x-p.x,z-p.z)<4))continue;
+ if(GUN_SOLIDS.some(b=>b.y+b.h/2>.30&&b.y-b.h/2<2.15&&Math.abs(x-b.x)<b.w/2+.60&&Math.abs(z-b.z)<b.d/2+.60))continue;
+ spawnPoints.push({x,y:.12,z,yaw:0});
+}
+export const GUN_SPAWNS=spawnPoints;

@@ -1,24 +1,24 @@
-import {createWorldExperience} from './world-experience.js?v=20261010-spectator62';
+import {createWorldExperience} from './world-experience.js?v=20261010-dof63';
 import {inGunZone,weaponById} from './gun-layout.js';
-import {createWorldChat} from './world-chat.js?v=20261010-spectator62';
-import {startUpdateNotice} from './update-notice.js?v=20261010-spectator62';
+import {createWorldChat} from './world-chat.js?v=20261010-dof63';
+import {startUpdateNotice} from './update-notice.js?v=20261010-dof63';
 import {memberColor} from './housing-data.js';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261010-spectator62';
+import { createAvatar } from './avatar.js?v=20261010-dof63';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261010-spectator62';
+import { createWorld } from './world.js?v=20261010-dof63';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-spectator62';
+import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-dof63';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261010-spectator62';
+import { createHousingRenderer } from './housing-renderer.js?v=20261010-dof63';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261010-spectator62';
+import { createHouseEditor } from './house-editor.js?v=20261010-dof63';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js';
 import {createWorldGuide} from './world-guide.js';
@@ -305,8 +305,9 @@ range('distance',v=>{distance=v;scheduleShare()},v=>v.toFixed(1)+' m');range('fo
 range('wind',v=>{environment?.setSettings({wind:v});scheduleShare()},v=>v.toFixed(2));range('grassDensity',v=>{environment?.setSettings({grassDensity:v});scheduleShare()},v=>Math.round(v*100)+'%');range('sunHeight',v=>{environment?.setSettings({sunHeight:v});scheduleShare()},v=>v+'°');range('exposure',v=>{environment?.setSettings({exposure:v});scheduleShare()},v=>v.toFixed(2));
 function quality(level){activeQuality=level;environment?.setSettings({quality:level});renderer?.setPixelRatio(Math.min(devicePixelRatio,level==='high'?1.75:level==='medium'?1.25:1));resize()}
 $('quality').onchange=e=>{qualityChoice=e.target.value;quality(qualityChoice==='auto'?(embeddedDepth?'low':touch?'medium':'high'):qualityChoice);slowSeconds=0;scheduleShare()};
-function updateFisheyeControls(){for(const id of ['playCamera','gunPlayCamera'])if($(id))$(id).value=cachedCharacter().playCamera||'shoulder';const percent=Math.round((cachedCharacter().fisheye??1)*100);for(const id of ['fisheyeStrength','gunFisheyeStrength']){const input=$(id);if(input&&document.activeElement!==input)input.value=String(percent);if($(id+'Out'))$(id+'Out').textContent=percent===0?'OFF':percent+'%';}const lightness=cachedCharacter().lightness||100;if(document.activeElement!==$('characterLightness'))$('characterLightness').value=String(lightness);$('characterLightnessOut').textContent=String(lightness);}
+function updateFisheyeControls(){for(const id of ['playCamera','gunPlayCamera'])if($(id))$(id).value=cachedCharacter().playCamera||'shoulder';const percent=Math.round((cachedCharacter().fisheye??1)*100);for(const id of ['fisheyeStrength','gunFisheyeStrength']){const input=$(id);if(input&&document.activeElement!==input)input.value=String(percent);if($(id+'Out'))$(id+'Out').textContent=percent===0?'OFF':percent+'%';}for(const id of ['depthOfField','gunDepthOfField'])if($(id))$(id).checked=cachedCharacter().depthOfField!==false;const lightness=cachedCharacter().lightness||100;if(document.activeElement!==$('characterLightness'))$('characterLightness').value=String(lightness);$('characterLightnessOut').textContent=String(lightness);}
 for(const id of ['fisheyeStrength','gunFisheyeStrength']){const input=$(id);input.oninput=()=>{const value=Number(input.value)/100;cacheCharacter(selected,{...cachedCharacter(),fisheye:value});$(id+'Out').textContent=value===0?'OFF':Math.round(value*100)+'%';};input.onchange=()=>{const value=Number(input.value)/100;if(selected!==GUEST_SKIN&&roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'character-fisheye',skin:selected,value}));};}
+for(const id of ['depthOfField','gunDepthOfField'])$(id).onchange=e=>{const enabled=e.target.checked;cacheCharacter(selected,{...cachedCharacter(),depthOfField:enabled});for(const other of ['depthOfField','gunDepthOfField'])if(other!==id)$(other).checked=enabled;if(selected!==GUEST_SKIN&&roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'character-depth-of-field',skin:selected,enabled}));};
 $('characterLightness').oninput=e=>{const value=Number(e.target.value);cacheCharacter(selected,{...cachedCharacter(),lightness:value});$('characterLightnessOut').textContent=String(value);};$('characterLightness').onchange=e=>{const value=Number(e.target.value);if(selected!==GUEST_SKIN&&roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'character-lightness',skin:selected,value}));};
 updateFisheyeControls();
 for(const id of ['playCamera','gunPlayCamera'])$(id).onchange=e=>{const value=e.target.value;cacheCharacter(selected,{...cachedCharacter(),playCamera:value});if(inStudio&&!housingEditor?.active)setCameraMode(value==='first'?'first':'follow');if(selected!==GUEST_SKIN&&roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'character-camera',skin:selected,value}));};

@@ -30,3 +30,8 @@ body[data-screen=lobby] :is(#gunHealthHud,#gunCountdown){display:none!important;
 body[data-screen=lobby] #gunDamageTint{display:none!important;}
 
 .room-player-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:2px solid #426779}.room-player-row>span:nth-child(2){flex:1;font-size:14px;overflow-wrap:anywhere}.room-player-row canvas{width:32px;height:32px;image-rendering:pixelated}.room-player-row button{min-height:48px;padding:8px 16px}
+
+/* A small visible dot with a finger-sized target. Dragging it changes view. */
+#gunCrosshair{width:52px;height:52px;min-height:52px;padding:0;border:0;background:transparent;box-shadow:none;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;cursor:crosshair}
+#gunCrosshair:after{content:'';position:absolute;left:calc(50% - 3px);top:calc(50% - 3px);width:6px;height:6px;border:1px solid white;border-radius:50%;background:#fff8;box-shadow:0 0 2px #222;pointer-events:none}
+#gunCrosshair:active{transform:translate(-50%,-50%)}

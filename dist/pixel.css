@@ -70,3 +70,48 @@ body[data-house-editing=true] .home-edit-prompt,body[data-clean=true] .home-edit
 @media(max-width:720px){.house-editor{width:min(380px,48vw)}.house-editor-nav button{font-size:11px}.world-menu{left:8px;bottom:8px;width:min(440px,calc(100vw - 16px));height:min(540px,calc(100dvh - 16px))}}
 @media(max-width:720px) and (orientation:portrait){.house-editor{width:calc(100% - 12px);height:62dvh;max-height:62dvh;top:auto;bottom:max(6px,env(safe-area-inset-bottom));right:6px}.house-editor[data-folded=true]{height:auto;max-height:170px}.house-editor .panel-title h2{font-size:14px}.house-browse-pane .furniture-catalogue{grid-template-columns:repeat(3,minmax(0,1fr))}.world-menu{height:min(560px,70dvh)} }
 @media(max-height:520px){.world-menu{height:calc(100dvh - 12px);bottom:6px}.world-menu-tabs button{min-height:38px;font-size:11px}.house-editor-nav button{min-height:38px}}
+
+
+/* Touch devices: an expanded furniture library and a compact placement sheet. */
+#houseTouchTools,#houseTouchHint{display:none}
+#houseTouchOptions{margin:0}#houseTouchOptions>summary{display:none}
+.house-editor[data-touch=true]{width:min(430px,46vw);right:max(8px,env(safe-area-inset-right));top:max(8px,env(safe-area-inset-top));bottom:calc(max(8px,env(safe-area-inset-bottom)) + var(--house-keyboard-bottom,0px));padding:12px;gap:8px;max-height:calc(var(--house-visible-height,100dvh) - 16px)}
+.house-editor[data-touch=true] :is(button,select,input,summary){min-height:48px;font-size:16px;touch-action:manipulation}
+.house-editor[data-touch=true] .panel-title h2{font-size:16px}.house-editor[data-touch=true] .eyebrow{font-size:10px}
+.house-editor[data-touch=true] .house-editor-nav button{font-size:13px;min-height:48px}
+.house-editor[data-touch=true] .house-tabs{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.house-editor[data-touch=true] .house-tabs button{font-size:14px}
+.house-editor[data-touch=true] #houseCatalogueTools{grid-template-columns:minmax(0,1fr);gap:4px}
+.house-editor[data-touch=true] #houseCatalogueTools label{font-size:12px;margin:0 0 4px}
+.house-editor[data-touch=true] #houseCatalogueTools :is(input,select){height:48px;min-height:48px;font-size:16px}
+.house-editor[data-touch=true] .furniture-catalogue{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;scroll-padding:8px;-webkit-overflow-scrolling:touch}
+.house-editor[data-touch=true] .furniture-card{min-height:126px;padding:9px 6px;font-size:13px;line-height:1.4;display:flex;flex-direction:column;align-items:center;gap:4px}
+.house-editor[data-touch=true] .furniture-card svg{height:76px;flex:none}.house-editor[data-touch=true] .furniture-card span{min-height:36px;width:100%;overflow-wrap:anywhere}
+.house-editor[data-touch=true] .house-catalogue-pages{display:flex;align-items:center;justify-content:space-between;gap:8px}.house-editor[data-touch=true] #houseCataloguePage{font-size:12px;text-align:center}
+.house-editor[data-touch=true] #houseTouchOptions>summary{display:block;padding:12px 8px;color:#c6e9d3;border:2px solid #537681;cursor:pointer}
+.house-editor[data-touch=true] #houseTouchOptions{margin-bottom:8px}
+.house-editor[data-touch=true][data-pane=edit]:not([data-folded=true]) #houseTouchTools{display:grid;grid-template-columns:2fr 2fr 1fr 1fr;gap:5px;flex:none}
+.house-editor[data-touch=true] #houseTouchTools button{font-size:12px;padding:6px 3px;min-width:0}
+.house-editor[data-touch=true][data-pane=edit]:not([data-folded=true]) #houseTouchHint{display:block;margin:0;font-size:11px;color:#b6d2cb;flex:none}
+.house-editor[data-touch=true] .house-editor-footer{border-top:2px solid #426779;padding-top:6px}
+.house-editor[data-touch=true] #houseDraftActions button{min-height:52px;font-size:15px}
+.house-editor[data-touch=true] #housePlacementCoords{display:none}.house-editor[data-touch=true] .house-placement-hud{font-size:12px;padding:6px;margin:0 0 5px}
+.house-editor[data-touch=true] .house-save-status{font-size:11px;padding:5px;margin:4px 0 0}
+.house-editor[data-touch=true] .house-editor-count{font-size:11px}
+.house-editor[data-touch=true][data-folded=true]{top:auto;height:auto;max-height:180px}
+@media(orientation:portrait){
+ .house-editor[data-touch=true]{width:calc(100% - 16px);right:8px;top:auto;bottom:calc(max(8px,env(safe-area-inset-bottom)) + var(--house-keyboard-bottom,0px));height:calc(var(--house-visible-height,100dvh)*.78);max-height:calc(var(--house-visible-height,100dvh)*.78)}
+ .house-editor[data-touch=true][data-pane=edit]{height:calc(var(--house-visible-height,100dvh)*.52);max-height:calc(var(--house-visible-height,100dvh)*.52)}
+ .house-editor[data-touch=true][data-pane=room]{height:calc(var(--house-visible-height,100dvh)*.60);max-height:calc(var(--house-visible-height,100dvh)*.60)}
+ .house-editor[data-touch=true][data-folded=true]{height:auto;max-height:180px}
+ .house-editor[data-touch=true] #houseCatalogueTools{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px}
+ .house-editor[data-touch=true] .furniture-catalogue{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(orientation:portrait) and (min-width:700px){.house-editor[data-touch=true] .furniture-catalogue{grid-template-columns:repeat(4,minmax(0,1fr))}.house-editor[data-touch=true][data-pane=edit]{height:38dvh;max-height:38dvh}}
+@media(max-height:540px) and (orientation:landscape){.house-editor[data-touch=true]{padding:8px;gap:4px}.house-editor[data-touch=true] #houseCatalogueTools{grid-template-columns:1fr 1fr}.house-editor[data-touch=true] .panel-title .eyebrow,.house-editor[data-touch=true] .house-editor-count,.house-editor[data-touch=true] #houseTouchHint{display:none!important}.house-editor[data-touch=true] .furniture-card{min-height:110px}.house-editor[data-touch=true] .furniture-card svg{height:60px}}
+
+.house-editor[data-touch=true][data-pane=edit]{gap:6px}
+.house-editor[data-touch=true][data-pane=edit] .house-editor-count,.house-editor[data-touch=true][data-pane=edit] .panel-title .eyebrow{display:none}
+.house-editor[data-touch=true][data-pane=edit] #houseSelection>.button-pair:first-of-type{display:none}
+.house-editor[data-touch=true] .house-placement-hud strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(orientation:portrait) and (max-width:699px){.house-editor[data-touch=true][data-pane=edit] #houseTouchHint{display:none!important}.house-editor[data-touch=true][data-pane=edit] .house-placement-hud{padding:3px 6px}.house-editor[data-touch=true][data-pane=edit] .house-save-status{padding:3px;margin-top:3px}}

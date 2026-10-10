@@ -96,7 +96,7 @@ export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPla
     gizmo.updateMatrixWorld(true);
     const hits=gizmo.visible?ray.intersectObject(gizmo,true).filter(h=>h.object.visible&&h.object.parent?.visible):[],axis=hits[0]?.object.userData.axis;
     if(!axis&&draft&&mode==='move'&&ray.intersectObject(ghost,true).length===0){pointDraft(e);return true;}
-    if(!axis&&!draft){const id=view.pick(ray,index);if(!id){drag={orbit:true,pan:e.shiftKey,x:e.clientX,y:e.clientY,pointerId:e.pointerId};return true;}selectedId=id;refresh();showPane('edit');if(touchLayout){fitCamera();return true;}}
+    if(!axis&&!draft){const id=view.pick(ray,index);if(!id){drag={orbit:true,pan:e.shiftKey,x:e.clientX,y:e.clientY,pointerId:e.pointerId};return true;}const alreadySelected=selectedId===id;selectedId=id;refresh();showPane('edit');if(touchLayout&&!alreadySelected){fitCamera();return true;}}
     if(pending)return true;const selected=item();if(!selected)return true;const f=FURNITURE_BY_ID.get(selected.t),p=furniturePose(selected),sideWall=f.mount==='wall'&&(selected.wall==='left'||selected.wall==='right'),centre=localToWorld(p.x,p.centerY,p.z),chosen=axis||'plane';
     const worldYaw=p.yaw+(HOUSES[index].front<0?Math.PI:0);normal.set(f.mount==='wall'?Math.sin(worldYaw):0,f.mount==='wall'?0:1,f.mount==='wall'?Math.cos(worldYaw):0);
     if(chosen!=='rotate'&&chosen!=='plane'){const vector=new THREE.Vector3(chosen==='x'?1:0,chosen==='y'?1:0,chosen==='z'?1:0);camera.getWorldDirection(normal);normal.addScaledVector(vector,-normal.dot(vector)).normalize();}

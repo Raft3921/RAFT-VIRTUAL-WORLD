@@ -1,4 +1,4 @@
-import {CHAT_HISTORY_LIMIT} from './world-chat-store.js?v=20261010-mirror-modules66';
+import {CHAT_HISTORY_LIMIT} from './world-chat-store.js?v=20261010-plaza-map67';
 export function createWorldChat({names,skinURL,makeFace,getSelfId,send,isConnected,onOpen,onClose}){
   const $=id=>document.getElementById(id),panel=$('worldChat'),history=$('chatHistory'),records=new Map();let nextCursor=null,pending=false,loading=false,terminal=false,latestTimer=0;
   function face(skin){const holder=document.createElement('span');holder.className='chat-face';makeFace(skinURL(skin),holder);return holder;}

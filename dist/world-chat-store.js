@@ -1,4 +1,4 @@
-import {playableSkin} from './player-types.js?v=20261010-mirror-modules66';
+import {playableSkin} from './player-types.js?v=20261010-plaza-map67';
 export const CHAT_LIMIT=400,CHAT_PAGE=100,CHAT_HISTORY_LIMIT=500;
 export function cleanChatMessage(value){
   if(typeof value?.id!=='string'||!/^[a-z0-9-]{1,64}$/.test(value.id)||typeof value.text!=='string'||!Number.isFinite(value.at))return null;

@@ -1,9 +1,9 @@
-import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261010-mirror-modules66';
+import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261010-plaza-map67';
 import * as THREE from 'three';
-import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261010-mirror-modules66';
-import { buildDistrict } from './district.js?v=20261010-mirror-modules66';
-import { HOUSES,HOUSE_COLORS } from './housing-data.js?v=20261010-mirror-modules66';
-import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js?v=20261010-mirror-modules66';
+import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261010-plaza-map67';
+import { buildDistrict } from './district.js?v=20261010-plaza-map67';
+import { HOUSES,HOUSE_COLORS } from './housing-data.js?v=20261010-plaza-map67';
+import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js?v=20261010-plaza-map67';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const materials=new Map();

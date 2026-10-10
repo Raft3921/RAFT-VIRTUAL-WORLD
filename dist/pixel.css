@@ -135,3 +135,15 @@ body[data-touch=true] #stickKnob{width:48px;height:48px;left:calc(50% - 24px);to
  body[data-touch=true] #chargeHud{bottom:calc(218px + env(safe-area-inset-bottom))}
 }
 @media(orientation:landscape) and (max-height:500px){body[data-touch=true] #moveStick{width:110px;height:110px;bottom:calc(14px + env(safe-area-inset-bottom))}body[data-touch=true] #punchBtn{width:68px;height:68px;min-height:68px;bottom:calc(16px + env(safe-area-inset-bottom))}body[data-touch=true] #jumpBtn{bottom:calc(102px + env(safe-area-inset-bottom))}}
+
+/* Safari: scroll the whole library instead of shrinking a nested flex grid to zero. */
+.house-editor[data-touch=true][data-pane=browse] .house-editor-body{display:block;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}
+.house-editor[data-touch=true][data-pane=browse] .house-browse-pane{display:block;height:auto;min-height:0;overflow:visible;padding-bottom:10px}
+.house-editor[data-touch=true][data-pane=browse] .furniture-catalogue{display:grid;flex:none;height:auto;min-height:126px;max-height:none;overflow:visible;grid-auto-rows:minmax(126px,auto);margin:10px 0}
+.house-editor[data-touch=true][data-pane=browse] .furniture-card{height:auto;min-height:126px;flex-shrink:0}
+.house-editor[data-touch=true][data-pane=browse] #houseCataloguePages{position:static;flex:none;margin-top:10px}
+.house-editor[data-touch=true][data-pane=browse] :is(.house-editor-count,#houseAddMore,.housePlacementHUD){display:none}
+.house-editor[data-touch=true][data-pane=browse] .house-editor-footer{padding-top:3px}
+.house-editor[data-touch=true][data-pane=browse] .panel-title{padding-bottom:4px}
+@media(orientation:portrait){.house-editor[data-touch=true][data-pane=browse]{height:calc(var(--house-visible-height,100dvh) - 24px);max-height:calc(var(--house-visible-height,100dvh) - 24px);gap:5px}.house-editor[data-touch=true][data-pane=browse] .panel-title .eyebrow{display:none}.house-editor[data-touch=true][data-pane=browse] .furniture-catalogue{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(orientation:portrait) and (min-width:700px){.house-editor[data-touch=true][data-pane=browse] .furniture-catalogue{grid-template-columns:repeat(4,minmax(0,1fr))}}

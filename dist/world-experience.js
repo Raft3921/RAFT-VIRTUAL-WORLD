@@ -1,9 +1,9 @@
 import {createGunEffects} from './gun-effects.js';
 import {createBodycam} from './bodycam.js';
 import {createWorldAudio} from './world-audio.js';
-import {createWorldInteraction} from './world-interaction.js?v=20261010-gunmotion36';
+import {createWorldInteraction} from './world-interaction.js?v=20261010-entry37';
 import {fallbackMuzzle} from './weapon-dimensions.js';
-import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-gunmotion36';
+import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-entry37';
 import * as THREE from 'three';
 import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js';
 import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash} from './gun-visual.js';
@@ -90,7 +90,7 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
   if(message.type==='pc-open'&&message.playerId===s.selfId){desktop();return true;}
   if(message.type==='gun-battle'){const previous=battle.phase,previousOut=selfMember()?.out;battle=message.battle;if(previous!=='active'&&battle.phase==='active'&&selfMember())notify('銃撃戦開始！ 3被弾で脱落',4000);if(!previousOut&&selfMember()?.out){cancel();notify('脱落 · チームの決着まで観戦できます',5000);document.body.classList.add('gun-eliminated-flash');setTimeout(()=>document.body.classList.remove('gun-eliminated-flash'),600);}if(!$('teamPanel').hidden)renderTeams();return true;}
   if(message.type==='gun-result'){notify(message.winner===null?'銃撃戦終了':`TEAM ${String.fromCharCode(65+message.winner)} 勝利！`,5000);return true;}
-  if(message.type==='gun-teleport'){if(message.playerId===s.selfId)onTeleport(message.position);else s.remoteTeleport?.(message.playerId,message.position);return true;}
+  if(message.type==='gun-teleport'){if(message.playerId===s.selfId)onTeleport(message.position,message.serial);else s.remoteTeleport?.(message.playerId,message.position);return true;}
   if(message.type==='gun-shot'){if(message.shot.owner===s.selfId)shots.delete('predicted-'+message.shot.serial);shots.set(message.shot.id,message.shot);const soundKey=message.shot.owner+':'+message.shot.serial;if(!soundedShots.has(soundKey)&&s.now-message.shot.born<300){soundedShots.set(soundKey,s.now);s.flashActor?.(message.shot.owner);if(message.shot.owner!==s.selfId)sound(message.shot.weapon,message.shot.position);}for(const [key,at]of soundedShots)if(s.now-at>5000)soundedShots.delete(key);const start=new THREE.Vector3(message.shot.position.x,message.shot.position.y,message.shot.position.z);if(message.shot.owner!==s.selfId){s.muzzle?.(start);{const last=soundedShots.get(soundKey+'-smoke');if(!last){soundedShots.set(soundKey+'-smoke',s.now);gunEffects.muzzle(start,new THREE.Vector3(message.shot.vx,message.shot.vy,message.shot.vz).normalize());}}}if(message.shot.owner!==s.selfId&&message.shot.weapon!=='rocket'){const velocity=new THREE.Vector3(message.shot.vx,message.shot.vy,message.shot.vz).normalize(),end=s.world.cameraPosition(start,start.clone().addScaledVector(velocity,weaponById(message.shot.weapon).range),.01);trace(start,end);}return true;}
   if(message.type==='gun-impact'){if(seenImpacts.has(message.id)||message.at&&s.now-message.at>20000)return true;seenImpacts.set(message.id,s.now);for(const [id,at]of seenImpacts)if(s.now-at>21000)seenImpacts.delete(id);shots.delete(message.id);const p=new THREE.Vector3(message.position.x,message.position.y,message.position.z);if(!message.historical){s.impact?.(p,message.explosion);gunEffects.impact(p,message.explosion);}if(message.wall){const incoming=new THREE.Vector3(message.velocity.x,message.velocity.y,message.velocity.z).normalize(),v=s.world.surfaceNormal(p,incoming),mark=marks[markCursor++%maxMarks];mark.position=p.clone().addScaledVector(v,.035);mark.rotation=new THREE.Quaternion().setFromUnitVectors(up,v);mark.until=(message.at||s.now)+20000;}return true;}return false;
  }

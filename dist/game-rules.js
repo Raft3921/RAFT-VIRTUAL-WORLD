@@ -12,14 +12,14 @@ import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} f
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js';
 import {furnitureAction} from './furniture-actions.js';
-export const SYNC_VERSION='2026-10-10-vrs-gunmotion-36';
+export const SYNC_VERSION='2026-10-10-vrs-entry-37';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin,realms){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||s.y<0||s.y>512)return null;
   const realm=mirrorRealm(s.mirrorRealm,realms);if(s.mirrorRealm&&!realm)return null;
   if(realm?Math.abs(s.x-realm.x)>65||Math.abs(s.z-(realm.z-62.5))>42:Math.abs(s.x)>1300||Math.abs(s.z)>1300)return null;
   const n=(key,a,b)=>Number.isFinite(s[key])?clamp(s[key],a,b):0;
-  return {equippedWeapon:weaponById(s.equippedWeapon)?.id||null,mirrorRealm:realm?.key||null,x:s.x,y:s.y,z:s.z,yaw:s.yaw,skin:playableSkin(skin),
+  return {gunTeleportSerial:Math.floor(n('gunTeleportSerial',0,1e9)),equippedWeapon:weaponById(s.equippedWeapon)?.id||null,mirrorRealm:realm?.key||null,x:s.x,y:s.y,z:s.z,yaw:s.yaw,skin:playableSkin(skin),
     headYaw:n('headYaw',-1,1),headPitch:n('headPitch',-.7,.7),vx:n('vx',-200,200),vy:n('vy',-200,200),vz:n('vz',-200,200),
     speed:n('speed',0,20),verticalSpeed:n('verticalSpeed',-200,200),grounded:s.grounded!==false,flight:s.flight===true,
     ragdoll:s.ragdoll===true,seated:s.seated===true,sleeping:s.sleeping===true&&s.ragdoll!==true,crownEnabled:s.crownEnabled===true,
@@ -32,6 +32,12 @@ export function cleanState(s,skin,realms){
 // A pre-impact state packet must not replace a newly broadcast hit with an
 // upright pose. The server owns the serial; the victim echoes it on updates.
 export function applyPlayerState(player,state){
+  // Position packets queued before a board/round teleport must not undo it.
+  const teleportSerial=player.gunTeleportSerial||0;
+  if(state.gunTeleportSerial!==teleportSerial){
+    for(const key of ['x','y','z','yaw','mirrorRealm','grounded','flight','ragdoll','seated','sleeping','vx','vy','vz','speed','verticalSpeed'])if(player[key]!==undefined)state[key]=player[key];
+  }
+  state.gunTeleportSerial=teleportSerial;
   const serial=player.hitSerial||0;
   if(state.hitSerial<serial){for(const key of ['ragdoll','sleeping','seated','hitPhase','hitTime','hitDownTime','hitRecovery','hitStrength','grounded','yaw','vx','vy','vz'])if(player[key]!==undefined)state[key]=player[key];}
   if(Date.now()<(player.impactUntil||0)){

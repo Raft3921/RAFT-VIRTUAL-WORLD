@@ -1,9 +1,9 @@
-import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261010-free-cook69';
+import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261010-free-cook70';
 import * as THREE from 'three';
-import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261010-free-cook69';
-import { buildDistrict } from './district.js?v=20261010-free-cook69';
-import { HOUSES,HOUSE_COLORS } from './housing-data.js?v=20261010-free-cook69';
-import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js?v=20261010-free-cook69';
+import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261010-free-cook70';
+import { buildDistrict } from './district.js?v=20261010-free-cook70';
+import { HOUSES,HOUSE_COLORS } from './housing-data.js?v=20261010-free-cook70';
+import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js?v=20261010-free-cook70';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const materials=new Map();

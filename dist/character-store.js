@@ -1,5 +1,5 @@
-import {cleanMeal,describeDish} from './cooking-data.js?v=20261010-free-cook69';
-import {WEAPONS,weaponById} from './gun-layout.js?v=20261010-free-cook69';
+import {cleanMeal,describeDish} from './cooking-data.js?v=20261010-free-cook70';
+import {WEAPONS,weaponById} from './gun-layout.js?v=20261010-free-cook70';
 export const characterIndex=value=>Number.isInteger(Number(value))&&Number(value)>=0&&Number(value)<9?Number(value):null;
 export function cleanCharacter(value={}){
   const score=Number(value?.score),checkpoint=Number(value?.checkpoint),appearance=Number(value?.appearanceLevel),safeScore=Number.isFinite(score)?Math.max(-10000,Math.min(10000,Math.trunc(score))):0;

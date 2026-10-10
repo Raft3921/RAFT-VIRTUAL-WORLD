@@ -1,4 +1,4 @@
-import {EXPANDED_FURNITURE} from './furniture-catalogue.js?v=20261010-free-cook69';
+import {EXPANDED_FURNITURE} from './furniture-catalogue.js?v=20261010-free-cook70';
 export const GRID=.25,HEIGHT_GRID=.05,MAX_FURNITURE=64,ROOM={x:7.4,z:6.9,height:5.25,floor:.245};
 export const OWNER_SKINS=[3,5,6,2,4,1,0,7];
 export const HOUSE_COLORS=['#d84a42','#52a96d','#48b8d4','#e88a38','#87929a','#9a70c5','#e4c84d','#9a6748'];

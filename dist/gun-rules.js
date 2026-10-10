@@ -1,3 +1,4 @@
+import {fallbackMuzzle} from './weapon-dimensions.js';
 import {WEAPONS,weaponById,inGunZone,GUN_SPAWNS,GUN_SOLIDS} from './gun-layout.js';
 import {segmentBox,projectileWallFraction} from './projectile-motion.js';
 import {buildDistrict} from './district.js';
@@ -58,9 +59,12 @@ export class GunRules{
   if(ammo.reloadAt||now-ammo.lastAt<weapon.interval)return;
   const aim=message.aim;if(!aim||![aim.x,aim.y,aim.z].every(Number.isFinite))return;const length=Math.hypot(aim.x,aim.y,aim.z);if(length<.9||length>1.1)return;
   ammo.lastAt=now;ammo.left--;if(!ammo.left)ammo.reloadAt=now+5000;this.ammo.set(p.id+':'+weapon.id,ammo);this.economy(p);
+  const expected=fallbackMuzzle(p,weapon.id,aim),requested=message.muzzle;
+  let origin=requested&&[requested.x,requested.y,requested.z].every(Number.isFinite)&&Math.hypot(requested.x-p.x,requested.z-p.z)<2.3&&requested.y>p.y+.2&&requested.y<p.y+2.8?{x:requested.x,y:requested.y,z:requested.z}:expected;
+  const shoulder={x:p.x-Math.cos(p.yaw)*.3,y:p.y+(p.skin===7?1:1.4),z:p.z+Math.sin(p.yaw)*.3},fraction=this.blocked(shoulder,origin,this.rules.houses.snapshots(),.02);if(fraction!==null)origin=interpolate(shoulder,origin,fraction);
   for(let i=0;i<weapon.pellets;i++){
-   const dx=aim.x/length+(Math.random()-.5)*weapon.spread*2,dy=aim.y/length+(Math.random()-.5)*weapon.spread*2,dz=aim.z/length+(Math.random()-.5)*weapon.spread*2,n=Math.hypot(dx,dy,dz),origin={x:p.x,y:p.y+(p.skin===7?1.05:1.58),z:p.z};
-   const shot={id:'gun-'+(++this.sequence),owner:p.id,weapon:weapon.id,position:origin,vx:dx/n*weapon.speed,vy:dy/n*weapon.speed,vz:dz/n*weapon.speed,born:now,life:weapon.range/weapon.speed,round:inGunZone(p)?this.round:null};this.shots.push(shot);this.send({type:'gun-shot',shot});
+   const dx=aim.x/length+(Math.random()-.5)*weapon.spread*2,dy=aim.y/length+(Math.random()-.5)*weapon.spread*2,dz=aim.z/length+(Math.random()-.5)*weapon.spread*2,n=Math.hypot(dx,dy,dz);
+   const shot={id:'gun-'+(++this.sequence),owner:p.id,weapon:weapon.id,serial:message.serial,position:{...origin},origin:{...origin},vx:dx/n*weapon.speed,vy:dy/n*weapon.speed,vz:dz/n*weapon.speed,born:now,lastAt:now,life:weapon.range/weapon.speed,round:inGunZone(p)?this.round:null};this.shots.push(shot);this.send({type:'gun-shot',shot});
   }this.ensureTimer();
  }
  ensureTimer(){if(this.timer)return;this.lastTick=Date.now();const flight=new Promise(resolve=>this.finish=resolve);this.rules.onAsyncWork(flight);this.timer=setInterval(()=>this.tick(Date.now()),40);}
@@ -68,7 +72,7 @@ export class GunRules{
   if(this.phase==='waiting'&&this.startAt&&now>=this.startAt)this.begin(now);
   if(this.phase==='finished'&&now>=this.nextRoundAt){this.phase='waiting';this.assign();this.startAt=this.members.size>=2?now+15000:0;this.publish();}
   for(const shot of this.shots){const owner=players.find(p=>p.id===shot.owner);if(!owner||shot.round!==null&&(this.phase!=='active'||shot.round!==this.round))continue;
-   const a=shot.position,b={x:a.x+shot.vx*dt,y:a.y+shot.vy*dt,z:a.z+shot.vz*dt},weapon=weaponById(shot.weapon),radius=weapon.radius ? .18 : .025;let first=this.blocked(a,b,layouts,radius),victim=null;
+   const shotDt=Math.max(0,Math.min(.2,(now-(shot.lastAt||shot.born))/1000,shot.life-((shot.lastAt||shot.born)-shot.born)/1000));shot.lastAt=now;const a=shot.position,b={x:a.x+shot.vx*shotDt,y:a.y+shot.vy*shotDt,z:a.z+shot.vz*shotDt},weapon=weaponById(shot.weapon),radius=weapon.radius ? .18 : .025;let first=this.blocked(a,b,layouts,radius),victim=null;
    for(const q of players){if(q.id===owner.id)continue;const own=this.members.get(owner.id),target=this.members.get(q.id);if(shot.round!==null&&(!target||target.out||target.team===own?.team))continue;if(shot.round===null&&inGunZone(q))continue;
     const fraction=segmentBox(a,b,{x:q.x,y:q.y+.9,z:q.z,w:.65,h:1.8,d:.65},radius);if(fraction!==null&&(first===null||fraction<first)){first=fraction;victim=q;}}
    if(first!==null){const point=interpolate(a,b,first);this.send({type:'gun-impact',id:shot.id,position:point,explosion:!!weapon.radius,velocity:{x:shot.vx,y:shot.vy,z:shot.vz},wall:!victim});

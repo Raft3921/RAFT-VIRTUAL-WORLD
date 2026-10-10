@@ -1,4 +1,4 @@
-import {createGunModel} from './gun-visual.js';
+import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash} from './gun-visual.js';
 import * as THREE from 'three';
 import {withLocalLighting} from './local-lighting.js';
 import { sampleAttack,sampleCharge } from './combat-motion.js';
@@ -289,6 +289,7 @@ export async function createAvatar(url,{model=null}={}) {
     knees[side].rotation.x = damp(knees[side].rotation.x, kneeAngle, 22, dt);
   }
 
+  const weaponGrip=new THREE.Group(),gunInverse=new THREE.Quaternion(),gunAim=new THREE.Quaternion(),gunAxis=new THREE.Vector3(1,0,0);weaponGrip.name='right hand weapon grip';weaponGrip.position.set(0,-armHalf*PX+.04,0);elbows.right.add(weaponGrip);
   let gunModel=null,gunId=null;
   function update(dt, state = {}) {
     if (disposed) return;
@@ -437,8 +438,15 @@ export async function createAvatar(url,{model=null}={}) {
       const t=state.impactTime,u=t/state.impactDuration,amount=(.012+.035*(state.impactStrength||0))*Math.sin(Math.PI*u);
       pelvis.position.x+=Math.sin(t*155)*amount;pelvis.position.z+=Math.sin(t*119+.8)*amount;pelvis.rotation.z+=Math.sin(t*142)*amount*.4;
     }
-    if(gunId!==state.equippedWeapon){gunId=state.equippedWeapon;gunModel?.removeFromParent();gunModel=gunId?createGunModel(gunId):null;if(gunModel){torso.add(gunModel);gunModel.position.set(-.10,.78,.55);}}
-    if(gunModel){gunModel.visible=!state.ragdoll&&!state.sleeping&&!state.seated;if(gunModel.visible){const aim=clamp(-(state.lookPitch||0),-.7,.7);shoulders.right.rotation.set(-1.30+aim*.65,.14,-.12);elbows.right.rotation.set(-.68,0,0);shoulders.left.rotation.set(-1.12+aim*.65,-.35,.44);elbows.left.rotation.set(-.87,0,0);torso.rotation.y=-.09;gunModel.rotation.x=-aim;gunModel.position.y=.78+Math.sin(elapsed*1.7)*.002;}}
+    if(gunId!==state.equippedWeapon){gunId=state.equippedWeapon;gunModel?.removeFromParent();gunModel=gunId?createGunModel(gunId):null;if(gunModel){weaponGrip.add(gunModel);gunModel.add(createFiringHand(skinColor,{forearm:false}));}}
+    if(gunModel){gunModel.visible=!state.ragdoll&&!state.sleeping&&!state.seated;if(gunModel.visible){
+      const aim=clamp(-(state.lookPitch||0),-.75,.75);
+      shoulders.right.rotation.set(-1.20-aim*.82,0,-.035);elbows.right.rotation.set(-.22,0,0);
+      shoulders.left.rotation.set(Math.sin(phase)*.15*motion,.015,.065);elbows.left.rotation.set(-.10,0,0);
+      torso.rotation.y=.015;torso.rotation.z=Math.sin(phase)*.006*motion;
+      gunInverse.copy(shoulders.right.quaternion).multiply(elbows.right.quaternion).invert();const recoil=Math.max(0,gunModel.userData.flashUntil-performance.now())/65;gunAim.setFromAxisAngle(gunAxis,-aim-torso.rotation.x-recoil*.035);
+      gunModel.quaternion.copy(gunInverse).multiply(gunAim);gunModel.position.set(0,.115,.025).applyQuaternion(gunModel.quaternion);updateGunFlash(gunModel);
+    }}
     // Keep the supporting foot planted after the combat pose has been blended.
     if(grounded&&airborne<.02&&sitWeight<.01&&sleepWeight<.01&&ragdollWeight<.01){
       let sole=Infinity;for(const side of ['right','left']){const a=hips[side].rotation.x,b=a+knees[side].rotation.x,z=hips[side].rotation.z;const y=legHeight*PX+pelvis.position.y-(legHalf*PX*Math.cos(a)+legHalf*PX*Math.cos(b))*Math.cos(z)-.125*Math.abs(Math.sin(b));sole=Math.min(sole,y);}
@@ -463,7 +471,8 @@ export async function createAvatar(url,{model=null}={}) {
 
   root.traverse(object=>{if(object.isMesh)withLocalLighting(object.material);});
   return {
-    root, update, dispose, head, setAppearance,
+    root, update, dispose, head, setAppearance,gripColor:skinColor,
+    getGunMuzzle(target=new THREE.Vector3()){if(!gunModel?.visible)return null;root.updateMatrixWorld(true);return gunModel.userData.muzzle.getWorldPosition(target);},fireGun(){triggerGunFlash(gunModel);},
     reactHit(serial,strength=.2,age=0){if(!Number.isFinite(serial)||serial<=flinchSerial)return;flinchSerial=serial;if(age>=.24)return;flinchStart=elapsed-Math.max(0,age);flinchStrength=clamp(strength,0,1);},
     resetHitReaction(){flinchSerial=0;flinchStart=-Infinity;},
     eyeHeight:custom?(custom.headBottom+parts.head.size[1]*.5)*PX:1.68,

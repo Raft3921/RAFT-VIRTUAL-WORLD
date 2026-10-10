@@ -1,24 +1,24 @@
-import {createWorldExperience} from './world-experience.js?v=20261010-coin31';
+import {createWorldExperience} from './world-experience.js?v=20261010-grip32';
 import {inGunZone,weaponById} from './gun-layout.js';
-import {createWorldChat} from './world-chat.js?v=20261010-coin31';
-import {startUpdateNotice} from './update-notice.js?v=20261010-coin31';
+import {createWorldChat} from './world-chat.js?v=20261010-grip32';
+import {startUpdateNotice} from './update-notice.js?v=20261010-grip32';
 import {memberColor} from './housing-data.js';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261010-coin31';
+import { createAvatar } from './avatar.js?v=20261010-grip32';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261010-coin31';
+import { createWorld } from './world.js?v=20261010-grip32';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION } from './game-rules.js?v=20261010-coin31';
+import { SYNC_VERSION } from './game-rules.js?v=20261010-grip32';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261010-coin31';
+import { createHousingRenderer } from './housing-renderer.js?v=20261010-grip32';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261010-coin31';
+import { createHouseEditor } from './house-editor.js?v=20261010-grip32';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js';
 import {createWorldGuide} from './world-guide.js';
@@ -274,7 +274,7 @@ const guestButton=document.createElement('button');guestButton.className='charac
 async function replaceSkin(i,url){const actor=await playerAvatar(i,url);const old=actors[i];if(old){actor.root.position.copy(old.root.position);actor.root.rotation.copy(old.root.rotation);scene.remove(old.root);old.dispose()}actors[i]=actor;const appearance=cachedCharacter(i);actor.setAppearance(appearance.appearanceLevel,appearance.crownEnabled);scene.add(actor.root);makeFace(url,faces[i]);updateSelection();updateVisibility()}
 worldChat=createWorldChat({names:skinDefs.map(s=>s[0]),skinURL,makeFace,getSelfId:()=>roomSelfId,isConnected:()=>roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,send:message=>roomSocket.send(JSON.stringify(message)),onOpen(){if(housingEditor?.active)housingEditor.close();worldGuide?.close(false);setClean(false);unlocked();punchSwing=0;pendingAttack=null;queuedAttack=null;},onClose(){clearInput();canvas.focus();}});
 experience=createWorldExperience({scene,camera,names:skinDefs.map(s=>s[0]),skinURL,makeFace,
- get:()=>({skin:selected,targets:[...remoteActors.values()].map(r=>r.actor.root),remoteTeleport:(id,position)=>{const r=remoteActors.get(id);if(r){r.target.set(position.x,position.y,position.z);r.actor.root.position.copy(r.target);r.yaw=position.yaw;}},selfId:roomSelfId,player:actors[selected]?.root,character:cachedCharacter(),connected:roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,paused:paused(),ragdoll:localRagdoll,seated,seat,inStudio,world,housing:housingView,now:serverNow(),time,yaw,pitch,cameraMode,eyeHeight:actors[selected]?.eyeHeight||1.68,speed:velocity.length(),fov,duelPlaying:duelIds.length>0,muzzle:point=>emitParticles(point,'#ffe4a0',2,.6,0),impact:(point,explosion)=>{emitParticles(point,explosion?'#ffad52':'#ded0b7',explosion?32:5,explosion?7:1.5,7);if(explosion)shockwave(point,.8);}}),
+ get:()=>({skin:selected,targets:[...remoteActors.values()].map(r=>r.actor.root),remoteTeleport:(id,position)=>{const r=remoteActors.get(id);if(r){r.target.set(position.x,position.y,position.z);r.actor.root.position.copy(r.target);r.yaw=position.yaw;}},avatar:actors[selected],houseInteraction:housingEditor?.interaction,flashActor:id=>{if(id===roomSelfId)actors[selected]?.fireGun();else remoteActors.get(id)?.actor.fireGun();},selfId:roomSelfId,player:actors[selected]?.root,character:cachedCharacter(),connected:roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,paused:paused(),ragdoll:localRagdoll,seated,seat,inStudio,world,housing:housingView,now:serverNow(),time,yaw,pitch,cameraMode,eyeHeight:actors[selected]?.eyeHeight||1.68,speed:velocity.length(),fov,duelPlaying:duelIds.length>0,muzzle:point=>emitParticles(point,'#ffe4a0',2,.6,0),impact:(point,explosion)=>{emitParticles(point,explosion?'#ffad52':'#ded0b7',explosion?32:5,explosion?7:1.5,7);if(explosion)shockwave(point,.8);}}),
  send:message=>{if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));else notify('サーバーに接続してください');},notify,
  openChat:()=>{closeWorldMenu();worldChat.open();if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'chat-open'}));},openMenu:openWorldMenu,
  onModal:active=>{if(active){if(housingEditor?.active)housingEditor.close();worldGuide?.close(false);closeWorldMenu();$('menu').hidden=$('master').hidden=true;unlocked();setClean(false);}clearInput();},
@@ -309,11 +309,11 @@ $('mouseSensitivity').value=String(mouseSensitivity);$('mouseSensitivityOut').te
 let mirrorTravelMode=safeRead('vrs-mirror-travel-mode')==='classic'?'classic':'seamless';
 $('mirrorTravelMode').value=mirrorTravelMode;$('mirrorTravelMode').onchange=e=>{mirrorTravelMode=e.target.value==='classic'?'classic':'seamless';safeSave('vrs-mirror-travel-mode',mirrorTravelMode);housingView?.portals.setTravelMode(mirrorTravelMode);notify(mirrorTravelMode==='classic'?'鏡をクラシック移動にしました':'鏡をシームレス移動にしました');};
 function look(dx,dy){if(!inStudio){lobbyYaw+=dx*.008;return}if(paused())return;const aimScale=experience?.scoped ? .24 : 1;yaw-=dx*(touch?.004:.0025*mouseSensitivity)*aimScale;pitch=clamp(pitch-dy*(touch?.0035:.002*mouseSensitivity)*aimScale,-1.15,1.1);scheduleShare()}
-canvas.addEventListener('pointerdown',e=>{canvas.focus();if(housingEditor?.active){housingEditor.pointerDown(e);return;}if(inStudio&&!paused()&&!localRagdoll&&!duelActive&&housingEditor?.clickBoard(e))return;if(e.pointerType==='touch'&&!touch)mobileUI(true);else if(e.pointerType==='mouse'&&touch&&matchMedia('(any-pointer:fine)').matches)mobileUI(false);if(lookId!==null)return;lookId=e.pointerId;lookX=e.clientX;lookY=e.clientY;pointerStart.x=lookX;pointerStart.y=lookY;try{if(document.pointerLockElement!==canvas)canvas.setPointerCapture(e.pointerId);}catch{}if(inStudio&&!paused()&&document.pointerLockElement!==canvas){pointerPunchTarget=remotePlayerAt(e.clientX,e.clientY);if(e.button===0||e.pointerType==='touch')beginCharge()}if(clean&&e.pointerType==='touch'){cleanTimer=setTimeout(()=>{setClean(false);lookId=null},650)}});
+canvas.addEventListener('pointerdown',e=>{canvas.focus();if(!paused()&&experience?.pointer(e))return;if(housingEditor?.active){housingEditor.pointerDown(e);return;}if(inStudio&&!paused()&&!localRagdoll&&!duelActive&&housingEditor?.clickBoard(e))return;if(e.pointerType==='touch'&&!touch)mobileUI(true);else if(e.pointerType==='mouse'&&touch&&matchMedia('(any-pointer:fine)').matches)mobileUI(false);if(lookId!==null)return;lookId=e.pointerId;lookX=e.clientX;lookY=e.clientY;pointerStart.x=lookX;pointerStart.y=lookY;try{if(document.pointerLockElement!==canvas)canvas.setPointerCapture(e.pointerId);}catch{}if(inStudio&&!paused()&&document.pointerLockElement!==canvas){pointerPunchTarget=remotePlayerAt(e.clientX,e.clientY);if(e.button===0||e.pointerType==='touch')beginCharge()}if(clean&&e.pointerType==='touch'){cleanTimer=setTimeout(()=>{setClean(false);lookId=null},650)}});
 canvas.addEventListener('pointermove',e=>{if(housingEditor?.pointerMove(e))return;if(document.pointerLockElement===canvas){look(e.movementX,e.movementY);return}if(e.pointerId!==lookId)return;const dx=e.clientX-lookX,dy=e.clientY-lookY;lookX=e.clientX;lookY=e.clientY;if(Math.hypot(lookX-pointerStart.x,lookY-pointerStart.y)>8){clearTimeout(cleanTimer);pointerPunchTarget=null;cancelCharge()}look(dx,dy)});
 canvas.addEventListener('pointerup',e=>{if(housingEditor?.pointerUp(e))return;if(e.pointerId!==lookId)return;lookId=null;clearTimeout(cleanTimer);if(document.pointerLockElement===canvas)return;if(cachedCharacter().equippedWeapon){if(e.button===0||e.pointerType==='touch')experience?.release();pointerPunchTarget=null;return;}const click=Math.hypot(e.clientX-pointerStart.x,e.clientY-pointerStart.y)<8;if(cameraReturnMode()){pointerPunchTarget=null;if(click&&(e.button===0||e.pointerType==='touch'))requestCameraReturn();return;}if(pointerPunchTarget){const targetId=pointerPunchTarget;pointerPunchTarget=null;if(click)launchPunch(targetId);else cancelCharge();return}if(charging){if(click)launchPunch();else cancelCharge();}});
 canvas.addEventListener('pointercancel',e=>{experience?.cancel();if(housingEditor?.pointerUp(e,true))return;lookId=null;clearTimeout(cleanTimer);if(pointerPunchTarget){pointerPunchTarget=null;cancelCharge()}});canvas.addEventListener('lostpointercapture',()=>{lookId=null;experience?.cancel();});canvas.addEventListener('contextmenu',e=>e.preventDefault());
-document.addEventListener('mousedown',e=>{if(e.button!==0||document.pointerLockElement!==canvas)return;e.preventDefault();beginCharge()});
+document.addEventListener('mousedown',e=>{if(e.button!==0||document.pointerLockElement!==canvas)return;e.preventDefault();if(experience?.pointer(e))return;beginCharge()});
 document.addEventListener('mouseup',e=>{if(e.button!==0||document.pointerLockElement!==canvas)return;if(cameraReturnMode()){requestCameraReturn();return;}launchPunch()});
 document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElement!==canvas)cancelCharge()});
 canvas.addEventListener('wheel',e=>{if(housingEditor?.wheel(e))return;if(inStudio&&!paused()&&(cameraMode==='follow'||cameraMode==='orbit')){e.preventDefault();distance=clamp(distance+e.deltaY*.006,2,18);$('distance').value=distance;$('distanceOut').textContent=distance.toFixed(1)+' m'}},{passive:false});

@@ -1,1 +1,1 @@
-export const BUILD_ID='vrs-coins31';
+export const BUILD_ID='vrs-grip32';

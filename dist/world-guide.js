@@ -63,6 +63,6 @@ export function createWorldGuide({world,onOpen,onClose,isAllowed}){
   for(const [id,title]of SECTIONS){const button=document.createElement('button');button.textContent=title;button.dataset.section=id;button.setAttribute('role','tab');button.onclick=()=>show(id);nav.append(button);}
   document.getElementById('closeWorldGuide').onclick=()=>close();prompt.onclick=()=>{if(near&&isAllowed())open();};
   panel.addEventListener('keydown',event=>{if(event.key!=='Tab')return;const controls=[...panel.querySelectorAll('button,summary')].filter(e=>!e.disabled),first=controls[0],last=controls.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}});
-  function update(position,allowed){near=!!position&&!!board&&Math.hypot(position.x-board.x,position.z-board.z)<=3.5&&Math.abs(position.y-(board.y-1.45))<2.8;const hidden=!near||!allowed||!panel.hidden;if(prompt.hidden!==hidden)prompt.hidden=hidden;}
+  function update(position,allowed){near=!!position&&!!board&&Math.hypot(position.x-board.x,position.z-board.z)<=3.5&&Math.abs(position.y-(board.y-1.45))<2.8;const hidden=!near||!allowed||!panel.hidden;prompt.hidden=true;}
   return {open,close,update,get active(){return !panel.hidden;}};
 }

@@ -1,0 +1,3 @@
+// Receiver origin, +Z barrel direction and the grip/muzzle used by every view.
+export const WEAPON_DIMENSIONS={pistol:{muzzle:[0,.025,.48]},machine:{muzzle:[0,.025,.94]},sniper:{muzzle:[0,.025,1.28]},shotgun:{muzzle:[0,.025,1.10]},rocket:{muzzle:[0,.025,1.04]}};
+export function fallbackMuzzle(p,id,aim){const tip=WEAPON_DIMENSIONS[id]?.muzzle||WEAPON_DIMENSIONS.pistol.muzzle,base=p.skin===7?1.00:1.40,d=Math.hypot(aim.x,aim.y,aim.z)||1;return {x:p.x-Math.cos(p.yaw)*.34+Math.sin(p.yaw)*.48+aim.x/d*tip[2],y:p.y+base+aim.y/d*tip[2],z:p.z+Math.sin(p.yaw)*.34+Math.cos(p.yaw)*.48+aim.z/d*tip[2]};}

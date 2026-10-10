@@ -3,10 +3,10 @@ export const GUN_ZONE={minX:120,maxX:244,minZ:-140,maxZ:-44,x:182,z:-92,width:12
 export const inGunZone=p=>!!p&&!p.mirrorRealm&&p.x>120&&p.x<244&&p.z>-140&&p.z<-44;
 export const GUN_SPAWNS=[{x:128,y:.12,z:-130,yaw:Math.PI/2},{x:236,y:.12,z:-54,yaw:-Math.PI/2},{x:236,y:.12,z:-130,yaw:-Math.PI/2},{x:128,y:.12,z:-54,yaw:Math.PI/2},{x:180,y:.12,z:-130,yaw:0},{x:180,y:.12,z:-54,yaw:Math.PI},{x:128,y:.12,z:-92,yaw:Math.PI/2},{x:236,y:.12,z:-92,yaw:-Math.PI/2},{x:182,y:.12,z:-92,yaw:0}];
 export const WEAPONS=[
- {id:'pistol',name:'拳銃',price:1,magazine:12,interval:320,speed:310,pellets:1,spread:.002,range:420,require:0},
- {id:'machine',name:'マシンガン',price:3,magazine:30,interval:100,speed:330,pellets:1,spread:.013,range:420,require:1},
- {id:'sniper',name:'スナイパー',price:5,magazine:5,interval:1000,speed:560,pellets:1,spread:0,range:800,require:5},
- {id:'shotgun',name:'ショットガン',price:7,magazine:8,interval:850,speed:260,pellets:4,spread:.055,range:180,require:10},
+ {id:'pistol',name:'拳銃',price:1,magazine:12,interval:320,speed:1500,pellets:1,spread:.002,range:420,require:0},
+ {id:'machine',name:'マシンガン',price:3,magazine:30,interval:100,speed:1900,pellets:1,spread:.013,range:420,require:1},
+ {id:'sniper',name:'スナイパー',price:5,magazine:5,interval:1000,speed:2600,pellets:1,spread:0,range:800,require:5},
+ {id:'shotgun',name:'ショットガン',price:7,magazine:8,interval:850,speed:1600,pellets:4,spread:.055,range:180,require:10},
  {id:'rocket',name:'ロケットランチャー',price:10,magazine:1,interval:1200,speed:24,pellets:1,spread:0,range:320,radius:6,require:15}
 ];
 export const weaponById=id=>WEAPONS.find(w=>w.id===id);

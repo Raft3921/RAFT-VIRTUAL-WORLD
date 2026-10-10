@@ -12,7 +12,7 @@ import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} f
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js';
 import {furnitureAction} from './furniture-actions.js';
-export const SYNC_VERSION='2026-10-10-vrs-guns-30';
+export const SYNC_VERSION='2026-10-10-vrs-coins-31';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin,realms){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||s.y<0||s.y>512)return null;
@@ -56,8 +56,9 @@ export class GameRules{
   entries(){return [...this.players.values()];}
   character(skin,profile,enabled=false){return skin===GUEST_SKIN?cleanCharacter():this.characters.get(skin,profile,enabled);}
   broadcastCharacter(skin,record=this.characters.get(skin)){
-    for(const entry of this.entries())if(entry.player.skin===skin)Object.assign(entry.player,record);
+    const awards=[];for(const entry of this.entries())if(entry.player.skin===skin){const previous=entry.player.coins;if(Number.isInteger(previous)&&record.coins>previous)awards.push({playerId:entry.player.id,amount:record.coins-previous});Object.assign(entry.player,record);}
     this.broadcast({type:'character-state',skin,character:record});
+    for(const award of awards)this.broadcast({type:'coin-award',...award});
   }
   selectCharacter(entry,value){
     const skin=playableSkin(value,null),p=entry.player;if(skin===null)return false;

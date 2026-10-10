@@ -1,24 +1,24 @@
-import {createWorldExperience} from './world-experience.js?v=20261010-bodycam35';
+import {createWorldExperience} from './world-experience.js?v=20261010-gunmotion36';
 import {inGunZone,weaponById} from './gun-layout.js';
-import {createWorldChat} from './world-chat.js?v=20261010-bodycam35';
-import {startUpdateNotice} from './update-notice.js?v=20261010-bodycam35';
+import {createWorldChat} from './world-chat.js?v=20261010-gunmotion36';
+import {startUpdateNotice} from './update-notice.js?v=20261010-gunmotion36';
 import {memberColor} from './housing-data.js';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261010-bodycam35';
+import { createAvatar } from './avatar.js?v=20261010-gunmotion36';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261010-bodycam35';
+import { createWorld } from './world.js?v=20261010-gunmotion36';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION } from './game-rules.js?v=20261010-bodycam35';
+import { SYNC_VERSION } from './game-rules.js?v=20261010-gunmotion36';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261010-bodycam35';
+import { createHousingRenderer } from './housing-renderer.js?v=20261010-gunmotion36';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261010-bodycam35';
+import { createHouseEditor } from './house-editor.js?v=20261010-gunmotion36';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js';
 import {createWorldGuide} from './world-guide.js';
@@ -363,7 +363,7 @@ function handleRoomMessage(socket,event){
   if(message.type==='piano-play'||message.type==='instrument-play'){housingView?.playInstrument(message,actors[selected]?.root.position);return;}
   if(message.type==='furniture-event'){housingView?.receiveFurnitureEvent(message,actors[selected]?.root.position);return;}
   if(message.type==='record-state'){housingView?.recordAudio.receive(message);return;}
-  if(message.type==='world'){if(message.gunBattle)experience?.receive({type:'gun-battle',battle:message.gunBattle});if(message.version&&message.version!==SYNC_VERSION)updateNotice.show();world?.setBackdrop(message.backdrop);if(message.cycle){dayCycle=cleanCycle(message.cycle);if(Number.isFinite(message.serverNow))serverOffset=message.serverNow-Date.now();updateClockControls();}if(message.records)housingView?.recordAudio.hydrate(message.records);if(message.furnitureStates)housingView?.hydrateFurnitureStates(message.furnitureStates);if(Number.isInteger(message.goalDamage)){goalDamage=message.goalDamage;updateDuelSettings();}if(message.duel)receiveDuel(message.duel);return;}
+  if(message.type==='world'){for(const mark of message.gunMarks||[])experience?.receive({...mark,historical:true});if(message.gunBattle)experience?.receive({type:'gun-battle',battle:message.gunBattle});if(message.version&&message.version!==SYNC_VERSION)updateNotice.show();world?.setBackdrop(message.backdrop);if(message.cycle){dayCycle=cleanCycle(message.cycle);if(Number.isFinite(message.serverNow))serverOffset=message.serverNow-Date.now();updateClockControls();}if(message.records)housingView?.recordAudio.hydrate(message.records);if(message.furnitureStates)housingView?.hydrateFurnitureStates(message.furnitureStates);if(Number.isInteger(message.goalDamage)){goalDamage=message.goalDamage;updateDuelSettings();}if(message.duel)receiveDuel(message.duel);return;}
   if(message.type==='cycle-saved'){updateClockControls();notify('昼夜設定をサーバーに保存しました');return;}
   if(message.type==='cycle-error'){updateClockControls();notify(message.message);return;}
   if(message.type==='flashlight-state'&&message.id===roomSelfId){flashlightEnabled=message.enabled;flashlightPending=false;if(selected!==GUEST_SKIN){safeSave('raft-flashlight-enabled',String(flashlightEnabled));safeSave('raft-flashlight-pending','false');}updateClockControls();return;}

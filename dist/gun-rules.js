@@ -5,7 +5,8 @@ import {buildDistrict} from './district.js';
 const district=[];buildDistrict({box:(x,y,z,w,h,d,color,solid=true)=>{if(solid)district.push({x,y,z,w,h,d});},board:()=>{},sign:()=>{},seats:[],clockHands:[]});
 const interpolate=(a,b,t)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,z:a.z+(b.z-a.z)*t});
 export class GunRules{
- constructor(rules){this.rules=rules;this.members=new Map();this.mode='auto';this.phase='waiting';this.startAt=0;this.round=0;this.shots=[];this.sequence=0;this.timer=null;this.lastTick=Date.now();this.ammo=new Map();this.nextRoundAt=0;this.solids=[...GUN_SOLIDS,...district];this.buckets=new Map();for(const box of this.solids){for(let x=Math.floor((box.x-box.w/2)/12);x<=Math.floor((box.x+box.w/2)/12);x++)for(let z=Math.floor((box.z-box.d/2)/12);z<=Math.floor((box.z+box.d/2)/12);z++){const key=x+','+z;if(!this.buckets.has(key))this.buckets.set(key,[]);this.buckets.get(key).push(box);}}}
+ constructor(rules){this.rules=rules;this.members=new Map();this.mode='auto';this.phase='waiting';this.startAt=0;this.round=0;this.shots=[];this.sequence=0;this.marks=[];this.timer=null;this.lastTick=Date.now();this.ammo=new Map();this.nextRoundAt=0;this.solids=[...GUN_SOLIDS,...district];this.buckets=new Map();for(const box of this.solids){for(let x=Math.floor((box.x-box.w/2)/12);x<=Math.floor((box.x+box.w/2)/12);x++)for(let z=Math.floor((box.z-box.d/2)/12);z<=Math.floor((box.z+box.d/2)/12);z++){const key=x+','+z;if(!this.buckets.has(key))this.buckets.set(key,[]);this.buckets.get(key).push(box);}}}
+ impact(message){const now=Date.now();this.marks=this.marks.filter(m=>now-m.at<20000);if(message.wall){this.marks.push({...message,at:now});if(this.marks.length>128)this.marks.shift();}this.send({...message,at:now});}
  players(){return this.rules.entries().map(e=>e.player);}
  send(message){this.rules.broadcast(message);}
  record(p){return this.rules.characters.get(p.skin);}
@@ -72,7 +73,7 @@ export class GunRules{
    const shotDt=Math.max(0,Math.min(.2,(now-(shot.lastAt||shot.born))/1000,shot.life-((shot.lastAt||shot.born)-shot.born)/1000));shot.lastAt=now;const a=shot.position,b={x:a.x+shot.vx*shotDt,y:a.y+shot.vy*shotDt,z:a.z+shot.vz*shotDt},weapon=weaponById(shot.weapon),radius=weapon.radius ? .18 : .025;let first=this.blocked(a,b,layouts,radius),victim=null;
    for(const q of players){if(q.id===owner.id)continue;const own=this.members.get(owner.id),target=this.members.get(q.id);if(shot.round!==null&&(!target||target.out||target.team===own?.team))continue;if(shot.round===null&&inGunZone(q))continue;
     const fraction=segmentBox(a,b,{x:q.x,y:q.y+.9,z:q.z,w:.65,h:1.8,d:.65},radius);if(fraction!==null&&(first===null||fraction<first)){first=fraction;victim=q;}}
-   if(first!==null){const point=interpolate(a,b,first);this.send({type:'gun-impact',id:shot.id,position:point,explosion:!!weapon.radius,velocity:{x:shot.vx,y:shot.vy,z:shot.vz},wall:!victim});
+   if(first!==null){const point=interpolate(a,b,first);this.impact({type:'gun-impact',id:shot.id,position:point,explosion:!!weapon.radius,velocity:{x:shot.vx,y:shot.vy,z:shot.vz},wall:!victim});
     if(weapon.radius){for(const q of players){if(q.id===owner.id)continue;const center={x:q.x,y:q.y+.9,z:q.z};if(Math.hypot(center.x-point.x,center.y-point.y,center.z-point.z)>weapon.radius)continue;
       const direction={x:center.x-point.x,y:center.y-point.y,z:center.z-point.z},size=Math.hypot(direction.x,direction.y,direction.z)||1,from={x:point.x+direction.x/size*.25,y:point.y+direction.y/size*.25,z:point.z+direction.z/size*.25};if(this.blocked(from,center,layouts,.01)===null)this.damage(owner,q,shot,now);}}
     else if(victim)this.damage(owner,victim,shot,now);continue;

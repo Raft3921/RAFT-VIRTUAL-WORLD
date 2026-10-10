@@ -11,3 +11,8 @@
 /* Tiny white aim dot; bodycam keeps only actions and actual world controls. */
 #gunCrosshair{width:6px;height:6px;border:1px solid white;border-radius:50%;background:rgba(255,255,255,.5);box-shadow:0 0 2px #222;font-size:0;transform:translate(-50%,-50%);}
 body[data-first-person="true"] :is(#economyHud,#gunHud,#gunBattleHud,#chatLatest,#duelHud,#targetHud,#chargeHud,#toast,#performanceHud,#performance,#coinRewardNotice,#clockHud,#roomStatus,#scopeOverlay span){display:none!important;}
+
+/* Lens glass, concentric rim and etched reticle use only static CSS layers. */
+#scopeOverlay .scope-circle{width:min(78vw,78vh);height:min(78vw,78vh);border:5px solid #151b20;border-radius:50%;box-shadow:0 0 0 5px #495158,0 0 0 8px #0a1015,0 0 0 200vmax rgba(0,0,0,.97),inset 0 0 38px 12px rgba(10,30,40,.32);background:radial-gradient(circle at 30% 18%,rgba(170,214,233,.08),transparent 48%),linear-gradient(transparent calc(50% - .5px),#172119 calc(50% - .5px),#172119 calc(50% + .5px),transparent calc(50% + .5px)),linear-gradient(90deg,transparent calc(50% - .5px),#172119 calc(50% - .5px),#172119 calc(50% + .5px),transparent calc(50% + .5px));}
+#scopeOverlay .scope-circle:after{content:"";position:absolute;left:calc(50% - 7px);top:50%;width:14px;height:20%;background:repeating-linear-gradient(to bottom,transparent 0,transparent 15px,rgba(20,32,22,.85) 15px,rgba(20,32,22,.85) 16px);}
+body:has(#scopeOverlay:not([hidden])) #gunCrosshair{display:none!important;}

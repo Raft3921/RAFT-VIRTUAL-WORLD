@@ -1,5 +1,15 @@
 # RAFT-VIRTUAL-WORLD
 
+## Direct cooking — 2026-10-11 / cook72
+
+The normal camera-preference loop is now excluded during cooking. Previously it requested the saved follow camera every frame, while cooking forced that request back to first person; each call cleared the held movement keys. Kitchen entry now selects an unobstructed reachable floor position using the actual avatar extents and world solids. 通路へ戻る repositions within the same kitchen without discarding ingredients. Boundary handling permits movement back inside after a collision pushes the player past an edge.
+
+Use left click for physical interactions and E/right click for compact appliance settings. Click the fridge to reveal ingredient shelves, then pick an ingredient directly; E switches food categories. Pick up the knife from the counter and click a board ingredient repeatedly to cut it. Cuts appear progressively, and dice/slice/mince require different stroke counts. Return the knife to the small tool rest, take a bowl, then click the board to collect cut food. Seasoning jars can be held and shaken over any open vessel one click at a time. Spatulas, ladles, whisks and tongs stir on clicks. Peelers and graters prepare board food; the rolling pin works flour dough. Vessels transfer ingredients, liquid and seasonings. Click burner knobs, pot lids, the tap and the serving plate directly. Menus retain food categories, cut style, heat/method/timer settings and washing options, rather than a persistent list of all possible actions.
+
+Cookware now has inner walls, rounded rims, handles, transparent measuring jugs/glass lids, variable water levels and steam baskets. Blue gas flames, rising bubbles, steam, scorching smoke, oil splashes and tap droplets animate independently of model rebuilding. Dedicated knife, peeler, grater, whisk, spatula, ladle, tongs, colander, rolling-pin, mitt, sponge and baking-tray models support preparation visuals. Food has progressive cuts, vegetable skins/cores, water droplets, cooked colours and sear marks. Cooked noodles use rounded tubes on the horizontal plane, avoiding reversed single-sided strips. Dairy becomes a portion inside meals instead of displaying its bottle; dough and assembled dish forms remain ingredient-driven. Peel/dough preparation flags are preserved in saved meals.
+
+No tests, build checks or browser/gameplay checks were run, per the standing user instruction. Publication does not establish runtime or visual acceptance.
+
 ## Cooking controls — 2026-10-10 / cook71
 
 Cooking now owns scene input before combat/editor handlers. Start cooking or click the scene to lock the mouse; use WASD and normal mouse look. Aim at a nearby appliance and click or press E to open its menu. Close the menu to resume mouse lock. Escape releases the cursor without ending the meal; use 操作へ戻る or the scene to resume. Touch uses drag-to-look and tap-to-open. A browser that refuses pointer lock can still use drag-to-look. Only an open equipment menu pauses walking; burners and work timers continue independently.

@@ -1,4 +1,4 @@
-import {FURNITURE_BY_ID,furniturePose,ROOM,houseDescriptor} from './housing-data.js?v=20261010-free-cook71';
+import {FURNITURE_BY_ID,furniturePose,ROOM,houseDescriptor} from './housing-data.js?v=20261011-free-cook72';
 export function kitchenRole(f){if(!f)return null;if(f.family==='kitchen')return 'counter';if(f.family==='sink')return 'sink';if(f.family==='fridge'||f.id==='mini-fridge')return 'fridge';if(['stove','oven'].includes(f.family))return 'stove';return null;}
 export function recognizeKitchens(index,layout){
   const home=houseDescriptor(index);if(!home||!layout)return {zones:[],reason:'設備を置いてキッチンを作れます'};
@@ -17,7 +17,8 @@ export function recognizeKitchens(index,layout){
     // The flood fill certifies access; it must not snap physical movement to
     // grid cells. Furniture/wall collision is handled by the world's mover.
     const bounds={minX:Math.min(home.x+minX*home.front,home.x+maxX*home.front),maxX:Math.max(home.x+minX*home.front,home.x+maxX*home.front),minZ:Math.min(home.z+minZ*home.front,home.z+maxZ*home.front),maxZ:Math.max(home.z+minZ*home.front,home.z+maxZ*home.front)};
-    zones.push({index:home.index,id:counter.item.id,rev:layout.rev,home,stations:cluster,bounds,start:{x:home.x+start.x*home.front,y:ROOM.floor+.02,z:home.z+start.z*home.front},allowed:p=>p.x>=bounds.minX&&p.x<=bounds.maxX&&p.z>=bounds.minZ&&p.z<=bounds.maxZ&&Math.abs(p.y-ROOM.floor)<1.2});
+    const safeStarts=[...cells].map(cell=>{const [gx,gz]=cell.split(',').map(Number);return {x:home.x+gx*step*home.front,y:ROOM.floor+.025,z:home.z+gz*step*home.front};});
+    zones.push({index:home.index,id:counter.item.id,rev:layout.rev,home,stations:cluster,bounds,safeStarts,start:{x:home.x+start.x*home.front,y:ROOM.floor+.025,z:home.z+start.z*home.front},allowed:p=>p.x>=bounds.minX&&p.x<=bounds.maxX&&p.z>=bounds.minZ&&p.z<=bounds.maxZ&&Math.abs(p.y-ROOM.floor)<1.2});
   }
   return {zones,reason:zones.length?'キッチン認定済み · 近づくとクッキングを開始':'設備を5m以内にまとめ、各設備の正面と通路を空けてください'};
 }

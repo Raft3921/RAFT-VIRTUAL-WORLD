@@ -1,9 +1,9 @@
-import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261010-free-cook71';
+import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261011-free-cook72';
 import * as THREE from 'three';
-import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261010-free-cook71';
-import { buildDistrict } from './district.js?v=20261010-free-cook71';
-import { HOUSES,HOUSE_COLORS } from './housing-data.js?v=20261010-free-cook71';
-import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js?v=20261010-free-cook71';
+import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261011-free-cook72';
+import { buildDistrict } from './district.js?v=20261011-free-cook72';
+import { HOUSES,HOUSE_COLORS } from './housing-data.js?v=20261011-free-cook72';
+import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js?v=20261011-free-cook72';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const materials=new Map();
@@ -258,6 +258,16 @@ export function createWorld(scene){
     for(const b of nearby(p)){const q=localPoint(p,b),top=b.y+b.h/2;if(!b.disabled&&Math.abs(q.x)<b.w/2+.12&&Math.abs(q.z)<b.d/2+.12&&top<=limit&&top>=floor){floor=top;body=b;}}
     return {y:floor,body};
   }
+  // Read-only occupancy query for entering activities at an unobstructed spot.
+  function canStand(p,shape=null){
+    const height=shape?.height||1.9,width=shape?.width||.32,depth=shape?.depth||.32,angle=shape?.yaw||0;
+    for(const b of nearby(p)){
+      if(b.disabled||b.y+b.h/2<=p.y+.04||b.y-b.h/2>=p.y+height)continue;
+      const q=localPoint(p,b),relative=angle-(b.rotation||0),rx=Math.abs(Math.cos(relative))*width+Math.abs(Math.sin(relative))*depth,rz=Math.abs(Math.sin(relative))*width+Math.abs(Math.cos(relative))*depth;
+      if(Math.abs(q.x)<b.w/2+rx+.04&&Math.abs(q.z)<b.d/2+rz+.04)return false;
+    }
+    return true;
+  }
   function move(p,vel,dt,{ragdoll=false,insideArena=false,lockedInArena=false,shape=null}={}){
     const height=shape?.height||1.9,width=shape?.width||.32,depth=shape?.depth||.32,angle=shape?.yaw||0,offset=shape?.offset||0;
     const offsetX=-Math.sin(angle)*offset,offsetZ=-Math.cos(angle)*offset;
@@ -340,5 +350,5 @@ export function createWorld(scene){
   // Keep the inexpensive pool draw registered even during the day (alpha 0)
   // so its shader is not first compiled when night begins.
   function setNight(value){nightLight.value=THREE.MathUtils.clamp(value||0,0,1);lampMaterial.emissiveIntensity=nightLight.value*1.8;}
-  const api={setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);},group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
+  const api={canStand,setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);},group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
 }

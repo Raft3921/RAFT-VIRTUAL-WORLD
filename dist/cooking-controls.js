@@ -14,7 +14,7 @@ export function createCookingControls({canvas,cooking,look,clearInput,isTouch,no
  canvas.addEventListener('pointerdown',e=>{
   if(!cooking.active)return;consume(e);canvas.focus();
   if(cooking.choosing){cooking.closeMenu();return;}
-  if(e.pointerType==='mouse'&&document.pointerLockElement===canvas){if(e.button===0)cooking.interact();return;}
+  if(e.pointerType==='mouse'&&document.pointerLockElement===canvas){if(e.button===0||e.button===2)cooking.interact(undefined,e.button===2);return;}
   pointer={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,drag:false,button:e.button};
   if(e.pointerType==='mouse'&&e.button===0){resume();return;}
   try{canvas.setPointerCapture(e.pointerId);}catch{}

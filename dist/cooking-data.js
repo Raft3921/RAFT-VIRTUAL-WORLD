@@ -51,10 +51,10 @@ export const INGREDIENTS=rows.trim().split('\n').map(row=>{const [id,name,group,
 export const FOOD_BY_ID=new Map(INGREDIENTS.map(f=>[f.id,f]));
 export const FOOD_GROUPS={protein:'卵・豆腐',meat:'肉',fish:'魚介',vegetable:'野菜・きのこ',starch:'米・麺・パン・粉',dairy:'乳製品',fruit:'果物'};
 export const SEASONINGS={salt:'塩',pepper:'こしょう',soy:'しょうゆ',sugar:'砂糖',miso:'味噌',curry:'カレースパイス',stock:'だし',oil:'油',vinegar:'酢',ketchup:'ケチャップ',herbs:'ハーブ'};
-export const CUTS={dice:'角切り',slice:'薄切り',mince:'みじん切り'};
+export const CUTS={dice:'角切り',slice:'薄切り',mince:'みじん切り',grate:'すりおろし'};
 export const COOK_METHODS={raw:'そのまま',mix:'混ぜる',fry:'焼く・炒める',boil:'ゆでる',simmer:'煮込む',steam:'蒸す',bake:'オーブン焼き'};
-export function cleanFood(f){if(!FOOD_BY_ID.has(f?.id))return null;return {id:f.id,washed:f.washed===true,cut:Object.hasOwn(CUTS,f.cut)?f.cut:null,cuts:Math.min(3,Math.max(0,Number(f.cuts)||0)),progress:Math.min(180,Math.max(0,Number(f.progress)||0)),burn:Math.min(100,Math.max(0,Number(f.burn)||0)),method:Object.hasOwn(COOK_METHODS,f.method)?f.method:'raw'};}
-export function cleanMeal(meal){const foods=(Array.isArray(meal?.foods)?meal.foods:[]).slice(0,16).map(cleanFood).filter(Boolean),seasonings=Object.fromEntries(Object.keys(SEASONINGS).filter(k=>Number(meal?.seasonings?.[k])>0).map(k=>[k,Math.min(8,Math.floor(Number(meal.seasonings[k])))]));return {foods,seasonings,water:Math.max(0,Math.min(3,Number(meal?.water)||0)),mixed:meal?.mixed===true};}
+export function cleanFood(f){if(!FOOD_BY_ID.has(f?.id))return null;return {id:f.id,washed:f.washed===true,peeled:f.peeled===true,cut:Object.hasOwn(CUTS,f.cut)?f.cut:null,cuts:Math.min(3,Math.max(0,Number(f.cuts)||0)),progress:Math.min(180,Math.max(0,Number(f.progress)||0)),burn:Math.min(100,Math.max(0,Number(f.burn)||0)),method:Object.hasOwn(COOK_METHODS,f.method)?f.method:'raw'};}
+export function cleanMeal(meal){const foods=(Array.isArray(meal?.foods)?meal.foods:[]).slice(0,16).map(cleanFood).filter(Boolean),seasonings=Object.fromEntries(Object.keys(SEASONINGS).filter(k=>Number(meal?.seasonings?.[k])>0).map(k=>[k,Math.min(8,Math.floor(Number(meal.seasonings[k])))]));return {foods,seasonings,water:Math.max(0,Math.min(3,Number(meal?.water)||0)),mixed:meal?.mixed===true,kneaded:meal?.kneaded===true,rolled:meal?.rolled===true};}
 export function describeDish(input){
  const meal=cleanMeal(input),foods=meal.foods,ids=new Set(foods.map(f=>f.id)),has=id=>ids.has(id),all=(...list)=>list.every(has),group=g=>foods.some(f=>FOOD_BY_ID.get(f.id).group===g),method=m=>foods.some(f=>f.method===m),hot=foods.some(f=>f.progress>0),ready=f=>FOOD_BY_ID.get(f.id).raw||f.progress>=FOOD_BY_ID.get(f.id).time,liquid=meal.water>.15,sp=meal.seasonings;
  let name='',shape='plate';

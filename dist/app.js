@@ -1,30 +1,30 @@
-import {createCookingControls} from './cooking-controls.js?v=20261010-free-cook71';
-import {createCooking} from './cooking.js?v=20261010-free-cook71';
-import {createPlazaMap} from './plaza-map.js?v=20261010-free-cook71';
-import {createWorldExperience} from './world-experience.js?v=20261010-free-cook71';
-import {inGunZone,weaponById} from './gun-layout.js?v=20261010-free-cook71';
-import {createWorldChat} from './world-chat.js?v=20261010-free-cook71';
-import {startUpdateNotice} from './update-notice.js?v=20261010-free-cook71';
-import {memberColor} from './housing-data.js?v=20261010-free-cook71';
+import {createCookingControls} from './cooking-controls.js?v=20261011-free-cook72';
+import {createCooking} from './cooking.js?v=20261011-free-cook72';
+import {createPlazaMap} from './plaza-map.js?v=20261011-free-cook72';
+import {createWorldExperience} from './world-experience.js?v=20261011-free-cook72';
+import {inGunZone,weaponById} from './gun-layout.js?v=20261011-free-cook72';
+import {createWorldChat} from './world-chat.js?v=20261011-free-cook72';
+import {startUpdateNotice} from './update-notice.js?v=20261011-free-cook72';
+import {memberColor} from './housing-data.js?v=20261011-free-cook72';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261010-free-cook71';
-import { createEnvironment } from './environment.js?v=20261010-free-cook71';
-import { createWorld } from './world.js?v=20261010-free-cook71';
-import { ARENA,insideArena } from './world-layout.js?v=20261010-free-cook71';
-import { SYNC_ENDPOINT } from './sync-config.js?v=20261010-free-cook71';
-import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261010-free-cook71';
-import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js?v=20261010-free-cook71';
-import { createCombatEffects } from './combat-effects.js?v=20261010-free-cook71';
-import { createBrownProjectiles } from './brown-projectiles.js?v=20261010-free-cook71';
-import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-free-cook71';
-import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261010-free-cook71';
-import { cleanCharacter } from './character-store.js?v=20261010-free-cook71';
-import { createHousingRenderer } from './housing-renderer.js?v=20261010-free-cook71';
+import { createAvatar } from './avatar.js?v=20261011-free-cook72';
+import { createEnvironment } from './environment.js?v=20261011-free-cook72';
+import { createWorld } from './world.js?v=20261011-free-cook72';
+import { ARENA,insideArena } from './world-layout.js?v=20261011-free-cook72';
+import { SYNC_ENDPOINT } from './sync-config.js?v=20261011-free-cook72';
+import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261011-free-cook72';
+import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js?v=20261011-free-cook72';
+import { createCombatEffects } from './combat-effects.js?v=20261011-free-cook72';
+import { createBrownProjectiles } from './brown-projectiles.js?v=20261011-free-cook72';
+import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261011-free-cook72';
+import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261011-free-cook72';
+import { cleanCharacter } from './character-store.js?v=20261011-free-cook72';
+import { createHousingRenderer } from './housing-renderer.js?v=20261011-free-cook72';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261010-free-cook71';
-import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261010-free-cook71';
-import {cleanCycle,dayPhase,clockLabel} from './world-clock.js?v=20261010-free-cook71';
-import {createWorldGuide} from './world-guide.js?v=20261010-free-cook71';
+import { createHouseEditor } from './house-editor.js?v=20261011-free-cook72';
+import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261011-free-cook72';
+import {cleanCycle,dayPhase,clockLabel} from './world-clock.js?v=20261011-free-cook72';
+import {createWorldGuide} from './world-guide.js?v=20261011-free-cook72';
 
 const $ = id => document.getElementById(id);
 const clamp = THREE.MathUtils.clamp;
@@ -466,7 +466,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
   worldGuide?.update(actors[selected]?.root.position,inStudio&&!paused()&&!clean&&!localRagdoll&&!duelActive&&!athleticActive&&['follow','first'].includes(cameraMode));
   if(localImpact){localImpact.time+=dt;if(localImpact.time>=localImpact.duration){verticalSpeed=localImpact.vertical;velocity.copy(localImpact.velocity);localImpact=null;if(localHit?.phase==='impact'){localHit.phase='air';localHit.elapsed=0;grounded=false;}}}
   for(const body of bodies)if(body.impact){body.impact.time+=dt;if(body.impact.time>=body.impact.duration){body.impact=null;body.hit.phase='air';body.hit.elapsed=0;body.grounded=false;}}
-  if(experience?.inZone){gunZoneCameraForced=true;if(airWalk){airWalk=false;updateJumpButton();}const wanted=cachedCharacter().playCamera==='first'?'first':'follow';if(cameraMode!==wanted)setCameraMode(wanted);}else{if(gunZoneCameraForced){gunZoneCameraForced=false;setCameraMode(cachedCharacter().playCamera==='first'?'first':'follow');}if(inStudio&&!housingEditor?.active&&!localRagdoll&&!paused()&&['follow','first'].includes(cameraMode)){const wanted=cachedCharacter().playCamera==='first'?'first':'follow';if(cameraMode!==wanted)setCameraMode(wanted);}}if(cachedCharacter().equippedWeapon&&actors[selected]&&!localRagdoll&&!seated&&!sleeping)actors[selected].root.rotation.y=yaw;
+  if(experience?.inZone){gunZoneCameraForced=true;if(airWalk){airWalk=false;updateJumpButton();}const wanted=cachedCharacter().playCamera==='first'?'first':'follow';if(cameraMode!==wanted)setCameraMode(wanted);}else{if(gunZoneCameraForced){gunZoneCameraForced=false;setCameraMode(cachedCharacter().playCamera==='first'?'first':'follow');}if(inStudio&&!cooking?.active&&!housingEditor?.active&&!localRagdoll&&!paused()&&['follow','first'].includes(cameraMode)){const wanted=cachedCharacter().playCamera==='first'?'first':'follow';if(cameraMode!==wanted)setCameraMode(wanted);}}if(cachedCharacter().equippedWeapon&&actors[selected]&&!localRagdoll&&!seated&&!sleeping)actors[selected].root.rotation.y=yaw;
   if(charging){if(!canPunch())cancelCharge();else{chargeTime=Math.min(PUNCH.maxCharge,chargeTime+dt);updateChargeHud();if(now-lastChargeEffectAt>90){lastChargeEffectAt=now;const chargingActor=actors[selected]?.root;if(chargingActor){particleOrigin.copy(chargingActor.position);particleOrigin.y+=1.42;emitParticles(particleOrigin,chargeTime>8?'#ff825c':'#ffe06a',2,.65,0)}}}}
   if(punchSwing>0&&!localImpact){
     const q=attackTarget(targetLock),p=actors[selected].root.position;
@@ -618,7 +618,7 @@ async function start(){try{
   environment=createEnvironment(scene,renderer,{mobile:touch});await document.fonts.load('16px DotGothic16').catch(()=>{});world=createWorld(scene);environment.setSettings({wind:.45,grassDensity:.8,sunHeight:50,exposure:1});quality(activeQuality);
   plazaMap=createPlazaMap({world,names:skinDefs.map(s=>s[0]),skinURL,makeFace,getSelfId:()=>roomSelfId,getPlayer:()=>inStudio?actors[selected]?.root.position:null,isConnected:()=>roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,getPlayers:()=>[...mapPlayers.values(),...(roomSelfId&&inStudio&&actors[selected]?[{id:roomSelfId,skin:selected,...actors[selected].root.position,mirrorRealm:housingView?.portals.realm||null}]:[])],onOpen(){setClean(false);unlocked();clearInput();punchSwing=0;pendingAttack=null;queuedAttack=null;},onClose(){clearInput();canvas.focus();}});
   housingView=createHousingRenderer(scene,world,{environment});
-  cooking=createCooking({scene,camera,get:()=>({housing:housingView,world,player:actors[selected]?.root,inStudio,paused:paused(),ragdoll:localRagdoll,seated,sleeping,inBattle:duelActive||athleticActive||!!experience?.inZone,yaw,selfId:roomSelfId,connected:roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,character:cachedCharacter()}),send:message=>{if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));},notify,onMenu(open,resume){if(open)cookingControls?.release();else if(resume)cookingControls?.resume();else {clearInput();canvas.focus();}},onStart(){cookingCamera=cameraMode;experience?.close();plazaMap?.close();worldChat?.close();airWalk=false;seated=false;sleeping=false;standingOn=null;clearInput();cancelCharge();punchSwing=0;setCameraMode('first');setClean(false);clearInput();canvas.focus();cookingControls?.resume();},onEnd(){cookingControls?.release();if(cookingCamera){const mode=cookingCamera;cookingCamera=null;setCameraMode(mode);}clearInput();canvas.focus();}});
+  cooking=createCooking({scene,camera,get:()=>({housing:housingView,world,player:actors[selected]?.root,shape:actorShape(actors[selected]),inStudio,paused:paused(),ragdoll:localRagdoll,seated,sleeping,inBattle:duelActive||athleticActive||!!experience?.inZone,yaw,selfId:roomSelfId,connected:roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,character:cachedCharacter()}),send:message=>{if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));},notify,onReposition(point){const p=actors[selected].root;p.position.copy(point);velocity.set(0,0,0);verticalSpeed=0;localImpulse.set(0,0,0);standingOn=null;grounded=false;seated=sleeping=false;seat=bed=null;focus.copy(p.position).y+=1.25;clearInput();lastRoomStateAt=0;},onMenu(open,resume){if(open)cookingControls?.release();else if(resume)cookingControls?.resume();else {clearInput();canvas.focus();}},onStart(){cookingCamera=cameraMode;experience?.close();plazaMap?.close();worldChat?.close();airWalk=false;seated=false;sleeping=false;standingOn=null;clearInput();cancelCharge();punchSwing=0;setCameraMode('first');setClean(false);clearInput();canvas.focus();cookingControls?.resume();},onEnd(){cookingControls?.release();if(cookingCamera){const mode=cookingCamera;cookingCamera=null;setCameraMode(mode);}clearInput();canvas.focus();}});
   cookingControls=createCookingControls({canvas,cooking,look,clearInput,isTouch:()=>touch,notify});
   housingView.portals.setTravelMode(mirrorTravelMode);
   worldGuide=createWorldGuide({world,onOpen(){setClean(false);unlocked();punchSwing=0;pendingAttack=null;clearInput();},onClose(){clearInput();canvas.focus();},isAllowed:()=>inStudio&&!paused()&&!localRagdoll&&!duelActive});

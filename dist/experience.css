@@ -10,7 +10,7 @@
 
 /* Tiny white aim dot; bodycam keeps only actions and actual world controls. */
 #gunCrosshair{width:6px;height:6px;border:1px solid white;border-radius:50%;background:rgba(255,255,255,.5);box-shadow:0 0 2px #222;font-size:0;transform:translate(-50%,-50%);}
-body[data-first-person="true"] :is(#economyHud,#gunHud,#gunBattleHud,#chatLatest,#duelHud,#targetHud,#chargeHud,#toast,#performanceHud,#performance,#coinRewardNotice,#clockHud,#roomStatus,#scopeOverlay span){display:none!important;}
+body[data-first-person="true"] :is(#gunBattleHud,#chatLatest,#duelHud,#targetHud,#chargeHud,#toast,#performanceHud,#performance,#coinRewardNotice,#clockHud,#roomStatus,#scopeOverlay span){display:none!important;}
 
 /* Lens glass, concentric rim and etched reticle use only static CSS layers. */
 #scopeOverlay .scope-circle{width:min(78vw,78vh);height:min(78vw,78vh);border:5px solid #151b20;border-radius:50%;box-shadow:0 0 0 5px #495158,0 0 0 8px #0a1015,0 0 0 200vmax rgba(0,0,0,.97),inset 0 0 38px 12px rgba(10,30,40,.32);background:radial-gradient(circle at 30% 18%,rgba(170,214,233,.08),transparent 48%),linear-gradient(transparent calc(50% - .5px),#172119 calc(50% - .5px),#172119 calc(50% + .5px),transparent calc(50% + .5px)),linear-gradient(90deg,transparent calc(50% - .5px),#172119 calc(50% - .5px),#172119 calc(50% + .5px),transparent calc(50% + .5px));}
@@ -35,3 +35,5 @@ body[data-screen=lobby] #gunDamageTint{display:none!important;}
 #gunCrosshair{width:52px;height:52px;min-height:52px;padding:0;border:0;background:transparent;box-shadow:none;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;cursor:crosshair}
 #gunCrosshair:after{content:'';position:absolute;left:calc(50% - 3px);top:calc(50% - 3px);width:6px;height:6px;border:1px solid white;border-radius:50%;background:#fff8;box-shadow:0 0 2px #222;pointer-events:none}
 #gunCrosshair:active{transform:translate(-50%,-50%)}
+
+body[data-first-person=true] #economyHud{display:flex!important}body[data-first-person=true] #quickChat{display:none}body[data-first-person=true] #gunHealthHud{top:calc(max(12px,env(safe-area-inset-top)) + 50px)}body[data-first-person=true] #gunHud{display:block;right:max(12px,env(safe-area-inset-right));bottom:calc(216px + env(safe-area-inset-bottom));font-size:12px;padding:6px 9px}

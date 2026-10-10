@@ -1,24 +1,24 @@
-import {createWorldExperience} from './world-experience.js?v=20261010-entrypc58';
+import {createWorldExperience} from './world-experience.js?v=20261010-reload59';
 import {inGunZone,weaponById} from './gun-layout.js';
-import {createWorldChat} from './world-chat.js?v=20261010-entrypc58';
-import {startUpdateNotice} from './update-notice.js?v=20261010-entrypc58';
+import {createWorldChat} from './world-chat.js?v=20261010-reload59';
+import {startUpdateNotice} from './update-notice.js?v=20261010-reload59';
 import {memberColor} from './housing-data.js';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261010-entrypc58';
+import { createAvatar } from './avatar.js?v=20261010-reload59';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261010-entrypc58';
+import { createWorld } from './world.js?v=20261010-reload59';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-entrypc58';
+import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-reload59';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261010-entrypc58';
+import { createHousingRenderer } from './housing-renderer.js?v=20261010-reload59';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261010-entrypc58';
+import { createHouseEditor } from './house-editor.js?v=20261010-reload59';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js';
 import {createWorldGuide} from './world-guide.js';
@@ -368,6 +368,7 @@ function updateRemotePlayer(player){
 function handleRoomMessage(socket,event){
   let message;try{message=JSON.parse(event.data)}catch{return}
   if(experience?.receive(message))return;if(worldChat?.receive(message))return;
+  if(message.type==='gun-eliminated'){if(message.playerId===roomSelfId){clearInput();localRagdoll=true;localImpact=null;localHit=createHit(.55);localHit.phase='air';localHit.elapsed=0;localImpulse.set(0,0,0);velocity.set(0,0,0);verticalSpeed=0;grounded=true;actors[selected].root.position.set(message.position.x,message.position.y,message.position.z);}else{const r=remoteActors.get(message.playerId);if(r){r.ragdoll=true;r.hitPhase='air';r.hitTime=0;r.hitStrength=.55;r.hitRecovery=0;r.velocity.set(0,0,0);r.receivedAt=performance.now();}}return;}
   if(message.type==='room-removed'){roomFailure=message.reason||'メニューボードから退出しました';returnLobby();notify(roomFailure,5000);return;}
   if(message.type==='server-update'){updateNotice.show();return;}
   if(message.type==='projectile-spawn'){brownProjectiles.spawn(message.projectile);return;}
@@ -453,6 +454,7 @@ function resize(){if(!renderer)return;renderer.setSize(innerWidth,innerHeight,fa
 function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFrame(tick);if(document.hidden&&!backgroundDt){lastTime=0;return}const dt=backgroundDt||(lastTime?Math.min((now-lastTime)/1000,.05):.016);lastTime=now;time+=dt;fpsFrames++;
   if(paused())pendingTouchYaw=pendingTouchPitch=0;else if(pendingTouchYaw||pendingTouchPitch){const blend=1-Math.exp(-dt*65),dx=pendingTouchYaw*blend,dy=pendingTouchPitch*blend;yaw+=dx;pitch=clamp(pitch+dy,-1.15,1.1);pendingTouchYaw-=dx;pendingTouchPitch-=dy;if(Math.abs(pendingTouchYaw)<.00001)pendingTouchYaw=0;if(Math.abs(pendingTouchPitch)<.00001)pendingTouchPitch=0;}
 
+  if(experience?.eliminated&&localHit){localRagdoll=true;localImpulse.set(0,0,0);velocity.set(0,0,0);localHit.elapsed+=dt;if(localHit.elapsed>.55){localHit.phase='down';localHit.downTime=Math.min(.65,localHit.downTime+dt);}actors[selected].root.visible=true;}
   const portalStart=actors[selected]?.root.position.clone();
   housingEditor?.update(dt,inStudio&&!paused()&&!localRagdoll&&!duelActive);
   worldGuide?.update(actors[selected]?.root.position,inStudio&&!paused()&&!clean&&!localRagdoll&&!duelActive&&!athleticActive&&['follow','first'].includes(cameraMode));

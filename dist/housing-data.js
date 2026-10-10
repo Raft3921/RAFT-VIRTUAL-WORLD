@@ -4,9 +4,9 @@ export const OWNER_SKINS=[3,5,6,2,4,1,0,7];
 export const HOUSE_COLORS=['#d84a42','#52a96d','#48b8d4','#e88a38','#87929a','#9a70c5','#e4c84d','#9a6748'];
 export const FURNITURE_COLORS=[...HOUSE_COLORS,'#f4eee2','#354353','#bd9166','#8fbac9'];
 export const HOUSES=OWNER_SKINS.map((owner,index)=>({index,owner,x:-39+(index%4)*26,z:index<4?45:80,front:index<4?1:-1,color:HOUSE_COLORS[index]}));
-// Mirror realm identity is the source house and furniture ID. Every realm has
-// eight independent, editable houses at deterministic shared coordinates.
-export function mirrorRealmKey(house,id){return `m|${house}|${id}`;}
+HOUSES.push(...[-20,20].map((x,i)=>({index:8+i,owner:8,x,z:-77,front:1,color:'#f4eee2',guest:true})));
+// All member mirrors share the same residential world.
+export function mirrorRealmKey(){return 'm|0|shared';}
 export const MIRROR_REALMS=new Map();
 export function mirrorRealm(key,realms=MIRROR_REALMS){
   const match=typeof key==='string'&&/^m\|([0-7])\|([-a-z0-9_]{1,32})$/.exec(key);if(!match)return null;
@@ -21,7 +21,7 @@ export function registerMirrorRealm(key,slot=MIRROR_REALMS.size){
   return realm;
 }
 export function houseDescriptor(index,realms=MIRROR_REALMS){
-  if((typeof index==='number'&&Number.isInteger(index)||typeof index==='string'&&/^[0-7]$/.test(index))&&Number(index)>=0&&Number(index)<8)return HOUSES[Number(index)];
+  if((typeof index==='number'&&Number.isInteger(index)||typeof index==='string'&&/^[0-9]$/.test(index))&&Number(index)>=0&&Number(index)<10)return HOUSES[Number(index)];
   if(realms===MIRROR_REALMS&&Object.hasOwn(HOUSES,index)&&HOUSES[index]?.realm)return HOUSES[index];
   if(typeof index==='string'){const end=index.lastIndexOf('|'),key=index.slice(0,end),target=index.slice(end+1);const realm=mirrorRealm(key,realms);if(/^[0-7]$/.test(target)&&realm){const source=HOUSES[Number(target)];const home={...source,index,sourceIndex:source.index,realm:key,x:realm.x+source.x,z:realm.z-source.z,front:-source.front};if(realms===MIRROR_REALMS)HOUSES[index]=home;return home;}}
   return null;
@@ -52,7 +52,7 @@ export const FURNITURE=[
 export const FURNITURE_BY_ID=new Map(FURNITURE.map(f=>[f.id,f]));
 export function furnitureDefinition(value){const f=FURNITURE_BY_ID.get(value.t);return value.v===1&&['bed','canopy'].includes(f?.family)?{...f,w:f.id==='single-bed'?1.3:f.w,d:f.family==='canopy'?2.3:2.2}:f;}
 export const FINISHES={
-  floor:[['wood','板張り','#bd9166'],['light-wood','明るい木','#dfc69e'],['dark-wood','濃い木','#775842'],['tile','タイル','#e1e6df'],['checker','チェック','#b1c6c4'],['carpet','カーペット','#92b4b2']],
+  floor:[['white','ホワイト','#f4eee2'],['wood','板張り','#bd9166'],['light-wood','明るい木','#dfc69e'],['dark-wood','濃い木','#775842'],['tile','タイル','#e1e6df'],['checker','チェック','#b1c6c4'],['carpet','カーペット','#92b4b2']],
   wallpaper:[['white','ホワイト','#f4eee2'],['mint','ミント','#b2d6c0'],['pink','さくら','#e1b8c7'],['blue','ブルー','#a7c9df'],['stripe','ストライプ','#d5d0bc'],['brick','レンガ','#b9826a'],['night','ナイト','#46546a']],
   ceiling:[['white','ホワイト','#f4eee2'],['wood','ウッド','#d8bd96'],['slate','グレー','#919ca2'],['blue','空色','#aecedd']],
 };
@@ -62,7 +62,7 @@ export function cleanFurniture(value){
   const def=FURNITURE_BY_ID.get(value?.t);if(!def||typeof value.id!=='string'||!/^[-a-z0-9_]{1,32}$/.test(value.id)||!snap(value.x)||!snap(value.z))return null;
   const r=Number(value.r),c=Number(value.c),y=Number(value.y||0),wall=['back','front','left','right'].includes(value.wall)?value.wall:'back';
   if(!Number.isInteger(r)||r<0||r>=(def.mount==='wall'?4:8)||!Number.isInteger(c)||c<0||c>=FURNITURE_COLORS.length||!snap(y))return null;
-  return {id:value.id,t:def.id,x:value.x,z:value.z,y:def.mount==='wall'||def.allowHeight?y:0,r,c,...(['bed','canopy'].includes(def.family)?{v:value.v===2?2:1}:{}),...(def.mount==='wall'?{wall}:{}),...(def.seat&&typeof value.pair==='string'&&/^[-a-z0-9_]{1,32}$/.test(value.pair)?{pair:value.pair}:{})};
+  return {...(value.linkedMirror===true?{linkedMirror:true}:{}),id:value.id,t:def.id,x:value.x,z:value.z,y:def.mount==='wall'||def.allowHeight?y:0,r,c,...(['bed','canopy'].includes(def.family)?{v:value.v===2?2:1}:{}),...(def.mount==='wall'?{wall}:{}),...(def.seat&&typeof value.pair==='string'&&/^[-a-z0-9_]{1,32}$/.test(value.pair)?{pair:value.pair}:{})};
 }
 export function furniturePose(item){
   const f=furnitureDefinition(item);let x=item.x*GRID,z=item.z*GRID,y=0,yaw=item.r*Math.PI/4,roll=0,w=f.w,h=f.h,d=f.d;
@@ -100,7 +100,7 @@ export function placementError(item,items){
 export function mirrorPassageError(layout,source){
   const portals=(source?.items||[]).filter(item=>['mirror','wall-mirror'].includes(FURNITURE_BY_ID.get(item.t)?.family)).map(item=>{const p=furniturePose(item),yaw=-p.yaw;return {x:-p.x+Math.sin(yaw)*.65,z:p.z+Math.cos(yaw)*.65,centerY:1.5,w:Math.max(1.4,p.w),h:3,d:1.6,yaw};});
   if(!portals.length)portals.push({x:0,z:-ROOM.z+.8,centerY:1.5,w:1.8,h:3,d:1.6,yaw:0});
-  for(const item of layout.items){if(FURNITURE_BY_ID.get(item.t)?.solid===false)continue;const pose=furniturePose(item);if(portals.some(portal=>intersects(pose,portal)))return '現世に戻る鏡の前を空けてください';}
+  for(const item of layout.items){if(['mirror','wall-mirror'].includes(FURNITURE_BY_ID.get(item.t)?.family)||FURNITURE_BY_ID.get(item.t)?.solid===false)continue;const pose=furniturePose(item);if(portals.some(portal=>intersects(pose,portal)))return '現世に戻る鏡の前を空けてください';}
   return '';
 }
 // Pair only at the closest legal grid step: one more step toward the table
@@ -125,7 +125,7 @@ export function pairFurniture(item,items){
 export function cleanHouse(value){
   const house=emptyHouse(),rev=Number(value?.rev);house.rev=Number.isSafeInteger(rev)&&rev>=0?rev:0;
   for(const key of Object.keys(FINISHES))if(FINISHES[key].some(f=>f[0]===value?.finish?.[key]))house.finish[key]=value.finish[key];
-  for(const raw of (Array.isArray(value?.items)?value.items:[]).slice(0,MAX_FURNITURE)){const item=cleanFurniture(raw);if(item&&!house.items.some(i=>i.id===item.id)&&!placementError(item,house.items))house.items.push(item);}
+  for(const raw of (Array.isArray(value?.items)?value.items:[]).slice(0,MAX_FURNITURE*2)){const item=cleanFurniture(raw);if(item&&!house.items.some(i=>i.id===item.id)&&(item.linkedMirror&&isMirror(item)||house.items.filter(i=>!i.linkedMirror).length<MAX_FURNITURE&&!placementError(item,house.items)))house.items.push(item);}
   // Expand old beds without deleting saved furniture. Prefer the same position,
   // otherwise the nearest free grid cell; packed rooms retain the legacy bed.
   for(let i=0;i<house.items.length;i++){const old=house.items[i];if(old.v!==1)continue;let replacement=null;for(let radius=0;radius<=12&&!replacement;radius++)for(let dx=-radius;dx<=radius&&!replacement;dx++)for(let dz=-radius;dz<=radius;dz++){if(Math.max(Math.abs(dx),Math.abs(dz))!==radius)continue;const candidate={...old,v:2,x:old.x+dx,z:old.z+dz};if(snap(candidate.x)&&snap(candidate.z)&&!placementError(candidate,house.items)){replacement=candidate;break;}}if(replacement)house.items[i]=replacement;}
@@ -140,7 +140,7 @@ export function applyHouseOperation(house,op){
   else if(op.action==='delete'){const index=next.items.findIndex(i=>i.id===op.id);if(index<0)return {error:'家具が見つかりません'};next.items.splice(index,1);}
   else if(op.action==='add'||op.action==='move'){
     const raw=cleanFurniture(op.item);if(!raw)return {error:'家具設定が不正です'};const item=pairFurniture(raw,next.items),index=next.items.findIndex(i=>i.id===item.id);
-    if(op.action==='add'&&(index>=0||next.items.length>=MAX_FURNITURE))return {error:'家具は64個まで配置できます'};
+    if(op.action==='add'&&(index>=0||next.items.filter(i=>!i.linkedMirror).length>=MAX_FURNITURE))return {error:'家具は64個まで配置できます'};
     if(op.action==='move'&&(index<0||next.items[index].t!==item.t))return {error:'家具が見つかりません'};
     const error=placementError(item,next.items);if(error)return {error};if(index<0)next.items.push(item);else next.items[index]=item;
   }else return {error:'編集操作が不正です'};
@@ -151,3 +151,6 @@ export function findPlacement(def,items,color=10,wall='back'){
   for(let radius=0;radius<28;radius+=2)for(let x=-radius;x<=radius;x+=2)for(let z=-radius;z<=radius;z+=2){if(radius&&Math.max(Math.abs(x),Math.abs(z))!==radius)continue;const candidate=pairFurniture({id:'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),t:def.id,x,z,y:def.mount==='wall'?9:0,r:0,c:color,...(['bed','canopy'].includes(def.family)?{v:2}:{}),...(def.mount==='wall'?{wall}:{})},items);if(!placementError(candidate,items))return candidate;}
   return null;
 }
+
+export const isMirror=item=>['mirror','wall-mirror'].includes(FURNITURE_BY_ID.get(item?.t)?.family);
+export function reflectedMirror(item){return {...item,linkedMirror:true,x:-item.x,r:(item.wall?(4-item.r)%4:(8-item.r)%8),...(item.wall?{wall:({left:'right',right:'left'})[item.wall]||item.wall}:{})};}

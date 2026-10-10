@@ -281,6 +281,7 @@ tieback-curtain|タッセル付きカーテン|tieback|2.2,2.1,.28|wall
 roller-shade|ロールスクリーン|roller|1.8,1.8,.15|wall
 `,f=>({mirror:f.id.endsWith('-mirror'),...(f.id.endsWith('-mirror')?{family:'wall-mirror'}:{})}));
 for(const f of definitions){
+  if(['cushion-square','cushion-round','bolster-cushion','floor-cushion'].includes(f.id))f.seat=f.h*.7;
   if(f.mount==='floor'&&((['electronics','appliance','botanical','hobby'].includes(f.family)&&f.h<=1.1)||f.id.startsWith('plush-')||['toy-car','wood-train','building-blocks','globe','board-game','chess-set'].includes(f.id)||['cushion-square','cushion-round','bolster-cushion','folded-blanket'].includes(f.id)||['anglepoise-lamp','task-lamp','lantern'].includes(f.id)))f.allowHeight=true;
 }
 export const EXPANDED_FURNITURE=definitions;

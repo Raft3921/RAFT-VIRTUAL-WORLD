@@ -31,17 +31,7 @@ export function buildDistrict({box,board,sign,seats,clockHands}){
     for(let j=0;j<3;j++)box(x-1.6+j*1.6,1.71,z+1.2,1.1,.27,.65,['#e4c84d','#d84a42','#52a96d'][j],false);
     box(x-2.15,.6,z-1.05,1,1,1,wood);box(x-1.1,.38,z-1.2,.65,.65,.65,'#bd8d60');
   }
-  // Two accessible little shop shells with a deep porch and open doors.
-  for(const x of [-20,20]){
-    const z=-77,accent=x<0?'#9a70c5':'#48b8d4';
-    box(x,.12,z,13,.24,10,trim);box(x,.26,z,12.4,.06,9.4,'#bd8d60');
-    for(const side of [-1,1])box(x+side*6.2,2.4,z,.24,4.3,9.6,white);
-    box(x,2.4,z-4.7,12.6,4.3,.24,white);for(const side of [-1,1])box(x+side*4.2,2.4,z+4.7,4.2,4.3,.24,white);
-    box(x,4.1,z+4.7,4.3,.9,.24,white);box(x,4.65,z,13,.32,10.4,accent);box(x,4.96,z,12.5,.3,10,accent);
-    for(const side of [-1,1]){box(x+side*4.25,2.6,z+4.86,2.8,1.8,.05,'#a9d2df',false);box(x+side*4.25,2.6,z+4.91,.09,1.9,.1,trim,false);}
-    box(x,.1,z+6.3,6,.2,3.1,stone);box(x,3.7,z+5.9,7,.2,3.2,accent);
-    for(const side of [-1,1])box(x+side*3.2,1.85,z+6.9,.2,3.7,.2,white);
-  }
+  // The two plaza homes are built by the housing system.
   // A garden pavilion and a clock lookout, each reachable on foot.
   const gx=-55,gz=-19;
   box(gx,.12,gz,12,.24,11,stone);for(const dx of [-5,5])for(const dz of [-4,4])box(gx+dx,2,gz+dz,.4,4,.4,white);

@@ -13,7 +13,7 @@ const STUDIO=[{x:-10.9,y:3.5,z:0,w:.3,h:7,d:18},{x:10.9,y:3.5,z:0,w:.3,h:7,d:18}
 export function projectileWallFraction(a,b,layouts=[],radius=BROWN_PROJECTILE.radius){
   let first=null;const check=box=>{const fraction=segmentBox(a,b,box,radius);if(fraction!==null&&(first===null||fraction<first))first=fraction;};
   for(const box of STUDIO)check(box);
-  const realms=new Map(Object.entries(layouts.$realms||{})),houses=[...HOUSES.slice(0,8),...Object.keys(layouts).filter(key=>key.startsWith('m|')).map(key=>houseDescriptor(key,realms)).filter(Boolean)];
+  const realms=new Map(Object.entries(layouts.$realms||{})),houses=[...HOUSES,...Object.keys(layouts).filter(key=>key.startsWith('m|')).map(key=>houseDescriptor(key,realms)).filter(Boolean)];
   for(const house of houses){
     if(Math.min(a.x,b.x)>house.x+11||Math.max(a.x,b.x)<house.x-11||Math.min(a.z,b.z)>house.z+11||Math.max(a.z,b.z)<house.z-11)continue;
     const x=house.x,z=house.z,f=house.front;

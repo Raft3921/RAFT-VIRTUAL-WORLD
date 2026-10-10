@@ -1,5 +1,5 @@
 import {WEAPONS,weaponById} from './gun-layout.js';
-export const characterIndex=value=>Number.isInteger(Number(value))&&Number(value)>=0&&Number(value)<8?Number(value):null;
+export const characterIndex=value=>Number.isInteger(Number(value))&&Number(value)>=0&&Number(value)<9?Number(value):null;
 export function cleanCharacter(value={}){
   const score=Number(value?.score),checkpoint=Number(value?.checkpoint),appearance=Number(value?.appearanceLevel),safeScore=Number.isFinite(score)?Math.max(-10000,Math.min(10000,Math.trunc(score))):0;
   const count=value=>Number.isFinite(Number(value))?Math.max(0,Math.min(1000000,Math.trunc(Number(value)))):0;
@@ -13,7 +13,7 @@ export function cleanCharacter(value={}){
 export class CharacterStore{
   constructor(data,legacyScores,save,onChange,onError){
     this.data={version:1,characters:{},migratedProfiles:{...(data?.migratedProfiles||{})}};
-    for(let skin=0;skin<8;skin++)if(data?.characters?.[skin])this.data.characters[skin]=cleanCharacter(data.characters[skin]);
+    for(let skin=0;skin<9;skin++)if(data?.characters?.[skin])this.data.characters[skin]=cleanCharacter(data.characters[skin]);
     this.legacyScores=legacyScores||{};this.save=save;this.onChange=onChange;this.onError=onError;this.pending=Promise.resolve();
   }
   get(skin,profile,initialEnabled=false){
@@ -27,7 +27,7 @@ export class CharacterStore{
     }
     return {...this.data.characters[skin]};
   }
-  snapshots(){const result={};for(let skin=0;skin<8;skin++)result[skin]=cleanCharacter(this.data.characters[skin]);return result;}
+  snapshots(){const result={};for(let skin=0;skin<9;skin++)result[skin]=cleanCharacter(this.data.characters[skin]);return result;}
   change(skin,patch,persist=true){
     if(characterIndex(skin)===null)return this.pending;
     const previous=this.get(skin),next=cleanCharacter({...previous,...patch});
@@ -36,7 +36,7 @@ export class CharacterStore{
   }
   checkpoint(skin,id){const next=Number(id);if(!Number.isInteger(next)||next<1||next>100)return this.pending;const c=this.get(skin),stage=next===100?100:next-1,paid=Math.max(c.coursePaid,stage);return this.change(skin,{checkpoint:Math.max(c.checkpoint,next),coursePaid:paid,coins:c.coins+paid-c.coursePaid});}
   result(winner,loser){
-    // Guests never own persistent records, but the member's result counts.
+    // Every character, including the guest, owns persistent records.
     // Two sessions of the same character remain a non-scoring practice duel.
     if(winner===loser)return this.pending;
     const deltas=new Map();if(characterIndex(winner)!==null)deltas.set(winner,1);if(characterIndex(loser)!==null)deltas.set(loser,-1);

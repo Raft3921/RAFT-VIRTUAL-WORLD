@@ -16,7 +16,7 @@ import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js';
 import {furnitureAction} from './furniture-actions.js';
 const menuBoards=[{x:6,z:11},{x:ARENA.x+3,z:ARENA.z+20},GUN_ENTRY,...GUN_EXIT_BOARDS,...HOUSES.slice(0,8).map(h=>({x:h.x-6,z:h.z+h.front*9}))];
 buildDistrict({box:()=>{},sign:()=>{},board:(x,y,z)=>menuBoards.push({x,y,z}),seats:[],clockHands:[]});
-export const SYNC_VERSION='2026-10-10-vrs-roster-46';
+export const SYNC_VERSION='2026-10-10-vrs-shared-mirror-64';
 // Release labels identify updates; the protocol identifies connection compatibility.
 export const SYNC_PROTOCOL=1;
 export function compatibleSync(message){if(message?.protocol!==undefined)return message.protocol===SYNC_PROTOCOL;return message?.version===SYNC_VERSION||/^2026-10-10-vrs-(entry-37|countdown-38|victory-40|feedback-41|roster-46)$/.test(message?.version||'');}
@@ -65,10 +65,10 @@ export class GameRules{
     this.projectiles=[];this.projectileTimer=null;this.projectileSequence=0;this.onAsyncWork=onAsyncWork;this.projectileFlight=null;this.finishFlight=null;
     this.settings.cycle=cleanCycle(settings.cycle);this.pianoSteps=new Map();this.records=new Map();this.furnitureStates=new Map();this.furnitureSequence=0;this.guns=new GunRules(this);
   }
-  savedPosition(profile){const p=this.settings.positions?.[profile];return p&&[p.x,p.y,p.z,p.yaw].every(Number.isFinite)?{...p}:null;}
+  savedPosition(profile){let p=this.settings.positions?.[profile];if(p?.mirrorRealm&&p.mirrorRealm!=='m|0|shared')p={...p,mirrorRealm:'m|0|shared',x:2000-39,y:.265,z:2000-45-8,yaw:Math.PI};return p&&[p.x,p.y,p.z,p.yaw].every(Number.isFinite)?{...p}:null;}
   savePosition(p,force=false){if(!p.profile||p.ragdoll)return;const now=Date.now();this.positionTimes??=new Map();if(!force&&now-(this.positionTimes.get(p.profile)||0)<5000)return;this.positionTimes.set(p.profile,now);const position={x:p.x,y:p.y,z:p.z,yaw:p.yaw,mirrorRealm:p.mirrorRealm||null};this.settingsQueue=this.settingsQueue.then(async()=>{const settings={...this.settings,positions:{...this.settings.positions,[p.profile]:position}};try{await this.saveSettings(settings);this.settings=settings;}catch{}});this.onAsyncWork(this.settingsQueue);}
   entries(){return [...this.players.values()];}
-  character(skin,profile,enabled=false){return skin===GUEST_SKIN?cleanCharacter():this.characters.get(skin,profile,enabled);}
+  character(skin,profile,enabled=false){return this.characters.get(skin,profile,enabled);}
   broadcastCharacter(skin,record=this.characters.get(skin)){
     const awards=[];for(const entry of this.entries())if(entry.player.skin===skin){const previous=entry.player.coins;if(Number.isInteger(previous)&&record.coins>previous)awards.push({playerId:entry.player.id,amount:record.coins-previous});Object.assign(entry.player,record);}
     this.broadcast({type:'character-state',skin,character:record});
@@ -78,13 +78,12 @@ export class GameRules{
     const skin=playableSkin(value,null),p=entry.player;if(skin===null)return false;
     if(p.guest&&skin!==GUEST_SKIN){this.broadcast({type:'character-select-rejected',id:p.id,skin:p.skin,reason:'ゲストは入室中にメンバーへ変更できません'});return false;}
     if(p.skin!==skin&&(this.duel?.ids.includes(p.id)||this.guns.phase==='active'&&this.guns.members.has(p.id)||p.ragdoll)){this.broadcast({type:'character-select-rejected',id:p.id,skin:p.skin});return false;}
-    p.skin=skin;p.guest=skin===GUEST_SKIN;Object.assign(p,this.character(skin,p.profile));if(!p.guest)this.broadcastCharacter(skin);this.broadcast({type:'state',player:p});return true;
+    p.skin=skin;p.guest=skin===GUEST_SKIN;Object.assign(p,this.character(skin,p.profile));this.broadcastCharacter(skin);this.broadcast({type:'state',player:p});return true;
   }
   inside(p){return insideArena(p);}
   snapshot(){this.pruneRecords();return {type:'world',version:SYNC_VERSION,protocol:SYNC_PROTOCOL,gunBattle:this.guns.snapshot(),gunMarks:this.guns.marks.filter(m=>Date.now()-m.at<20000),backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel,cycle:this.settings.cycle,serverNow:Date.now(),records:[...this.records.values()],furnitureStates:[...this.furnitureStates.values()]};}
   flashlightPreference(profile){return this.settings.flashlights?.[profile]!==false;}
   setFlashlight(p,enabled){
-    if(p.guest){p.flashlightEnabled=enabled;this.broadcast({type:'flashlight-state',id:p.id,enabled});return;}
     this.settingsQueue=this.settingsQueue.then(async()=>{try{const settings={...this.settings,flashlights:{...this.settings.flashlights,[p.profile]:enabled}};await this.saveSettings(settings);this.settings=settings;for(const entry of this.entries())if(entry.player.profile===p.profile){entry.player.flashlightEnabled=enabled;this.broadcast({type:'flashlight-state',id:entry.player.id,enabled});}}catch{this.broadcast({type:'flashlight-error',id:p.id,message:'懐中電灯の設定を保存できませんでした'});}});return this.settingsQueue;
   }
   setCycle(value){
@@ -171,16 +170,16 @@ export class GameRules{
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
-    if(m.type==='character-camera'){if(!p.guest&&m.skin===p.skin&&['shoulder','first','classic'].includes(m.value))return this.characters.change(p.skin,{playCamera:m.value});return;}
-    if(m.type==='character-fisheye'){if(!p.guest&&m.skin===p.skin&&Number.isFinite(m.value)&&m.value>=0&&m.value<=2)return this.characters.change(p.skin,{fisheye:m.value});return;}
-    if(m.type==='character-depth-of-field'){if(!p.guest&&m.skin===p.skin&&typeof m.enabled==='boolean')return this.characters.change(p.skin,{depthOfField:m.enabled});return;}
-    if(m.type==='character-lightness'){if(!p.guest&&m.skin===p.skin&&Number.isFinite(m.value)&&m.value>=10&&m.value<=100)return this.characters.change(p.skin,{lightness:m.value});return;}
+    if(m.type==='character-camera'){if(m.skin===p.skin&&['shoulder','first','classic'].includes(m.value))return this.characters.change(p.skin,{playCamera:m.value});return;}
+    if(m.type==='character-fisheye'){if(m.skin===p.skin&&Number.isFinite(m.value)&&m.value>=0&&m.value<=2)return this.characters.change(p.skin,{fisheye:m.value});return;}
+    if(m.type==='character-depth-of-field'){if(m.skin===p.skin&&typeof m.enabled==='boolean')return this.characters.change(p.skin,{depthOfField:m.enabled});return;}
+    if(m.type==='character-lightness'){if(m.skin===p.skin&&Number.isFinite(m.value)&&m.value>=10&&m.value<=100)return this.characters.change(p.skin,{lightness:m.value});return;}
     if(m.type==='room-kick'){if(!menuBoards.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<7&&Math.abs(p.y-(b.y||0))<5)||now-(p.lastKickAt||0)<1000)return;p.lastKickAt=now;if(typeof m.playerId==='string'&&this.entries().some(e=>e.player.id===m.playerId))this.disconnectPlayer?.(m.playerId);return;}
     if(m.type==='chat-history'){this.broadcast({type:'chat-history',playerId:p.id,...this.chat.page(m.before)});return;}
     if(m.type==='position-save'){this.savePosition(p,true);return this.settingsQueue;}
     if(this.guns.receive(entry,m,now))return;
     if(m.type==='chat-open'){this.broadcast({type:'chat-open',playerId:p.id,...this.chat.page()});return;}
-    if(m.type==='chat-post'){if(now-(entry.lastChatAt||0)<1000){this.broadcast({type:'chat-error',playerId:p.id,message:'少し待ってから送信してください'});return;}if(typeof m.text!=='string'||m.text.length>400)return;entry.lastChatAt=now;return this.chat.post(p.skin,m.text).then(message=>this.broadcast({type:'chat-message',scope:'world',authorId:p.id,message})).catch(()=>this.broadcast({type:'chat-error',playerId:p.id,message:'保存できませんでした。もう一度送信してください'}));}
+    if(m.type==='chat-post'){if(now-(entry.lastChatAt||0)<1000){this.broadcast({type:'chat-error',playerId:p.id,message:'少し待ってから送信してください'});return;}if(typeof m.text!=='string'||m.text.length>400)return;entry.lastChatAt=now;return this.chat.post(p.skin,m.text).then(message=>this.broadcast({type:'chat-message',scope:'world',authorId:p.id,message,oldestId:this.chat.records[0]?.id,oldestAt:this.chat.records[0]?.at})).catch(()=>this.broadcast({type:'chat-error',playerId:p.id,message:'保存できませんでした。もう一度送信してください'}));}
 
     if(m.type==='piano-play'||m.type==='record-toggle'||m.type==='furniture-hit'){
       if(p.ragdoll||this.duel?.ids.includes(p.id))return;
@@ -196,9 +195,6 @@ export class GameRules{
       const previous=this.furnitureStates.get(key),enabled=action.toggle?!(previous?.enabled??action.defaultEnabled):true,event={type:'furniture-event',index:h.index,itemId:item.id,kind:family,enabled,serial:++this.furnitureSequence,playerId:p.id};if(action.toggle)this.furnitureStates.set(key,event);this.broadcast(event);return;
     }
     if(m.type==='flashlight-toggle'&&typeof m.enabled==='boolean')return this.setFlashlight(p,m.enabled);
-    if(p.guest&&['housing-op','crown-toggle','checkpoint','duel-settings','backdrop','cycle-settings'].includes(m.type)){
-      this.broadcast({type:'guest-denied',id:p.id,message:'ゲストは家・ワールド設定・メンバーの保存データを変更できません'});return;
-    }
     if(m.type==='housing-op'){const home=houseDescriptor(m.index,this.houses.realms);if(!home||Math.hypot(p.x-home.x,p.z-(home.z+home.front*7.8))>5){this.broadcast({type:'house-state',index:m.index,house:this.houses.snapshots()[m.index],requestId:m.requestId,error:'家の入り口からカスタマイズしてください'});return;}if(this.duel?.ids.includes(p.id)||p.ragdoll){const house=this.houses.snapshots()[m.index];if(house)this.broadcast({type:'house-state',index:m.index,house,requestId:m.requestId,error:'試合・被弾中は家を編集できません'});return;}return Promise.resolve(this.houses.apply(p.skin,m)).then(()=>{this.pruneRecords();const c=this.characters.get(p.skin),total=Object.entries(this.houses.snapshots()).filter(([index])=>houseDescriptor(index,this.houses.realms)?.owner===p.skin).reduce((n,[,h])=>n+(h.items?.length||0),0),peak=Math.max(c.furniturePeak,total);return this.characters.change(p.skin,{furniturePeak:peak,coins:c.coins+Math.floor(peak/5)-Math.floor(c.furniturePeak/5)});});}
     if(m.type==='character-select'){this.selectCharacter(entry,m.skin);return this.characters.pending;}
     if(m.type==='crown-toggle'&&typeof m.enabled==='boolean')return this.characters.change(p.skin,{crownEnabled:m.enabled});

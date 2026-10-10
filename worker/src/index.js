@@ -32,7 +32,7 @@ export class Room extends DurableObject {
     this.roomContext=ctx;
     this.players = new Map();
     this.scores={};this.ready=ctx.blockConcurrencyWhile(async()=>{this.scores=await ctx.storage.get('scores')||{};const settings=await ctx.storage.get('settings')||{},characters=await ctx.storage.get('characters')||{},houses=await ctx.storage.get('houses')||{};const chat=[];let startAfter;while(true){const batch=await ctx.storage.list({prefix:'chat:',limit:1000,...(startAfter?{startAfter}:{})});chat.push(...batch.values());if(batch.size<1000)break;startAfter=[...batch.keys()].at(-1);}
-this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.storage.put('scores',s),settings,s=>ctx.storage.put('settings',s),characters,s=>ctx.storage.put('characters',s),houses,s=>ctx.storage.put('houses',s),promise=>ctx.waitUntil(promise),chat,message=>ctx.storage.put('chat:'+message.id,message));});
+this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.storage.put('scores',s),settings,s=>ctx.storage.put('settings',s),characters,s=>ctx.storage.put('characters',s),houses,s=>ctx.storage.put('houses',s),promise=>ctx.waitUntil(promise),chat,(message,removed)=>ctx.storage.transaction(async storage=>{await storage.put('chat:'+message.id,message);if(removed.length)await storage.delete(removed.map(old=>'chat:'+old.id));}));const keep=new Set(this.rules.chat.records.map(message=>message.id));const obsolete=chat.filter(message=>!keep.has(message.id));for(let i=0;i<obsolete.length;i+=100)await ctx.storage.delete(obsolete.slice(i,i+100).map(message=>'chat:'+message.id));});
   }
 
   async fetch(request) {

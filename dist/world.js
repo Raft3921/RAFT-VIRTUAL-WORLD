@@ -81,13 +81,12 @@ export function createWorld(scene){
   box(0,.035,24,8,.07,30,STONE);box(56,.035,27,112,.07,7,STONE);box(112,.035,45,7,.07,36,STONE);box(-45,.035,31,90,.07,7,STONE);
   box(0,.045,62,92,.09,9,STONE);box(-79,.035,67,7,.07,72,STONE);
   const colors=HOUSE_COLORS;
-  for(let i=0;i<8;i++){
+  for(let i=0;i<HOUSES.length;i++){
     currentHouse=houses[i];
-    const x=-39+(i%4)*26,z=i<4?45:80;
-    const front=i<4?1:-1; const accent=colors[i];
-    box(x,.09,z,16,.18,15,TRIM);box(x,.19,z,15.2,.05,14.2,WOOD);
+    const {x,z,front,color:accent}=HOUSES[i];
+    box(x,.09,z,16,.18,15,TRIM);box(x,.19,z,15.2,.05,14.2,i>=8?WHITE:WOOD);
     // Subtle plank seams are instanced boxes rather than dozens of textures.
-    for(let j=0;j<24;j++)box(x-7.2+j*.62,.223,z,.025,.005,14,'#96704f',false);
+    for(let j=0;j<(i>=8?0:24);j++)box(x-7.2+j*.62,.223,z,.025,.005,14,'#96704f',false);
     box(x-7.6,2.8,z,.3,5.5,14.5);box(x+7.6,2.8,z,.3,5.5,14.5);
     box(x,2.8,z-front*7.1,15.5,5.5,.3);
     box(x-5,2.8,z+front*7.1,5.4,5.5,.3);box(x+5,2.8,z+front*7.1,5.4,5.5,.3);
@@ -99,7 +98,7 @@ export function createWorld(scene){
     // Low stepped hip roof: straight walls, continuous roof, no crossing triangles.
     for(let r=0;r<4;r++)box(x,6.12+r*.19,z,15.6-r*1.6,.2,14.6-r*1.6,accent);
     box(x,.09,z+front*9.2,5,.18,4.2,STONE);
-    box(x,.035,i<4?56.5:70,5,.07,i<4?9:7,STONE);
+    if(i<8)box(x,.035,i<4?56.5:70,5,.07,i<4?9:7,STONE);
     box(x,1.1,z-front*6.85,6,1.8,.1,accent,false);
     // Recessed light strips and neutral window-like architectural panels.
     box(x-5,3,z+front*7.28,2.6,1.8,.04,'#a9d2df',false);box(x+5,3,z+front*7.28,2.6,1.8,.04,'#a9d2df',false);

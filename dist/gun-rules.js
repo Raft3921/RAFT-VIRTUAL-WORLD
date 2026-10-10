@@ -11,7 +11,7 @@ export class GunRules{
  send(message){this.rules.broadcast(message);}
  record(p){return this.rules.characters.get(p.skin);}
  economy(p){this.send({type:'gun-inventory',playerId:p.id,character:this.record(p),ammo:this.ammo.get(p.id+':'+p.equippedWeapon)||null});}
- reward(p,{coins=0,weapon=null}={}){if(p.guest)return;const c=this.record(p),weaponWins={...c.weaponWins};if(weapon)weaponWins[weapon]=(weaponWins[weapon]||0)+1;return this.rules.characters.change(p.skin,{coins:c.coins+coins,weaponWins});}
+ reward(p,{coins=0,weapon=null}={}){const c=this.record(p),weaponWins={...c.weaponWins};if(weapon)weaponWins[weapon]=(weaponWins[weapon]||0)+1;return this.rules.characters.change(p.skin,{coins:c.coins+coins,weaponWins});}
  snapshot(){return {phase:this.phase,mode:this.mode,startAt:this.startAt,round:this.round,members:[...this.members.values()].map(m=>({id:m.id,team:m.team,damage:m.damage,out:m.out,manual:m.manual,weapon:m.weapon,skin:this.players().find(p=>p.id===m.id)?.skin??8}))};}
  publish(){this.send({type:'gun-battle',battle:this.snapshot()});}
  assign(){if(this.phase==='active')return;const members=[...this.members.values()],pairs=this.mode==='teams'||this.mode==='auto'&&members.length===4;members.forEach((m,i)=>{if(!m.manual)m.team=pairs?Math.floor(i/Math.ceil(members.length/2)):i;});}
@@ -92,7 +92,7 @@ export class GunRules{
  receive(entry,message,now){const p=entry.player,c=this.record(p);
   if(message.type==='gun-enter'){this.enter(p);return true;}
   if(message.type==='gun-exit'){if(this.members.has(p.id)&&this.atBoard(p)){this.remove(p.id);this.move(p,{...GUN_ENTRY,z:GUN_ENTRY.z+3});}return true;}
-  if(message.type==='gun-buy'){const weapon=weaponById(message.weapon),index=WEAPONS.indexOf(weapon);if(p.guest||!weapon||this.phase==='active'&&this.members.has(p.id))return true;
+  if(message.type==='gun-buy'){const weapon=weaponById(message.weapon),index=WEAPONS.indexOf(weapon);if(!weapon||this.phase==='active'&&this.members.has(p.id))return true;
    const previous=WEAPONS[index-1];if(c.ownedWeapons.includes(weapon.id)||c.coins<weapon.price||previous&&(!c.ownedWeapons.includes(previous.id)||(c.weaponWins[previous.id]||0)<weapon.require)){this.send({type:'gun-error',playerId:p.id,message:'コインまたは前の武器での勝利数が足りません'});return true;}
    this.rules.onAsyncWork(this.rules.characters.change(p.skin,{coins:c.coins-weapon.price,ownedWeapons:[...c.ownedWeapons,weapon.id],equippedWeapon:weapon.id}));p.equippedWeapon=weapon.id;this.economy(p);return true;
   }

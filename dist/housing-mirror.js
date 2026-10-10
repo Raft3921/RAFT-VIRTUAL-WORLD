@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import {createPortalViews,portalFrame,passageTransform} from './portal-view.js?v=20261009-portalperf28';
+import {createPortalViews,portalFrame,passageTransform} from './portal-view.js?v=20261010-shared64';
 import {HOUSES,ROOM,mirrorRealmKey,mirrorRealm,mirrorHouseKey,houseDescriptor} from './housing-data.js';
 
 // Portal windows render their linked rooms from the viewer’s perspective. A source mirror owns
-// a complete reversed residential avenue, shared by everyone using that mirror.
+// the same reversed residential avenue as every other member mirror.
 export function createHousingMirrors(scene,world){
   const planeGeometry=new THREE.PlaneGeometry(1,1),boxGeometry=new THREE.BoxGeometry(1,1,1);
   const fallbackFrameMaterial=new THREE.MeshStandardMaterial({color:'#bd9166',roughness:.85});
@@ -12,15 +12,20 @@ export function createHousingMirrors(scene,world){
   let active=null,cooldownUntil=0,renderer=null,bridge=null,mirrorRevision=0,lastWindowEntry=null,travelMode='seamless';const views=createPortalViews(scene),fallbacks=new Map();
   function add(group,id,part){const mesh=new THREE.Mesh(planeGeometry,boardMaterial);mesh.userData.itemId=id;mesh.userData.portalHeight=1;mesh.userData.portalShape=part.portalShape||0;group.add(mesh);const entry={mesh,part,id,house:group.userData.houseIndex};entries.add(entry);mirrorRevision++;return entry;}
   function remove(entry){mirrorRevision++;views.release(entry.mesh);entries.delete(entry);entry.mesh.removeFromParent();}
-  function originals(){return [...entries].filter(e=>!houseDescriptor(e.house)?.realm);}
+  function originals(){return [...entries].filter(e=>{const h=houseDescriptor(e.house);return h&&!h.realm&&!h.guest;});}
+  function livePortals(){return [...entries].filter(e=>!houseDescriptor(e.house)?.guest).map(e=>e.mesh);}
   function reflectedMatrix(mesh,realm){mesh.updateWorldMatrix(true,false);return new THREE.Matrix4().makeTranslation(realm.x,0,realm.z).multiply(new THREE.Matrix4().makeScale(1,1,-1)).multiply(mesh.matrixWorld);}
   function refreshGateways(space){
     if(space.signature===mirrorRevision)return;space.signature=mirrorRevision;const source=originals();
-    // Keep the last passage when a source mirror is removed while visitors are
-    // inside; returning falls back to that home's entrance.
-    for(const e of source){const key=e.house+':'+e.id;let gate=space.gates.get(key);if(!gate){gate={mesh:new THREE.Mesh(planeGeometry,boardMaterial),appearance:new THREE.Group(),house:e.house,id:e.id};space.group.add(gate.appearance);gate.mesh.matrixAutoUpdate=false;space.group.add(gate.mesh);space.gates.set(key,gate);}gate.mesh.matrix.copy(reflectedMatrix(e.mesh,space));gate.mesh.matrixWorldNeedsUpdate=true;gate.mesh.userData.portalHeight=1;gate.mesh.userData.portalShape=e.mesh.userData.portalShape;renderer?.copyMirrorAppearance(e,gate.appearance,new THREE.Matrix4().makeTranslation(space.x,0,space.z).multiply(new THREE.Matrix4().makeScale(1,1,-1)));}
+    const keys=new Set(source.map(e=>e.house+':'+e.id));
+    for(const [key,gate]of space.gates)if(gate.id&&!keys.has(key)){views.release(gate.mesh);if(gate.owned)gate.mesh.removeFromParent();gate.appearance?.removeFromParent();space.gates.delete(key);}
+    for(const e of source){const key=e.house+':'+e.id,linked=[...entries].find(p=>houseDescriptor(p.house)?.realm===space.key&&houseDescriptor(p.house)?.sourceIndex===e.house&&p.id===e.id);let gate=space.gates.get(key);
+      if(gate&&gate.mesh!==linked?.mesh&&linked){views.release(gate.mesh);if(gate.owned)gate.mesh.removeFromParent();gate.appearance?.removeFromParent();space.gates.delete(key);gate=null;}
+      if(!gate){gate={mesh:linked?.mesh||new THREE.Mesh(planeGeometry,boardMaterial),appearance:linked?null:new THREE.Group(),owned:!linked,house:e.house,id:e.id};if(gate.owned){space.group.add(gate.appearance);gate.mesh.matrixAutoUpdate=false;space.group.add(gate.mesh);}space.gates.set(key,gate);}
+      if(gate.owned){gate.mesh.matrix.copy(reflectedMatrix(e.mesh,space));gate.mesh.matrixWorldNeedsUpdate=true;gate.mesh.userData.portalHeight=1;gate.mesh.userData.portalShape=e.mesh.userData.portalShape;renderer?.copyMirrorAppearance(e,gate.appearance,new THREE.Matrix4().makeTranslation(space.x,0,space.z).multiply(new THREE.Matrix4().makeScale(1,1,-1)));}
+    }
     for(const h of HOUSES.slice(0,8)){
-      const key=h.index+':entrance',hasMirror=source.some(e=>e.house===h.index)||[...space.gates.values()].some(e=>e.house===h.index&&e.id);
+      const key=h.index+':entrance',hasMirror=source.some(e=>e.house===h.index);
       let gate=space.gates.get(key);if(hasMirror){if(gate){gate.mesh.removeFromParent();gate.appearance?.removeFromParent();space.gates.delete(key);}continue;}
       if(!gate){const mesh=new THREE.Mesh(planeGeometry,boardMaterial);mesh.position.set(space.x+h.x,1.7,space.z-h.z+h.front*(ROOM.z-.15));mesh.rotation.y=h.front>0?Math.PI:0;mesh.scale.set(1.5,2.6,1);space.group.add(mesh);const appearance=new THREE.Group();appearance.matrixAutoUpdate=false;mesh.updateWorldMatrix(true,false);appearance.matrix.copy(mesh.matrixWorld);space.group.add(appearance);for(const part of [{x:-.53,y:0,w:.07,h:1.12},{x:.53,y:0,w:.07,h:1.12},{x:0,y:-.53,w:1,h:.07},{x:0,y:.53,w:1,h:.07}]){const frame=new THREE.Mesh(boxGeometry,fallbackFrameMaterial);frame.position.set(part.x,part.y,-.04);frame.scale.set(part.w,part.h,.08);appearance.add(frame);}space.gates.set(key,{mesh,appearance,house:h.index,id:null});}
     }
@@ -65,7 +70,7 @@ export function createHousingMirrors(scene,world){
     const h=houseDescriptor(index);if(!h?.realm)return previousCutaway(index,enabled,sideX,sideZ);
     const space=spaces.get(h.realm);if(!space)return;
     for(const shell of space.shells){if(shell.index===index){shell.board.editorHidden=enabled;shell.board.label.visible=!enabled;}if(!shell.mesh)continue;let changed=false;for(let i=0;i<shell.parts.length;i++){const p=shell.parts[i];if(p.houseIndex!==index)continue;const hide=enabled&&(p.y>5.5||(p.z-h.z)*sideZ>6.8||(p.x-h.x)*sideX>7.4);transform.position.set(p.x,p.y,p.z);transform.rotation.set(0,p.rotation,0);transform.scale.set(hide?0:p.w,hide?0:p.h,hide?0:p.d);transform.updateMatrix();shell.mesh.setMatrixAt(i,transform.matrix);changed=true;}if(changed)shell.mesh.instanceMatrix.needsUpdate=true;}
-    for(const gate of space.gates.values())if(gate.house===h.sourceIndex){gate.mesh.visible=!enabled;if(gate.appearance)gate.appearance.visible=!enabled;}
+    for(const gate of space.gates.values())if(gate.house===h.sourceIndex){if(gate.owned!==false)gate.mesh.visible=!enabled;if(gate.appearance)gate.appearance.visible=!enabled;}
   };
   function fallback(house){
     if(fallbacks.has(house))return fallbacks.get(house);
@@ -83,7 +88,7 @@ export function createHousingMirrors(scene,world){
     // until the viewer is close enough for its doorway to fill the shot.
     if(nearest&&best<36){const space=createSpace(mirrorRealmKey(nearest.house,nearest.id));if(space){refreshGateways(space);const gate=space.gates.get(nearest.house+':'+nearest.id);if(gate)pairs.push({source:nearest.mesh,destination:gate.mesh});}}
     for(const space of spaces.values())if(Math.abs(camera.position.x-space.x)<100&&Math.abs(camera.position.z-(space.z-62.5))<85){refreshGateways(space);for(const gate of space.gates.values())pairs.push({source:gate.mesh,destination:counterpart(gate)});}
-    for(const entry of entries){const h=houseDescriptor(entry.house);if(h?.realm)pairs.push({source:entry.mesh,destination:counterpart({house:h.sourceIndex,id:entry.id})});}
+    for(const entry of entries){const h=houseDescriptor(entry.house);if(h?.realm&&originals().some(p=>p.house===h.sourceIndex&&p.id===entry.id))pairs.push({source:entry.mesh,destination:counterpart({house:h.sourceIndex,id:entry.id})});}
     return pairs;
   }
   function intersectsBody(mesh,position,height){
@@ -98,12 +103,19 @@ export function createHousingMirrors(scene,world){
   // All other parts retain their regular collision and camera obstruction.
   world.portalPassage=(body,position,previous,height=1.9,cameraRay=false)=>{
     if(body.h<.5)return false;
-    const portals=[...entries].map(e=>e.mesh);for(const space of spaces.values())for(const gate of space.gates.values())portals.push(gate.mesh);
+    const portals=livePortals();for(const space of spaces.values())for(const gate of space.gates.values())portals.push(gate.mesh);
     for(const mesh of portals){const f=portalFrame(mesh);if(Math.hypot(position.x-f.center.x,position.z-f.center.z)>Math.hypot(f.width,f.height)+5&&!cameraRay)continue;
       const c=Math.cos(body.rotation||0),sn=Math.sin(body.rotation||0),extent=Math.abs(f.normal.x*c-f.normal.z*sn)*body.w/2+Math.abs(f.normal.x*sn+f.normal.z*c)*body.d/2;
       if(extent>.45||Math.abs((body.x-f.center.x)*f.normal.x+(body.z-f.center.z)*f.normal.z)>extent+.18)continue;
       if(cameraRay){const a=previous.clone().sub(f.center).dot(f.normal),b=position.clone().sub(f.center).dot(f.normal);if(a*b>0||Math.abs(a-b)<.0001)continue;const crossingPoint=previous.clone().lerp(position,a/(a-b));mesh.updateWorldMatrix(true,false);probe.copy(crossingPoint).applyMatrix4(inverse.copy(mesh.matrixWorld).invert());if(Math.abs(probe.x)<.49&&Math.abs(probe.y)<.49)return true;
-      }else if(intersectsBody(mesh,position,height))return true;
+      }else{
+        // The wall remains solid except during a forward crossing through the
+        // aperture. Walking sideways or away from a mirror cannot open it.
+        const before=previous.clone().sub(f.center).dot(f.normal),after=position.clone().sub(f.center).dot(f.normal);
+        if(before<-.05||after>=before||Math.abs(after)>.55)continue;
+        mesh.updateWorldMatrix(true,false);probe.set(position.x,position.y+height*.5,position.z).applyMatrix4(inverse.copy(mesh.matrixWorld).invert());
+        if(Math.abs(probe.x)+.32/f.width<.5&&Math.abs(probe.y)<.5&&intersectsBody(mesh,position,height))return true;
+      }
     }return false;
   };
   function travel(source,destination,position,entering,realm,time){
@@ -127,7 +139,7 @@ export function createHousingMirrors(scene,world){
     if(!previous||time<cooldownUntil)return null;
     const enters=mesh=>travelMode==='classic'?approaching(mesh,position,previous,velocity,height):crossing(mesh,position,previous,height);
     if(active){const space=createSpace(active);if(!space)return null;refreshGateways(space);for(const gate of space.gates.values())if(enters(gate.mesh))return travelMode==='classic'?classicTravel(counterpart(gate),null,time):travel(gate.mesh,counterpart(gate),position,false,null,time);
-      for(const e of entries){const h=houseDescriptor(e.house);if(h?.realm===active&&enters(e.mesh))return travelMode==='classic'?classicTravel(counterpart({house:h.sourceIndex,id:e.id}),null,time):travel(e.mesh,counterpart({house:h.sourceIndex,id:e.id}),position,false,null,time);}return null;}
+      for(const e of entries){const h=houseDescriptor(e.house);if(h?.realm===active&&originals().some(p=>p.house===h.sourceIndex&&p.id===e.id)&&enters(e.mesh))return travelMode==='classic'?classicTravel(counterpart({house:h.sourceIndex,id:e.id}),null,time):travel(e.mesh,counterpart({house:h.sourceIndex,id:e.id}),position,false,null,time);}return null;}
     for(const entry of originals()){if(!enters(entry.mesh))continue;const key=mirrorRealmKey(entry.house,entry.id),space=createSpace(key);if(!space)continue;const gate=space.gates.get(entry.house+':'+entry.id);if(gate)return travelMode==='classic'?classicTravel(gate,key,time):travel(entry.mesh,gate.mesh,position,true,key,time);}return null;
   }
   // A follow camera remains on its own side of the window after the actor
@@ -143,5 +155,5 @@ export function createHousingMirrors(scene,world){
   }
   function realmForView(position){let nearest=null,best=Infinity;for(const space of spaces.values()){const dx=position.x-space.x,dz=position.z-(space.z-62.5),d=dx*dx+dz*dz;if(Math.abs(dx)<125&&Math.abs(dz)<110&&d<best){nearest=space.key;best=d;}}if(!nearest&&active&&(position.x>1500||position.z>1500))nearest=active;return nearest;}
   function update(_dt,_time,camera){const visibleRealm=realmForView(camera.position);for(const space of spaces.values()){space.group.visible=space.key===visibleRealm;if(space.group.visible)refreshGateways(space);}}
-  return {restoreRealm(key){const space=createSpace(key);if(!space)return false;active=key;refreshGateways(space);for(const house of Object.values(HOUSES).filter(h=>h&&h.realm===key))renderer?.ensure?.(house.index);return true;},add,remove,markChanged(){mirrorRevision++;},setTravelMode(value){travelMode=value==='classic'?'classic':'seamless';bridge=null;lastWindowEntry=null;},step,update,realmForView,adjustCamera,renderViews,configure:value=>renderer=value,createSpace,spaces,reset(){active=null;bridge=null;},clearSpaces(){active=null;bridge=null;lastWindowEntry=null;views.clear();fallbacks.clear();for(const space of spaces.values()){space.group.removeFromParent();for(const shell of space.shells)if(shell.mesh)shell.mesh.dispose();for(const gate of space.gates.values())for(const child of gate.appearance?.children||[])child.dispose?.();world.setHouseBodies('mirror-avenue:'+space.key,[]);world.setMovementBounds?.(space.key,null);}spaces.clear();for(let i=world.boards.length-1;i>=0;i--)if(String(world.boards[i].houseIndex).startsWith('m|'))world.boards.splice(i,1);},get active(){return active!==null;},get realm(){return active;}};
+  return {restoreRealm(key){key=mirrorRealmKey();const space=createSpace(key);if(!space)return false;active=key;refreshGateways(space);for(const house of Object.values(HOUSES).filter(h=>h&&h.realm===key))renderer?.ensure?.(house.index);return true;},add,remove,markChanged(){mirrorRevision++;},setTravelMode(value){travelMode=value==='classic'?'classic':'seamless';bridge=null;lastWindowEntry=null;},step,update,realmForView,adjustCamera,renderViews,configure:value=>renderer=value,createSpace,spaces,reset(){active=null;bridge=null;},clearSpaces(){active=null;bridge=null;lastWindowEntry=null;views.clear();fallbacks.clear();for(const space of spaces.values()){space.group.removeFromParent();for(const shell of space.shells)if(shell.mesh)shell.mesh.dispose();for(const gate of space.gates.values())for(const child of gate.appearance?.children||[])child.dispose?.();world.setHouseBodies('mirror-avenue:'+space.key,[]);world.setMovementBounds?.(space.key,null);}spaces.clear();for(let i=world.boards.length-1;i>=0;i--)if(String(world.boards[i].houseIndex).startsWith('m|'))world.boards.splice(i,1);},get active(){return active!==null;},get realm(){return active;}};
 }

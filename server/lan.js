@@ -37,7 +37,9 @@ let settings={};try{settings=JSON.parse(readFileSync('.room-settings.json','utf8
 let characters={};try{characters=JSON.parse(readFileSync('.room-characters.json','utf8'));}catch{}
 let houses={};try{houses=JSON.parse(readFileSync('.room-houses.json','utf8'));}catch{}
 let chat=[];try{chat=readFileSync('.room-chat.jsonl','utf8').split('\n').filter(Boolean).flatMap(line=>{try{return [JSON.parse(line)];}catch{return [];}});}catch{}
-const rules=new GameRules(players,broadcast,scores,s=>writeFileSync('.room-scores.json',JSON.stringify(s)),settings,s=>{writeFileSync('.room-settings.json.tmp',JSON.stringify(s));renameSync('.room-settings.json.tmp','.room-settings.json');},characters,s=>{writeFileSync('.room-characters.json.tmp',JSON.stringify(s));renameSync('.room-characters.json.tmp','.room-characters.json');},houses,s=>{writeFileSync('.room-houses.json.tmp',JSON.stringify(s));renameSync('.room-houses.json.tmp','.room-houses.json');},()=>{},chat,message=>appendFileSync('.room-chat.jsonl',JSON.stringify(message)+'\n'));
+const rules=new GameRules(players,broadcast,scores,s=>writeFileSync('.room-scores.json',JSON.stringify(s)),settings,s=>{writeFileSync('.room-settings.json.tmp',JSON.stringify(s));renameSync('.room-settings.json.tmp','.room-settings.json');},characters,s=>{writeFileSync('.room-characters.json.tmp',JSON.stringify(s));renameSync('.room-characters.json.tmp','.room-characters.json');},houses,s=>{writeFileSync('.room-houses.json.tmp',JSON.stringify(s));renameSync('.room-houses.json.tmp','.room-houses.json');},()=>{},chat,(message,removed,records)=>{writeFileSync('.room-chat.jsonl.tmp',records.map(record=>JSON.stringify(record)).join('\n')+'\n');renameSync('.room-chat.jsonl.tmp','.room-chat.jsonl');});
+
+writeFileSync('.room-chat.jsonl.tmp',rules.chat.records.map(record=>JSON.stringify(record)).join('\n')+'\n');renameSync('.room-chat.jsonl.tmp','.room-chat.jsonl');
 
 rules.disconnectPlayer=id=>{const match=[...players].find(([,e])=>e.player.id===id);if(!match)return;const [socket]=match;send(socket,{type:'room-removed',reason:'メニューボードから退出しました'});remove(socket);socket.close(1000,'removed from menu board');};
 

@@ -1,4 +1,4 @@
-import {EXPANDED_FURNITURE} from './furniture-catalogue.js?v=20261010-plaza-map67';
+import {EXPANDED_FURNITURE} from './furniture-catalogue.js?v=20261010-cooking68';
 export const GRID=.25,HEIGHT_GRID=.05,MAX_FURNITURE=64,ROOM={x:7.4,z:6.9,height:5.25,floor:.245};
 export const OWNER_SKINS=[3,5,6,2,4,1,0,7];
 export const HOUSE_COLORS=['#d84a42','#52a96d','#48b8d4','#e88a38','#87929a','#9a70c5','#e4c84d','#9a6748'];
@@ -47,8 +47,35 @@ export const FURNITURE=[
   item('pendant','ペンダントライト','pendant',.8,1.1,.8,'ceiling'),item('chandelier','シャンデリア','chandelier',1.6,1.2,1.6,'ceiling'),item('ceiling-fan','シーリングファン','fan',1.8,.55,1.8,'ceiling'),item('ceiling-light','シーリングライト','ceiling-light',1,.18,1,'ceiling'),item('light-bar','吊り下げバーライト','light-bar',1.8,.7,.35,'ceiling'),
   item('wall-vent','換気グリル','vent',.9,.65,.18,'wall'),item('wall-planter','壁掛けプランター','wall-planter',1.1,.9,.5,'wall'),item('curtain','カーテン','curtain',2,1.8,.3,'wall'),item('wall-speaker','壁掛けスピーカー','wall-speaker',.45,.7,.3,'wall'),item('wide-art','ワイドアート','frame',2.2,.9,.1,'wall'),item('wall-bookshelf','ウォールブックシェルフ','wall-shelf',2.2,.7,.45,'wall'),
   item('hanging-plant','吊り下げグリーン','hanging-plant',.85,1.2,.85,'ceiling'),item('mobile','カラフルモビール','mobile',1.4,1,1.4,'ceiling'),item('projector','天吊りプロジェクター','projector',.65,.65,.65,'ceiling'),item('double-pendant','ワイドペンダント','light-bar',2.3,1,.5,'ceiling'),
+  item('hob','2口コンロ','stove',1.2,1,.75),
+  item('cutting-board','まな板','cookware',.65,.045,.4,'floor',{allowHeight:true,solid:false,design:'board'}),
+  item('cooking-knife','料理包丁','cookware',.4,.04,.08,'floor',{allowHeight:true,solid:false,design:'knife'}),
+  item('frying-pan','フライパン','cookware',.65,.12,.45,'floor',{allowHeight:true,design:'pan'}),
+  item('cooking-pot','調理鍋','cookware',.5,.35,.5,'floor',{allowHeight:true,design:'pot'}),
+  item('mixing-bowl','ボウル','cookware',.4,.2,.4,'floor',{allowHeight:true,design:'bowl'}),
+  item('cooking-plate','料理用のお皿','cookware',.4,.035,.4,'floor',{allowHeight:true,solid:false,design:'plate'}),
   ...EXPANDED_FURNITURE,
 ];
+export const FURNITURE_SECTIONS=['椅子・ソファ','テーブル・机','ベッド・寝具','収納','キッチン設備','調理器具','キッチン家電','洗濯・掃除','テレビ・パソコン・家電','照明・空調','楽器・趣味','植物・水槽','ラグ・クッション','鏡','壁の装飾','その他'];
+function furnitureSection(f){
+  if(['mirror','wall-mirror'].includes(f.family))return '鏡';
+  if(['chair','sofa','stool','bench'].includes(f.family))return '椅子・ソファ';
+  if(['table','desk'].includes(f.family))return 'テーブル・机';
+  if(['bed','canopy'].includes(f.family))return 'ベッド・寝具';
+  if(['kitchen','sink','fridge','oven','stove'].includes(f.family)||['mini-fridge','wine','hood'].includes(f.design))return 'キッチン設備';
+  if(f.family==='cookware'||['dishes','pots','scale','fruit'].includes(f.design))return '調理器具';
+  if(f.family==='appliance')return ['washer','dryer','trash','recycle'].includes(f.design)?'洗濯・掃除':'キッチン家電';
+  if(['vacuum','robot'].includes(f.design))return '洗濯・掃除';
+  if(f.light||['lamp','sconce','pendant','chandelier','ceiling-light','light-bar','fan','aircon','vent'].includes(f.family)||['fan','tower','purifier','humidifier'].includes(f.design))return '照明・空調';
+  if(['computer','tv','electronics','projector','wall-speaker'].includes(f.family))return 'テレビ・パソコン・家電';
+  if(['piano','record','hobby'].includes(f.family))return '楽器・趣味';
+  if(['plant','bonsai','aquarium','botanical','hanging-plant','wall-planter'].includes(f.family))return '植物・水槽';
+  if(['rug','soft','pet'].includes(f.family))return 'ラグ・クッション';
+  if(['bookshelf','wardrobe','dresser','cabinet','crate','coat','modern-storage','wall-shelf','wall-cabinet','pegboard'].includes(f.family))return '収納';
+  if(['frame','poster','clock','curtain','wall-decor','mobile'].includes(f.family))return '壁の装飾';
+  return 'その他';
+}
+for(const f of FURNITURE)f.section=furnitureSection(f);
 export const FURNITURE_BY_ID=new Map(FURNITURE.map(f=>[f.id,f]));
 export function furnitureDefinition(value){const f=FURNITURE_BY_ID.get(value.t);return value.v===1&&['bed','canopy'].includes(f?.family)?{...f,w:f.id==='single-bed'?1.3:f.w,d:f.family==='canopy'?2.3:2.2}:f;}
 export const FINISHES={

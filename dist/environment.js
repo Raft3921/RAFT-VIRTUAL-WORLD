@@ -1,4 +1,4 @@
-import {GUN_ZONE} from './gun-layout.js?v=20261010-plaza-map67';
+import {GUN_ZONE} from './gun-layout.js?v=20261010-cooking68';
 import * as THREE from 'three';
 
 // All vegetation and terrain are geometry/shaders: no image textures or downloads.

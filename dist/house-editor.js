@@ -1,13 +1,15 @@
+import {recognizeKitchens} from './kitchen-layout.js?v=20261010-cooking68';
 import * as THREE from 'three';
-import {HOUSES,houseDescriptor,replaceMirrorRealms,registerMirrorRealm,MIRROR_REALMS,ROOM,GRID,HEIGHT_GRID,MAX_FURNITURE,FURNITURE,FURNITURE_BY_ID,FURNITURE_COLORS,FINISHES,emptyHouse,cleanHouse,furniturePose,pairFurniture,placementError,findPlacement,applyHouseOperation,mirrorPassageError} from './housing-data.js?v=20261010-plaza-map67';
-import {furnitureThumbnail,furnitureParts} from './furniture-models.js?v=20261010-plaza-map67';
-import {furnitureGeometry} from './furniture-geometry.js?v=20261010-plaza-map67';
+import {HOUSES,houseDescriptor,replaceMirrorRealms,registerMirrorRealm,MIRROR_REALMS,ROOM,GRID,HEIGHT_GRID,MAX_FURNITURE,FURNITURE,FURNITURE_SECTIONS,FURNITURE_BY_ID,FURNITURE_COLORS,FINISHES,emptyHouse,cleanHouse,furniturePose,pairFurniture,placementError,findPlacement,applyHouseOperation,mirrorPassageError} from './housing-data.js?v=20261010-cooking68';
+import {furnitureThumbnail,furnitureParts} from './furniture-models.js?v=20261010-cooking68';
+import {furnitureGeometry} from './furniture-geometry.js?v=20261010-cooking68';
 
 export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPlayer,isConnected,send,onOpen,onClose,notify}){
   const $=id=>document.getElementById(id),panel=$('houseEditor'),ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),intersection=new THREE.Vector3(),plane=new THREE.Plane(),normal=new THREE.Vector3();
   let index=-1,selectedId=null,draft=null,category='floor',wall='back',color=10,mode='move',drag=null,pending=null,azimuth=.62,elevation=.74,radius=27,viewportKey='',clock=0,nearBoard=null,undoItem=null,pinch=null;
   const pointers=new Map(),pan=new THREE.Vector2();let connectedBefore=isConnected(),touchLayout=false,currentPane='browse';
   const touchTools=document.createElement('nav');touchTools.id='houseTouchTools';touchTools.setAttribute('aria-label','配置とカメラの操作');touchTools.innerHTML='<button data-touch-mode="move">家具を動かす</button><button data-touch-mode="orbit">視点回転</button><button id="houseTouchRotate">回転</button><button id="houseTouchLeft">左移動</button><button id="houseTouchRight">右移動</button>';panel.querySelector('.house-editor-body').before(touchTools);
+  const kitchenHint=document.createElement('p');kitchenHint.className='help';panel.querySelector('.house-browse-pane').prepend(kitchenHint);
   const touchHint=document.createElement('p');touchHint.id='houseTouchHint';touchHint.textContent='家具をドラッグして移動 · 2本指で拡大・視点移動';touchTools.after(touchHint);
   const touchOptions=document.createElement('details');touchOptions.id='houseTouchOptions';const summary=document.createElement('summary');summary.textContent='色・配置済みの家具を選ぶ';touchOptions.append(summary);const editPane=panel.querySelector('[data-house-panel="edit"]');editPane.prepend(touchOptions);for(const id of ['housePlaced','houseColor','houseWallRow'])touchOptions.append(id==='houseWallRow'?$(id):$(id).closest('label'));
   function syncTouchLayout(){const next=innerWidth<=1366&&(navigator.maxTouchPoints>0||matchMedia('(any-pointer: coarse)').matches);const changed=next!==touchLayout;touchLayout=next;panel.dataset.touch=String(next);panel.dataset.pane=currentPane;const v=window.visualViewport;panel.style.setProperty('--house-visible-height',(v?.height||innerHeight)+'px');panel.style.setProperty('--house-keyboard-bottom',Math.max(0,innerHeight-(v?.height||innerHeight)-(v?.offsetTop||0))+'px');if(changed&&index!==-1){catalogue();viewportKey='';}}
@@ -55,7 +57,7 @@ export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPla
     $('houseSelection').hidden=false;
   }
   function refresh(){
-    const layout=layouts[index];if(!layout)return;$('houseCount').textContent=`${layout.items.length} / ${MAX_FURNITURE} · グリッド25cm`;
+    const layout=layouts[index];if(!layout)return;kitchenHint.textContent=recognizeKitchens(index,layout).reason;$('houseCount').textContent=`${layout.items.length} / ${MAX_FURNITURE} · グリッド25cm`;
     const list=$('housePlaced');list.replaceChildren(new Option(draft?'配置中の家具を編集中':'家具を選択',''));for(const object of layout.items)list.add(new Option(FURNITURE_BY_ID.get(object.t).name+' · '+object.id.slice(-4),object.id));list.value=selectedId||'';
     for(const key of Object.keys(FINISHES))$('houseFinish-'+key).value=layout.finish[key];$('houseUndo').disabled=!undoItem||!!pending;$('houseDelete').disabled=!!pending;drawSelection();
   }
@@ -73,7 +75,7 @@ export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPla
   let cataloguePage=0,searchTimer=null;
   function catalogue(){
     const list=$('houseCatalogue'),term=$('houseFurnitureSearch').value.trim().normalize('NFKC').toLowerCase(),section=$('houseFurnitureSection').value;
-    const definitions=FURNITURE.filter(f=>!(houseDescriptor(index)?.realm&&['mirror','wall-mirror'].includes(f.family))&&f.mount===category&&(!section||(f.section||'従来の家具')===section)&&(!term||(f.name+' '+f.id+' '+(f.section||'')).normalize('NFKC').toLowerCase().includes(term))),pageSize=touchLayout&&Math.min(innerWidth,innerHeight)<600?12:24,pages=Math.max(1,Math.ceil(definitions.length/pageSize));
+    const definitions=FURNITURE.filter(f=>!(houseDescriptor(index)?.realm&&['mirror','wall-mirror'].includes(f.family))&&f.mount===category&&(!section||(f.section||'その他')===section)&&(!term||(f.name+' '+f.id+' '+(f.section||'')).normalize('NFKC').toLowerCase().includes(term))).sort((a,b)=>FURNITURE_SECTIONS.indexOf(a.section)-FURNITURE_SECTIONS.indexOf(b.section)||a.name.localeCompare(b.name,'ja')),pageSize=touchLayout&&Math.min(innerWidth,innerHeight)<600?12:24,pages=Math.max(1,Math.ceil(definitions.length/pageSize));
     cataloguePage=Math.max(0,Math.min(pages-1,cataloguePage));list.replaceChildren();
     for(const def of definitions.slice(cataloguePage*pageSize,(cataloguePage+1)*pageSize)){const button=document.createElement('button');button.className='furniture-card';button.title=def.name;button.setAttribute('aria-label',def.name+'を選んで配置');button.innerHTML=furnitureThumbnail(def,color);const label=document.createElement('span');label.textContent=def.name;button.append(label);button.onclick=()=>add(def);list.append(button);}
     if(!definitions.length&&category!=='materials'){const empty=document.createElement('p');empty.className='help';empty.textContent='条件に合う家具がありません';list.append(empty);}
@@ -142,7 +144,7 @@ export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPla
   }
   for(const button of panel.querySelectorAll('[data-house-pane]'))button.onclick=()=>showPane(button.dataset.housePane);
   for(const button of panel.querySelectorAll('[data-house-tab]'))button.onclick=()=>{category=button.dataset.houseTab;cataloguePage=0;for(const b of panel.querySelectorAll('[data-house-tab]'))b.setAttribute('aria-selected',String(b===button));catalogue();};
-  for(const section of [...new Set(FURNITURE.map(f=>f.section||'従来の家具'))])$('houseFurnitureSection').add(new Option(section,section));
+  for(const section of FURNITURE_SECTIONS.filter(section=>FURNITURE.some(f=>f.section===section)))$('houseFurnitureSection').add(new Option(section,section));
   $('houseFurnitureSearch').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();e.target.blur();if(touchLayout)panel.querySelector('.house-editor-body').scrollTop=$('houseCatalogue').offsetTop-panel.querySelector('.house-browse-pane').offsetTop;}});
   $('houseFurnitureSearch').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{cataloguePage=0;catalogue();},120);};
   $('houseFurnitureSection').onchange=()=>{cataloguePage=0;catalogue();};

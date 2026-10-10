@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {BROWN_PROJECTILE,projectileAt} from './projectile-motion.js?v=20261010-plaza-map67';
+import {BROWN_PROJECTILE,projectileAt} from './projectile-motion.js?v=20261010-cooking68';
 
 export function createBrownProjectiles(scene,{world=()=>null,targets=()=>[],onLocalHit=()=>{},onImpact=()=>{}}={}){
   const limit=24,parts=[[0,0,0,.31,.28,.32],[-.13,.04,.02,.18,.19,.24],[.12,.06,-.03,.2,.22,.2],[0,.13,.01,.22,.15,.25],[.03,-.1,.04,.24,.12,.23],[-.1,.15,-.06,.1,.08,.09],[.14,-.01,.14,.08,.09,.07]];

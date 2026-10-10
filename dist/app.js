@@ -1,24 +1,24 @@
-import {createWorldExperience} from './world-experience.js?v=20261010-sync47';
+import {createWorldExperience} from './world-experience.js?v=20261010-fisheye48';
 import {inGunZone,weaponById} from './gun-layout.js';
-import {createWorldChat} from './world-chat.js?v=20261010-sync47';
-import {startUpdateNotice} from './update-notice.js?v=20261010-sync47';
+import {createWorldChat} from './world-chat.js?v=20261010-fisheye48';
+import {startUpdateNotice} from './update-notice.js?v=20261010-fisheye48';
 import {memberColor} from './housing-data.js';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261010-sync47';
+import { createAvatar } from './avatar.js?v=20261010-fisheye48';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261010-sync47';
+import { createWorld } from './world.js?v=20261010-fisheye48';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-sync47';
+import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-fisheye48';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261010-sync47';
+import { createHousingRenderer } from './housing-renderer.js?v=20261010-fisheye48';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261010-sync47';
+import { createHouseEditor } from './house-editor.js?v=20261010-fisheye48';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js';
 import {createWorldGuide} from './world-guide.js';
@@ -120,7 +120,7 @@ function requestCycle(enabled=dayCycle.enabled){if(selected===GUEST_SKIN)return;
 const profileKey='raft-world-profile'+(embeddedDepth?'-embedded-'+embeddedDepth:'');
 const profile=safeRead(profileKey)||(crypto.randomUUID?.()||'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const n=Math.floor(Math.random()*16);return (c==='x'?n:(n&3)|8).toString(16);}));safeSave(profileKey,profile);
 function cachedCharacter(skin=selected){return skin===GUEST_SKIN?guestState:characterCache[skin]||cleanCharacter();}
-function cacheCharacter(skin,value){const record=cleanCharacter(value);record.checkpoint=Math.max(record.checkpoint,cachedCharacter(skin).checkpoint);if(skin===GUEST_SKIN){guestState={...record,score:0,crownEnabled:false};return;}characterCache[skin]=record;safeSave('raft-character-state',JSON.stringify(characterCache));actors[skin]?.setAppearance(record.appearanceLevel,record.crownEnabled);if(skin===selected){crownScore=record.score;crownEnabled=record.crownEnabled;updateCrown();}}
+function cacheCharacter(skin,value){const record=cleanCharacter(value);record.checkpoint=Math.max(record.checkpoint,cachedCharacter(skin).checkpoint);if(skin===GUEST_SKIN){guestState={...record,score:0,crownEnabled:false};return;}characterCache[skin]=record;safeSave('raft-character-state',JSON.stringify(characterCache));actors[skin]?.setAppearance(record.appearanceLevel,record.crownEnabled);if(skin===selected){updateFisheyeControls();crownScore=record.score;crownEnabled=record.crownEnabled;updateCrown();}}
 function saveCheckpoint(id){cacheCharacter(selected,{...cachedCharacter(),checkpoint:id});if(selected!==GUEST_SKIN&&roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'checkpoint',id:cachedCharacter().checkpoint}));}
 function receiveCharacter(skin,value){
   if(skin===GUEST_SKIN)return;
@@ -257,7 +257,7 @@ function updateCrown(){const guest=selected===GUEST_SKIN;if(guest){crownScore=0;
 function updateDuelSettings(){$('duelGoal').value=String(goalDamage);$('duelSettingsStatus').textContent=selected===GUEST_SKIN?'ゲストはワールド設定を変更できません':`現在：${goalDamage}ダメージ · サーバー保存 · 次の試合から反映`;}
 function receiveDuel(duel,announce=false){duelIds=duel.ids;duelActive=duelIds.includes(roomSelfId);matchGoalDamage=duel.goalDamage||goalDamage;duelDamage=duel.damage?.[roomSelfId]||0;if(duelActive){airWalk=false;updateJumpButton();}if(announce)notify('タイマン開始！',3500);$('duelHud').hidden=false;$('duelHud').textContent=duelActive?`被ダメージ ${duelDamage} / ${matchGoalDamage} · 試合中はバリア封鎖`:`タイマン観戦中 · ${matchGoalDamage}ダメージで決着`;}
 function showWorldMenuTab(name){for(const button of document.querySelectorAll('[data-world-tab]'))button.setAttribute('aria-selected',String(button.dataset.worldTab===name));for(const section of document.querySelectorAll('[data-world-panel]')){section.hidden=section.dataset.worldPanel!==name;if(!section.hidden)section.scrollTop=0;}$('worldMenu').querySelector('.world-menu-content').scrollTop=0;}
-function openWorldMenu(board=null){setClean(false);unlocked();openBoard=board;$('menu').hidden=true;$('master').hidden=true;$('worldMenu').hidden=false;$('stopAthletic').disabled=!athleticActive;updateDuelSettings();updateClockControls();$('worldStatus').textContent=`闘技場：2人が1秒以内にパンチで開始 · ${goalDamage}ダメージで勝利`;$('athleticMenuStatus').textContent=athleticActive?'CHECK '+(athleticCheckpoint?.id||1)+' / 100 · ジャンプ力1.5倍':'CHECK 100まで登るコースです。ジャンプ力はゾーン内で1.5倍。';showWorldMenuTab(board?.kind==='checkpoint'||athleticActive?'course':board?.kind==='arena'?'battle':'studio');}
+function openWorldMenu(board=null){updateFisheyeControls();setClean(false);unlocked();openBoard=board;$('menu').hidden=true;$('master').hidden=true;$('worldMenu').hidden=false;$('stopAthletic').disabled=!athleticActive;updateDuelSettings();updateClockControls();$('worldStatus').textContent=`闘技場：2人が1秒以内にパンチで開始 · ${goalDamage}ダメージで勝利`;$('athleticMenuStatus').textContent=athleticActive?'CHECK '+(athleticCheckpoint?.id||1)+' / 100 · ジャンプ力1.5倍':'CHECK 100まで登るコースです。ジャンプ力はゾーン内で1.5倍。';showWorldMenuTab(board?.kind==='checkpoint'||athleticActive?'course':board?.kind==='arena'?'battle':'studio');}
 function closeWorldMenu(){$('worldMenu').hidden=true;canvas.focus();}
 function respawnCourse(){
   const cp=athleticCheckpoint||world.athletic.checkpoints[0];
@@ -305,6 +305,9 @@ range('distance',v=>{distance=v;scheduleShare()},v=>v.toFixed(1)+' m');range('fo
 range('wind',v=>{environment?.setSettings({wind:v});scheduleShare()},v=>v.toFixed(2));range('grassDensity',v=>{environment?.setSettings({grassDensity:v});scheduleShare()},v=>Math.round(v*100)+'%');range('sunHeight',v=>{environment?.setSettings({sunHeight:v});scheduleShare()},v=>v+'°');range('exposure',v=>{environment?.setSettings({exposure:v});scheduleShare()},v=>v.toFixed(2));
 function quality(level){activeQuality=level;environment?.setSettings({quality:level});renderer?.setPixelRatio(Math.min(devicePixelRatio,level==='high'?1.75:level==='medium'?1.25:1));resize()}
 $('quality').onchange=e=>{qualityChoice=e.target.value;quality(qualityChoice==='auto'?(embeddedDepth?'low':touch?'medium':'high'):qualityChoice);slowSeconds=0;scheduleShare()};
+function updateFisheyeControls(){const percent=Math.round((cachedCharacter().fisheye??1)*100);for(const id of ['fisheyeStrength','gunFisheyeStrength']){const input=$(id);if(input&&document.activeElement!==input)input.value=String(percent);if($(id+'Out'))$(id+'Out').textContent=percent===0?'OFF':percent+'%';}}
+for(const id of ['fisheyeStrength','gunFisheyeStrength']){const input=$(id);input.oninput=()=>{const value=Number(input.value)/100;cacheCharacter(selected,{...cachedCharacter(),fisheye:value});$(id+'Out').textContent=value===0?'OFF':Math.round(value*100)+'%';};input.onchange=()=>{const value=Number(input.value)/100;if(selected!==GUEST_SKIN&&roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'character-fisheye',skin:selected,value}));};}
+updateFisheyeControls();
 let mouseSensitivity=Number(safeRead('vrs-mouse-sensitivity')||1);if(!Number.isFinite(mouseSensitivity))mouseSensitivity=1;mouseSensitivity=clamp(mouseSensitivity,.2,3);
 $('mouseSensitivity').value=String(mouseSensitivity);$('mouseSensitivityOut').textContent=mouseSensitivity.toFixed(2)+'×';$('mouseSensitivity').oninput=e=>{mouseSensitivity=Number(e.target.value);$('mouseSensitivityOut').textContent=mouseSensitivity.toFixed(2)+'×';safeSave('vrs-mouse-sensitivity',String(mouseSensitivity));};
 let mirrorTravelMode=safeRead('vrs-mirror-travel-mode')==='classic'?'classic':'seamless';

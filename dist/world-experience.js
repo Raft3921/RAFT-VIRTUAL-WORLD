@@ -1,9 +1,9 @@
 import {createGunEffects} from './gun-effects.js';
 import {createBodycam} from './bodycam.js';
 import {createWorldAudio} from './world-audio.js';
-import {createWorldInteraction} from './world-interaction.js?v=20261010-sync47';
+import {createWorldInteraction} from './world-interaction.js?v=20261010-fisheye48';
 import {fallbackMuzzle} from './weapon-dimensions.js';
-import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-sync47';
+import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-fisheye48';
 import * as THREE from 'three';
 import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js';
 import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash} from './gun-visual.js';
@@ -14,7 +14,7 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
  <button id="nearBoard" hidden>開く</button><div id="gunCrosshair" hidden></div><div id="gunHud" hidden></div><div id="gunBattleHud" hidden></div><div id="gunHealthHud" hidden></div><div id="gunCountdown" hidden aria-live="polite"></div><div id="gunDamageTint" aria-hidden="true"></div>
  <section id="roomPlayersPanel" class="experience-panel" hidden><header><strong>接続中のプレイヤー</strong><button id="closeRoomPlayers">閉じる</button></header><p>増殖したプレイヤーは、名前と接続IDで選んで退出できます。</p><div id="roomPlayersList"></div></section>
  <section id="pcDesktop" class="experience-panel" hidden><header><strong>VRS Desktop</strong><button id="closePC">閉じる</button></header><div id="desktopApps"><button id="pcChat">▤ チャット</button><button id="pcWeb">◎ ウェブ</button><button id="pcStore">▣ ストア</button></div><div id="pcContent"></div></section>
- <section id="teamPanel" class="experience-panel" hidden><header><strong>SAND TOWN · チーム</strong><button id="closeTeams">閉じる</button></header><p>入場順に自動割り振り。4人は2対2。開始前にアイコンを選び、移動先チームを押せます。配置地点は毎回ランダムです。</p><div id="teamModes"><button data-mode="auto">自動</button><button data-mode="solo">個人戦</button><button data-mode="teams">2チーム</button></div><div id="teamList"></div><button id="gunTravel">入場</button><p id="teamStatus"></p></section>
+ <section id="teamPanel" class="experience-panel" hidden><header><strong>SAND TOWN · チーム</strong><button id="closeTeams">閉じる</button></header><p>入場順に自動割り振り。4人は2対2。開始前にアイコンを選び、移動先チームを押せます。配置地点は毎回ランダムです。</p><div id="teamModes"><button data-mode="auto">自動</button><button data-mode="solo">個人戦</button><button data-mode="teams">2チーム</button></div><label for="gunFisheyeStrength">魚眼度 <output id="gunFisheyeStrengthOut">100%</output></label><input id="gunFisheyeStrength" type="range" min="0" max="200" step="5" value="100"><p>選択中のキャラクターごとに保存します。</p><div id="teamList"></div><button id="gunTravel">入場</button><p id="teamStatus"></p></section>
  <div id="scopeOverlay" hidden><div class="scope-circle"></div><span>離すと発砲</span></div>
  <button id="eliminatedSpectate" hidden>観戦カメラ</button><div id="broadcastHud" hidden><button id="broadcastPrev" aria-label="前の観戦カメラ">❮</button><span id="broadcastLabel"></span><button id="broadcastNext" aria-label="次の観戦カメラ">❯</button></div>`;
  document.body.append(shell);const $=id=>document.getElementById(id);let battle={phase:'waiting',members:[]},ammo=null,held=false,scoped=false,lastFire=0,recoil=0,recoilVelocity=0,startFlashUntil=0,nearBoard=null,memberSelection=null,watching=false,eliminationView=false,channel=0,lastUi=0,lastSave=0,weaponId=null,firstHandOwner=null,firstModel=null,shotSequence=0,wasZone=false,positionCache=null,audio=null;
@@ -23,7 +23,7 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
  $('pcChat').innerHTML=appIcon(chatIcon)+'<span>チャット</span>';$('pcWeb').innerHTML=appIcon('M3 2h18v20H3V2zm3 3v3h3V5H6zm5 0v3h3V5h-3zm5 0v3h3V5h-3zM6 11v8h12v-8H6zm2 2h8v2H8v-2zm0 4h5v2H8v-2z')+'<span>ウェブ</span>';$('pcStore').innerHTML=appIcon('M8 2h8v4h5v16H3V6h5V2zm2 2v2h4V4h-4zM6 9v10h12V9H6zm2 2h2v3H8v-3zm6 0h2v3h-2v-3z')+'<span>ストア</span>';$('quickChat').innerHTML=appIcon(chatIcon)+'<span>チャット</span>';
  $('coinCount').prepend(coinIcon(32));const coinRewards=createCoinRewards(camera,{get,anchor:$('coinCount')});
  const bodycam=createBodycam(),worldAudio=createWorldAudio(camera),gunEffects=createGunEffects(scene);let aimYaw=null,aimPitch=null,swayX=0,swayY=0,lateralSway=0,forwardSway=0,walkBlend=0,cameraLean=0,damageAnimation=null;let bodycamActive=false;const soundedShots=new Map(),seenImpacts=new Map();
- const interaction=createWorldInteraction(scene,camera,document.getElementById('scene'),p=>{if(bodycamActive&&!scoped)bodycam.mapNdc(p);});
+ const interaction=createWorldInteraction(scene,camera,document.getElementById('scene'),p=>{if(bodycamActive&&!scoped)bodycam.mapNdc(p,get().character.fisheye);});
  const firstRig=new THREE.Group();camera.add(firstRig);scene.add(camera);firstRig.position.set(.22,-.17,-.58);firstRig.rotation.y=Math.PI;
  const maxShots=96,maxMarks=128,shots=new Map(),marks=Array.from({length:maxMarks},()=>({until:0})),transform=new THREE.Object3D(),color=new THREE.Color(),up=new THREE.Vector3(0,0,1),direction=new THREE.Vector3();let markCursor=0;
  const bullets=new THREE.InstancedMesh(new THREE.SphereGeometry(1,6,4),new THREE.MeshBasicMaterial({color:'#ffe5aa',vertexColors:true}),maxShots);bullets.frustumCulled=false;scene.add(bullets);

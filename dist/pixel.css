@@ -147,3 +147,22 @@ body[data-touch=true] #stickKnob{width:48px;height:48px;left:calc(50% - 24px);to
 .house-editor[data-touch=true][data-pane=browse] .panel-title{padding-bottom:4px}
 @media(orientation:portrait){.house-editor[data-touch=true][data-pane=browse]{height:calc(var(--house-visible-height,100dvh) - 24px);max-height:calc(var(--house-visible-height,100dvh) - 24px);gap:5px}.house-editor[data-touch=true][data-pane=browse] .panel-title .eyebrow{display:none}.house-editor[data-touch=true][data-pane=browse] .furniture-catalogue{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(orientation:portrait) and (min-width:700px){.house-editor[data-touch=true][data-pane=browse] .furniture-catalogue{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+
+/* One-column furniture browsing reserves horizontal room for the actual house. */
+.house-editor:not([data-touch=true]){width:300px}
+.house-editor:not([data-touch=true]) .furniture-catalogue{grid-template-columns:minmax(0,1fr)}
+.house-editor:not([data-touch=true]) .furniture-card{display:grid;grid-template-columns:80px minmax(0,1fr);align-items:center;gap:8px;text-align:left;font-size:13px;min-height:84px}
+.house-editor:not([data-touch=true]) .furniture-card svg{height:68px}.house-editor:not([data-touch=true]) .furniture-card span{min-height:0}
+.house-editor[data-touch=true][data-pane=browse]{width:clamp(150px,40vw,210px);right:max(6px,env(safe-area-inset-right));top:max(8px,env(safe-area-inset-top));bottom:calc(max(8px,env(safe-area-inset-bottom)) + var(--house-keyboard-bottom,0px));height:calc(var(--house-visible-height,100dvh) - 24px);max-height:calc(var(--house-visible-height,100dvh) - 24px);padding:8px}
+.house-editor[data-touch=true][data-pane=browse] .furniture-catalogue{grid-template-columns:minmax(0,1fr)}
+.house-editor[data-touch=true][data-pane=browse] #houseCatalogueTools{grid-template-columns:minmax(0,1fr)}
+.house-editor[data-touch=true][data-pane=browse] #houseFold{display:none}
+.house-editor[data-touch=true][data-pane=browse] .panel-title h2{font-size:13px}
+.house-editor[data-touch=true][data-pane=browse] .house-editor-nav button{font-size:10px;padding:4px 1px;overflow-wrap:anywhere}
+.house-editor[data-touch=true][data-pane=browse] .house-tabs{grid-template-columns:minmax(0,1fr)}
+.house-editor[data-touch=true][data-pane=browse] .house-tabs button{min-height:44px;font-size:12px;padding:5px}
+.house-editor[data-touch=true][data-pane=browse] .house-catalogue-pages{flex-wrap:wrap;gap:4px}.house-editor[data-touch=true][data-pane=browse] #houseCataloguePage{order:-1;width:100%}
+.house-editor[data-touch=true][data-pane=browse] .house-tabs{grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
+.house-editor[data-touch=true][data-pane=browse] .house-tabs button{font-size:10px;padding:4px 1px;overflow-wrap:anywhere}
+.house-editor[data-touch=true][data-pane=browse] #housePlacementHUD{display:none}

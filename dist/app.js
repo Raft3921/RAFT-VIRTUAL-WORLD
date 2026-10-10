@@ -1,24 +1,24 @@
-import {createWorldExperience} from './world-experience.js?v=20261010-library53';
+import {createWorldExperience} from './world-experience.js?v=20261010-views54';
 import {inGunZone,weaponById} from './gun-layout.js';
-import {createWorldChat} from './world-chat.js?v=20261010-library53';
-import {startUpdateNotice} from './update-notice.js?v=20261010-library53';
+import {createWorldChat} from './world-chat.js?v=20261010-views54';
+import {startUpdateNotice} from './update-notice.js?v=20261010-views54';
 import {memberColor} from './housing-data.js';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261010-library53';
+import { createAvatar } from './avatar.js?v=20261010-views54';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261010-library53';
+import { createWorld } from './world.js?v=20261010-views54';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-library53';
+import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-views54';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261010-library53';
+import { createHousingRenderer } from './housing-renderer.js?v=20261010-views54';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261010-library53';
+import { createHouseEditor } from './house-editor.js?v=20261010-views54';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js';
 import {createWorldGuide} from './world-guide.js';
@@ -236,7 +236,7 @@ function setClean(value){const wasClean=clean;clearTimeout(pendingClean);pending
 function enterClean(){if(pendingClean){clearTimeout(pendingClean);pendingClean=0;$('toast').hidden=true;return}notify(touch?'画面を長押しすると操作表示に戻れます':'H・Escで戻る / F1でマスターモード',2200);$('menu').hidden=$('master').hidden=true;canvas.focus();pendingClean=setTimeout(()=>{pendingClean=0;if(inStudio&&$('menu').hidden&&$('master').hidden)setClean(true)},1500)}
 function openMenu(){if(housingEditor?.active)housingEditor.close();setClean(false);unlocked();$('worldMenu').hidden=true;$('master').hidden=true;$('menu').hidden=false;$('resume').focus()}
 function openMaster(){if(!inStudio)return;if(housingEditor?.active)housingEditor.close();$('worldMenu').hidden=true;const wasOpen=!$('master').hidden;setClean(false);unlocked();$('menu').hidden=true;$('master').hidden=wasOpen;if(!wasOpen)$('cameraMode').focus();else canvas.focus()}
-function setCameraMode(mode){if(experience?.inZone)mode='first';if(!['follow','first','orbit','free'].includes(mode))return;const p=actors[selected]?.root;if(mode==='orbit'&&p)orbitTarget.copy(p.position).add(new THREE.Vector3(0,1.15,0));if(mode==='free'){freePosition.copy(camera.position);camera.getWorldDirection(direction);yaw=Math.atan2(direction.x,direction.z);pitch=Math.asin(clamp(direction.y,-1,1))}cameraMode=mode;cameraReturnClicks.length=0;$('cameraMode').value=mode;$('cameraHelp').textContent=cameraDescriptions[mode];$('distance').disabled=mode==='first'||mode==='free';clearInput();updateJumpButton();updateVisibility()}
+function setCameraMode(mode){if(experience?.inZone)mode=cachedCharacter().playCamera==='first'?'first':'follow';if(!['follow','first','orbit','free'].includes(mode))return;const p=actors[selected]?.root;if(mode==='orbit'&&p)orbitTarget.copy(p.position).add(new THREE.Vector3(0,1.15,0));if(mode==='free'){freePosition.copy(camera.position);camera.getWorldDirection(direction);yaw=Math.atan2(direction.x,direction.z);pitch=Math.asin(clamp(direction.y,-1,1))}cameraMode=mode;cameraReturnClicks.length=0;$('cameraMode').value=mode;$('cameraHelp').textContent=cameraDescriptions[mode];$('distance').disabled=mode==='first'||mode==='free';clearInput();updateJumpButton();updateVisibility()}
 function updateVisibility(){actors.forEach((a,i)=>{if(a)a.root.visible=(i===selected&&(!inStudio||cameraMode!=='first'))||(inStudio&&showCast&&i!==selected)})}
 function wakeFromBed(){if(!sleeping)return;const p=actors[selected]?.root;if(p&&bed){p.position.set(bed.x,bed.y+.04,bed.z);p.rotation.y=bed.yaw;}sleeping=false;bed=null;seatCooldown=time+1.5;velocity.set(0,0,0);verticalSpeed=0;grounded=true;}
 function setSelected(index){
@@ -305,9 +305,10 @@ range('distance',v=>{distance=v;scheduleShare()},v=>v.toFixed(1)+' m');range('fo
 range('wind',v=>{environment?.setSettings({wind:v});scheduleShare()},v=>v.toFixed(2));range('grassDensity',v=>{environment?.setSettings({grassDensity:v});scheduleShare()},v=>Math.round(v*100)+'%');range('sunHeight',v=>{environment?.setSettings({sunHeight:v});scheduleShare()},v=>v+'°');range('exposure',v=>{environment?.setSettings({exposure:v});scheduleShare()},v=>v.toFixed(2));
 function quality(level){activeQuality=level;environment?.setSettings({quality:level});renderer?.setPixelRatio(Math.min(devicePixelRatio,level==='high'?1.75:level==='medium'?1.25:1));resize()}
 $('quality').onchange=e=>{qualityChoice=e.target.value;quality(qualityChoice==='auto'?(embeddedDepth?'low':touch?'medium':'high'):qualityChoice);slowSeconds=0;scheduleShare()};
-function updateFisheyeControls(){const percent=Math.round((cachedCharacter().fisheye??1)*100);for(const id of ['fisheyeStrength','gunFisheyeStrength']){const input=$(id);if(input&&document.activeElement!==input)input.value=String(percent);if($(id+'Out'))$(id+'Out').textContent=percent===0?'OFF':percent+'%';}}
+function updateFisheyeControls(){for(const id of ['playCamera','gunPlayCamera'])if($(id))$(id).value=cachedCharacter().playCamera||'shoulder';const percent=Math.round((cachedCharacter().fisheye??1)*100);for(const id of ['fisheyeStrength','gunFisheyeStrength']){const input=$(id);if(input&&document.activeElement!==input)input.value=String(percent);if($(id+'Out'))$(id+'Out').textContent=percent===0?'OFF':percent+'%';}}
 for(const id of ['fisheyeStrength','gunFisheyeStrength']){const input=$(id);input.oninput=()=>{const value=Number(input.value)/100;cacheCharacter(selected,{...cachedCharacter(),fisheye:value});$(id+'Out').textContent=value===0?'OFF':Math.round(value*100)+'%';};input.onchange=()=>{const value=Number(input.value)/100;if(selected!==GUEST_SKIN&&roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'character-fisheye',skin:selected,value}));};}
 updateFisheyeControls();
+for(const id of ['playCamera','gunPlayCamera'])$(id).onchange=e=>{const value=e.target.value;cacheCharacter(selected,{...cachedCharacter(),playCamera:value});if(inStudio&&!housingEditor?.active)setCameraMode(value==='first'?'first':'follow');if(selected!==GUEST_SKIN&&roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'character-camera',skin:selected,value}));};
 let touchSensitivity=Number(safeRead('vrs-touch-sensitivity')||1.5);if(!Number.isFinite(touchSensitivity))touchSensitivity=1.5;touchSensitivity=clamp(touchSensitivity,.2,4);
 function updateTouchSensitivity(){for(const id of ['touchSensitivity','gunTouchSensitivity']){if($(id))$(id).value=String(touchSensitivity);if($(id+'Out'))$(id+'Out').textContent=touchSensitivity.toFixed(2)+'×';}}
 for(const id of ['touchSensitivity','gunTouchSensitivity'])$(id).oninput=e=>{touchSensitivity=clamp(Number(e.target.value),.2,4);safeSave('vrs-touch-sensitivity',String(touchSensitivity));updateTouchSensitivity();};updateTouchSensitivity();
@@ -457,7 +458,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
   worldGuide?.update(actors[selected]?.root.position,inStudio&&!paused()&&!clean&&!localRagdoll&&!duelActive&&!athleticActive&&['follow','first'].includes(cameraMode));
   if(localImpact){localImpact.time+=dt;if(localImpact.time>=localImpact.duration){verticalSpeed=localImpact.vertical;velocity.copy(localImpact.velocity);localImpact=null;if(localHit?.phase==='impact'){localHit.phase='air';localHit.elapsed=0;grounded=false;}}}
   for(const body of bodies)if(body.impact){body.impact.time+=dt;if(body.impact.time>=body.impact.duration){body.impact=null;body.hit.phase='air';body.hit.elapsed=0;body.grounded=false;}}
-  if(experience?.inZone){gunZoneCameraForced=true;if(airWalk){airWalk=false;updateJumpButton();}if(cameraMode!=='first')setCameraMode('first');}else if(gunZoneCameraForced){gunZoneCameraForced=false;setCameraMode('follow');}if(cachedCharacter().equippedWeapon&&actors[selected]&&!localRagdoll&&!seated&&!sleeping)actors[selected].root.rotation.y=yaw;
+  if(experience?.inZone){gunZoneCameraForced=true;if(airWalk){airWalk=false;updateJumpButton();}const wanted=cachedCharacter().playCamera==='first'?'first':'follow';if(cameraMode!==wanted)setCameraMode(wanted);}else{if(gunZoneCameraForced){gunZoneCameraForced=false;setCameraMode(cachedCharacter().playCamera==='first'?'first':'follow');}if(inStudio&&!housingEditor?.active&&!localRagdoll&&!paused()&&['follow','first'].includes(cameraMode)){const wanted=cachedCharacter().playCamera==='first'?'first':'follow';if(cameraMode!==wanted)setCameraMode(wanted);}}if(cachedCharacter().equippedWeapon&&actors[selected]&&!localRagdoll&&!seated&&!sleeping)actors[selected].root.rotation.y=yaw;
   if(charging){if(!canPunch())cancelCharge();else{chargeTime=Math.min(PUNCH.maxCharge,chargeTime+dt);updateChargeHud();if(now-lastChargeEffectAt>90){lastChargeEffectAt=now;const chargingActor=actors[selected]?.root;if(chargingActor){particleOrigin.copy(chargingActor.position);particleOrigin.y+=1.42;emitParticles(particleOrigin,chargeTime>8?'#ff825c':'#ffe06a',2,.65,0)}}}}
   if(punchSwing>0&&!localImpact){
     const q=attackTarget(targetLock),p=actors[selected].root.position;

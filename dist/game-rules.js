@@ -171,6 +171,7 @@ export class GameRules{
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
+    if(m.type==='character-camera'){if(!p.guest&&m.skin===p.skin&&['shoulder','first','classic'].includes(m.value))return this.characters.change(p.skin,{playCamera:m.value});return;}
     if(m.type==='character-fisheye'){if(!p.guest&&m.skin===p.skin&&Number.isFinite(m.value)&&m.value>=0&&m.value<=2)return this.characters.change(p.skin,{fisheye:m.value});return;}
     if(m.type==='room-kick'){if(!menuBoards.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<7&&Math.abs(p.y-(b.y||0))<5)||now-(p.lastKickAt||0)<1000)return;p.lastKickAt=now;if(typeof m.playerId==='string'&&this.entries().some(e=>e.player.id===m.playerId))this.disconnectPlayer?.(m.playerId);return;}
     if(m.type==='chat-history'){this.broadcast({type:'chat-history',playerId:p.id,...this.chat.page(m.before)});return;}

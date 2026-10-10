@@ -1,24 +1,24 @@
-import {createWorldExperience} from './world-experience.js?v=20261010-motion61';
+import {createWorldExperience} from './world-experience.js?v=20261010-spectator62';
 import {inGunZone,weaponById} from './gun-layout.js';
-import {createWorldChat} from './world-chat.js?v=20261010-motion61';
-import {startUpdateNotice} from './update-notice.js?v=20261010-motion61';
+import {createWorldChat} from './world-chat.js?v=20261010-spectator62';
+import {startUpdateNotice} from './update-notice.js?v=20261010-spectator62';
 import {memberColor} from './housing-data.js';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261010-motion61';
+import { createAvatar } from './avatar.js?v=20261010-spectator62';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261010-motion61';
+import { createWorld } from './world.js?v=20261010-spectator62';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-motion61';
+import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-spectator62';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261010-motion61';
+import { createHousingRenderer } from './housing-renderer.js?v=20261010-spectator62';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261010-motion61';
+import { createHouseEditor } from './house-editor.js?v=20261010-spectator62';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js';
 import {createWorldGuide} from './world-guide.js';
@@ -552,7 +552,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
     if(housingEditor?.active){housingEditor.updateCamera(dt);}
     else if(!inStudio){
       const portrait=innerWidth<=600&&innerHeight>=580;camera.fov=45;target.set(0,1.08,0);desired.set(3,1.8,5.6);if(portrait){target.y=.22;desired.set(.15,1.4,5.1)}else{target.x=-1.25;desired.set(1.75,1.9,5.3)}camera.position.lerp(desired,1-Math.exp(-dt*7));camera.lookAt(target);camera.updateProjectionMatrix();
-    }else{
+    }else if(!experience?.watching){
       if(camera.fov!==fov){camera.fov=fov;camera.updateProjectionMatrix()}
       if(cameraMode==='free'){camera.position.copy(freePosition);direction.set(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));target.copy(camera.position).add(direction);camera.lookAt(target)}
       else if(cameraMode==='first'){camera.position.copy(p.position);camera.position.y+=actors[selected].eyeHeight;direction.set(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));target.copy(camera.position).add(direction);camera.lookAt(target)}

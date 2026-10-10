@@ -1,9 +1,9 @@
 import {createGunEffects} from './gun-effects.js';
 import {createBodycam} from './bodycam.js';
 import {createWorldAudio} from './world-audio.js';
-import {createWorldInteraction} from './world-interaction.js?v=20261010-motion61';
+import {createWorldInteraction} from './world-interaction.js?v=20261010-spectator62';
 import {fallbackMuzzle} from './weapon-dimensions.js';
-import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-motion61';
+import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-spectator62';
 import * as THREE from 'three';
 import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js';
 import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js';
@@ -58,7 +58,7 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
  function cancel(){held=false;scoped=false;}
  function cameraOverride(dt){const s=get();if(!s.player)return;bodycamActive=s.inStudio&&s.cameraMode==='first'&&!s.paused;document.body.dataset.firstPerson=String(s.inStudio&&s.cameraMode==='first'&&!s.paused);if(!s.inStudio||s.paused){firstRig.visible=false;$('scopeOverlay').hidden=true;watching=false;$('broadcastHud').hidden=true;document.body.dataset.broadcast='false';return;}const weapon=weaponById(s.character.equippedWeapon),zone=inGunZone(s.player.position);if(!selfMember()?.out||battle.phase!=='active')eliminationView=false;watching=eliminationView||!!(s.seated&&s.housing?.watchableTV(s.seat));$('broadcastHud').hidden=!watching;document.body.dataset.broadcast=String(watching);
   if(watching){bodycamActive=false;document.body.dataset.firstPerson='false';const players=eliminationView?activeSpectators():[];
-   if(players.length){channel=(channel%players.length+players.length)%players.length;const player=players[channel],position=player.position||player.target;if(position){const eye=position.clone();eye.y+=player.eyeHeight||1.68;const yaw=(player.yaw||0)+(player.headYaw||0),pitch=-(player.headPitch||0),view=new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));camera.position.lerp(eye,1-Math.exp(-dt*20));camera.lookAt(camera.position.clone().add(view));camera.fov=92;$('broadcastLabel').textContent=(names[player.skin]||'プレイヤー')+' の視点 · 脱落後の観戦';}}
+   if(players.length){channel=(channel%players.length+players.length)%players.length;const player=players[channel],position=player.position||player.target;if(position){const focus=position.clone();focus.y+=Math.max(.8,(player.eyeHeight||1.68)*.68);const yaw=player.yaw||0,distance=4.2,desired=focus.clone().add(new THREE.Vector3(-Math.sin(yaw)*distance,1.3,-Math.cos(yaw)*distance));camera.position.lerp(s.world.cameraPosition(focus,desired,.12),1-Math.exp(-dt*16));camera.lookAt(focus);camera.fov=s.fov;$('broadcastLabel').textContent=(names[player.skin]||'プレイヤー')+' を追従中 · 脱落後の観戦';}}
    else{const list=availableChannels();if(list.length){channel=(channel%list.length+list.length)%list.length;const c=list[channel];camera.position.lerp(new THREE.Vector3(...c.position),1-Math.exp(-dt*12));camera.lookAt(new THREE.Vector3(...c.target));camera.fov=58;$('broadcastLabel').textContent=c.name+(eliminationView?' · 生存者の読み込み待ち':' · ジャンプで席を立つ');}}firstRig.visible=false;}
   else if(weapon&&!s.paused&&!s.ragdoll&&(s.character.playCamera!=='classic'||s.cameraMode==='first')){
    const direction=new THREE.Vector3(Math.sin(s.yaw)*Math.cos(s.pitch),Math.sin(s.pitch),Math.cos(s.yaw)*Math.cos(s.pitch));const eye=s.player.position.clone();eye.y+=s.eyeHeight;

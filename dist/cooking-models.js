@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {FOOD_BY_ID,describeDish} from './cooking-data.js?v=20261010-free-cook70';
+import {FOOD_BY_ID,describeDish} from './cooking-data.js?v=20261010-free-cook71';
 const geometries={box:new THREE.BoxGeometry(1,1,1),round:new THREE.SphereGeometry(.5,10,7),disc:new THREE.CylinderGeometry(.5,.5,1,12),tube:new THREE.CylinderGeometry(.5,.5,1,12,1,true),cone:new THREE.ConeGeometry(.5,1,10)},materials=new Map();
 function material(color){if(!materials.has(color))materials.set(color,new THREE.MeshStandardMaterial({color,roughness:.83}));return materials.get(color);}
 export function part(root,shape,x,y,z,w,h,d,color){const mesh=new THREE.Mesh(geometries[shape]||geometries.box,material(color));mesh.position.set(x,y,z);mesh.scale.set(w,h,d);root.add(mesh);return mesh;}

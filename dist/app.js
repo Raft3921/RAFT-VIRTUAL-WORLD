@@ -1,29 +1,30 @@
-import {createCooking} from './cooking.js?v=20261010-free-cook70';
-import {createPlazaMap} from './plaza-map.js?v=20261010-free-cook70';
-import {createWorldExperience} from './world-experience.js?v=20261010-free-cook70';
-import {inGunZone,weaponById} from './gun-layout.js?v=20261010-free-cook70';
-import {createWorldChat} from './world-chat.js?v=20261010-free-cook70';
-import {startUpdateNotice} from './update-notice.js?v=20261010-free-cook70';
-import {memberColor} from './housing-data.js?v=20261010-free-cook70';
+import {createCookingControls} from './cooking-controls.js?v=20261010-free-cook71';
+import {createCooking} from './cooking.js?v=20261010-free-cook71';
+import {createPlazaMap} from './plaza-map.js?v=20261010-free-cook71';
+import {createWorldExperience} from './world-experience.js?v=20261010-free-cook71';
+import {inGunZone,weaponById} from './gun-layout.js?v=20261010-free-cook71';
+import {createWorldChat} from './world-chat.js?v=20261010-free-cook71';
+import {startUpdateNotice} from './update-notice.js?v=20261010-free-cook71';
+import {memberColor} from './housing-data.js?v=20261010-free-cook71';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261010-free-cook70';
-import { createEnvironment } from './environment.js?v=20261010-free-cook70';
-import { createWorld } from './world.js?v=20261010-free-cook70';
-import { ARENA,insideArena } from './world-layout.js?v=20261010-free-cook70';
-import { SYNC_ENDPOINT } from './sync-config.js?v=20261010-free-cook70';
-import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261010-free-cook70';
-import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js?v=20261010-free-cook70';
-import { createCombatEffects } from './combat-effects.js?v=20261010-free-cook70';
-import { createBrownProjectiles } from './brown-projectiles.js?v=20261010-free-cook70';
-import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-free-cook70';
-import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261010-free-cook70';
-import { cleanCharacter } from './character-store.js?v=20261010-free-cook70';
-import { createHousingRenderer } from './housing-renderer.js?v=20261010-free-cook70';
+import { createAvatar } from './avatar.js?v=20261010-free-cook71';
+import { createEnvironment } from './environment.js?v=20261010-free-cook71';
+import { createWorld } from './world.js?v=20261010-free-cook71';
+import { ARENA,insideArena } from './world-layout.js?v=20261010-free-cook71';
+import { SYNC_ENDPOINT } from './sync-config.js?v=20261010-free-cook71';
+import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261010-free-cook71';
+import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js?v=20261010-free-cook71';
+import { createCombatEffects } from './combat-effects.js?v=20261010-free-cook71';
+import { createBrownProjectiles } from './brown-projectiles.js?v=20261010-free-cook71';
+import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261010-free-cook71';
+import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261010-free-cook71';
+import { cleanCharacter } from './character-store.js?v=20261010-free-cook71';
+import { createHousingRenderer } from './housing-renderer.js?v=20261010-free-cook71';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261010-free-cook70';
-import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261010-free-cook70';
-import {cleanCycle,dayPhase,clockLabel} from './world-clock.js?v=20261010-free-cook70';
-import {createWorldGuide} from './world-guide.js?v=20261010-free-cook70';
+import { createHouseEditor } from './house-editor.js?v=20261010-free-cook71';
+import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261010-free-cook71';
+import {cleanCycle,dayPhase,clockLabel} from './world-clock.js?v=20261010-free-cook71';
+import {createWorldGuide} from './world-guide.js?v=20261010-free-cook71';
 
 const $ = id => document.getElementById(id);
 const clamp = THREE.MathUtils.clamp;
@@ -67,7 +68,7 @@ function requestCameraReturn(){
 }
 let distance=5.5,fov=55,smoothing=.14,flySpeed=4,moveSpeed=2.8,gesture='none',showCast=false;
 let renderer,environment,world,requestId,lastTime=0,time=0,metricsAt=0,fpsFrames=0,fps=60;
-const mapPlayers=new Map();let plazaMap=null,cooking=null,cookingCamera=null;
+const mapPlayers=new Map();let plazaMap=null,cooking=null,cookingCamera=null,cookingControls=null;
 let housingView=null,housingEditor=null,houseCameraState=null,worldChat=null;const updateNotice=startUpdateNotice({endpoint:SYNC_ENDPOINT,version:SYNC_VERSION});
 let worldGuide=null,experience=null;
 let activeQuality=embeddedDepth?'low':touch?'low':'high',qualityChoice='auto',slowSeconds=0,cleanTimer=0,pendingClean=0;
@@ -617,7 +618,8 @@ async function start(){try{
   environment=createEnvironment(scene,renderer,{mobile:touch});await document.fonts.load('16px DotGothic16').catch(()=>{});world=createWorld(scene);environment.setSettings({wind:.45,grassDensity:.8,sunHeight:50,exposure:1});quality(activeQuality);
   plazaMap=createPlazaMap({world,names:skinDefs.map(s=>s[0]),skinURL,makeFace,getSelfId:()=>roomSelfId,getPlayer:()=>inStudio?actors[selected]?.root.position:null,isConnected:()=>roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,getPlayers:()=>[...mapPlayers.values(),...(roomSelfId&&inStudio&&actors[selected]?[{id:roomSelfId,skin:selected,...actors[selected].root.position,mirrorRealm:housingView?.portals.realm||null}]:[])],onOpen(){setClean(false);unlocked();clearInput();punchSwing=0;pendingAttack=null;queuedAttack=null;},onClose(){clearInput();canvas.focus();}});
   housingView=createHousingRenderer(scene,world,{environment});
-  cooking=createCooking({scene,camera,get:()=>({housing:housingView,world,player:actors[selected]?.root,inStudio,paused:paused(),ragdoll:localRagdoll,seated,sleeping,inBattle:duelActive||athleticActive||!!experience?.inZone,yaw,selfId:roomSelfId,connected:roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,character:cachedCharacter()}),send:message=>{if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));},notify,onStart(){cookingCamera=cameraMode;airWalk=false;seated=false;sleeping=false;standingOn=null;clearInput();cancelCharge();punchSwing=0;setCameraMode('first');setClean(false);unlocked();},onEnd(){if(cookingCamera){const mode=cookingCamera;cookingCamera=null;setCameraMode(mode);}clearInput();canvas.focus();}});
+  cooking=createCooking({scene,camera,get:()=>({housing:housingView,world,player:actors[selected]?.root,inStudio,paused:paused(),ragdoll:localRagdoll,seated,sleeping,inBattle:duelActive||athleticActive||!!experience?.inZone,yaw,selfId:roomSelfId,connected:roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,character:cachedCharacter()}),send:message=>{if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));},notify,onMenu(open,resume){if(open)cookingControls?.release();else if(resume)cookingControls?.resume();else {clearInput();canvas.focus();}},onStart(){cookingCamera=cameraMode;experience?.close();plazaMap?.close();worldChat?.close();airWalk=false;seated=false;sleeping=false;standingOn=null;clearInput();cancelCharge();punchSwing=0;setCameraMode('first');setClean(false);clearInput();canvas.focus();cookingControls?.resume();},onEnd(){cookingControls?.release();if(cookingCamera){const mode=cookingCamera;cookingCamera=null;setCameraMode(mode);}clearInput();canvas.focus();}});
+  cookingControls=createCookingControls({canvas,cooking,look,clearInput,isTouch:()=>touch,notify});
   housingView.portals.setTravelMode(mirrorTravelMode);
   worldGuide=createWorldGuide({world,onOpen(){setClean(false);unlocked();punchSwing=0;pendingAttack=null;clearInput();},onClose(){clearInput();canvas.focus();},isAllowed:()=>inStudio&&!paused()&&!localRagdoll&&!duelActive});
   housingEditor=createHouseEditor({scene,camera,canvas,world,view:housingView,getSkin:()=>selected,getPlayer:()=>actors[selected]?.root.position,isConnected:()=>roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,send:message=>roomSocket.send(JSON.stringify(message)),notify,

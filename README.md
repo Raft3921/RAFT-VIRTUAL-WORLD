@@ -1,5 +1,15 @@
 # RAFT-VIRTUAL-WORLD
 
+## Cooking controls — 2026-10-10 / cook71
+
+Cooking now owns scene input before combat/editor handlers. Start cooking or click the scene to lock the mouse; use WASD and normal mouse look. Aim at a nearby appliance and click or press E to open its menu. Close the menu to resume mouse lock. Escape releases the cursor without ending the meal; use 操作へ戻る or the scene to resume. Touch uses drag-to-look and tap-to-open. A browser that refuses pointer lock can still use drag-to-look. Only an open equipment menu pauses walking; burners and work timers continue independently.
+
+Kitchen certification still checks connected access paths, but movement uses the kitchen's continuous outer bounds and the normal world collision. This removes the erroneous unaveraged Z coordinate and avoids grid-based position resets. Client and server share these bounds for starting and saving meals.
+
+Whole cuts complete after 3 seconds (slices), 5 seconds (dice), or 7 seconds (mince); cracking an egg takes 1.2 seconds. Washing, mixing, filling, draining, stirring and plating are timed work with a cancellable progress display. Walking away interrupts hand work; filling preserves water already poured. Cutting animates the knife and affects heating speed. Water/seasonings travel with transferred ingredients, subject to vessel capacity. Each burner supports a 30-second, 1-minute, 2-minute or 5-minute timer that counts at cooking temperature and switches off heat on completion. Temperature, liquid volume and remaining time appear above the stove while other preparation continues. Appliance menus show each ingredient's doneness. Completed dishes retain the existing server save flow.
+
+Per the user's standing instruction, this release has no automated tests, build checks or browser/gameplay verification. Commit/push and Worker deployment are publication steps only.
+
 The world menu's 操作 settings save a per-device mirror choice: シームレス physically carries the player through the visible portal, while クラシック stops portal rendering and immediately warps the player to the matching exit. World chat is shared by every player in the room, including the latest on-screen bubble and the saved terminal history.
 
 Minecraft Java skins in a shared 3D studio. The static client is served from `dist/`; online players share one room through a Cloudflare Durable Object WebSocket.

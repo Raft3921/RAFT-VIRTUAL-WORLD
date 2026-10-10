@@ -1,5 +1,5 @@
-import {compatibleSync} from './game-rules.js?v=20261010-free-cook70';
-import {BUILD_ID} from './build-info.js?v=20261010-free-cook70';
+import {compatibleSync} from './game-rules.js?v=20261010-free-cook71';
+import {BUILD_ID} from './build-info.js?v=20261010-free-cook71';
 export function startUpdateNotice({endpoint,version}){
   const notice=document.getElementById('updateNotice'),pageBuild=document.querySelector('meta[name="vrs-build"]')?.content||BUILD_ID;let serverBuild=null,busy=false;
   function show(){notice.hidden=false;}

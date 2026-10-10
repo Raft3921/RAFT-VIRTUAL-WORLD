@@ -1,4 +1,4 @@
-import {FURNITURE_BY_ID,furniturePose,ROOM,houseDescriptor} from './housing-data.js?v=20261010-free-cook70';
+import {FURNITURE_BY_ID,furniturePose,ROOM,houseDescriptor} from './housing-data.js?v=20261010-free-cook71';
 export function kitchenRole(f){if(!f)return null;if(f.family==='kitchen')return 'counter';if(f.family==='sink')return 'sink';if(f.family==='fridge'||f.id==='mini-fridge')return 'fridge';if(['stove','oven'].includes(f.family))return 'stove';return null;}
 export function recognizeKitchens(index,layout){
   const home=houseDescriptor(index);if(!home||!layout)return {zones:[],reason:'設備を置いてキッチンを作れます'};
@@ -14,7 +14,10 @@ export function recognizeKitchens(index,layout){
     const start=accesses[0],queue=[[Math.round(start.x/step),Math.round(start.z/step)]],cells=new Set();
     for(let i=0;i<queue.length&&i<8000;i++){const [gx,gz]=queue[i],x=gx*step,z=gz*step,k=gx+','+gz;if(cells.has(k)||x<minX||x>maxX||z<minZ||z>maxZ||!walkable(x,z))continue;cells.add(k);queue.push([gx+1,gz],[gx-1,gz],[gx,gz+1],[gx,gz-1]);}
     if(!accesses.every(p=>cells.has(key(p.x,p.z))))continue;
-    zones.push({index:home.index,id:counter.item.id,rev:layout.rev,home,stations:cluster,start:{x:home.x+start.x*home.front,y:ROOM.floor+.02,z:home.z+start.z*home.front},allowed:p=>{const x=(p.x-home.x)*home.front,z=(p.z-home.z)*home.front;return cells.has(key(x,z))&&walkable(x,z);}});
+    // The flood fill certifies access; it must not snap physical movement to
+    // grid cells. Furniture/wall collision is handled by the world's mover.
+    const bounds={minX:Math.min(home.x+minX*home.front,home.x+maxX*home.front),maxX:Math.max(home.x+minX*home.front,home.x+maxX*home.front),minZ:Math.min(home.z+minZ*home.front,home.z+maxZ*home.front),maxZ:Math.max(home.z+minZ*home.front,home.z+maxZ*home.front)};
+    zones.push({index:home.index,id:counter.item.id,rev:layout.rev,home,stations:cluster,bounds,start:{x:home.x+start.x*home.front,y:ROOM.floor+.02,z:home.z+start.z*home.front},allowed:p=>p.x>=bounds.minX&&p.x<=bounds.maxX&&p.z>=bounds.minZ&&p.z<=bounds.maxZ&&Math.abs(p.y-ROOM.floor)<1.2});
   }
   return {zones,reason:zones.length?'キッチン認定済み · 近づくとクッキングを開始':'設備を5m以内にまとめ、各設備の正面と通路を空けてください'};
 }

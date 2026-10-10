@@ -1,4 +1,4 @@
-import {STREET_LAMPS} from './street-lamps.js?v=20261010-free-cook70';
+import {STREET_LAMPS} from './street-lamps.js?v=20261010-free-cook71';
 // Low-poly town details share the world's box instances and collision grid.
 export function buildDistrict({box,board,sign,seats,clockHands}){
   const stone='#c9c4b7',white='#faf8f1',wood='#9a6748',trim='#d4d7d5';

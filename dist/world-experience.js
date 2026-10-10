@@ -1,12 +1,12 @@
-import {createGunEffects} from './gun-effects.js?v=20261010-free-cook70';
-import {createBodycam} from './bodycam.js?v=20261010-free-cook70';
-import {createWorldAudio} from './world-audio.js?v=20261010-free-cook70';
-import {createWorldInteraction} from './world-interaction.js?v=20261010-free-cook70';
-import {fallbackMuzzle} from './weapon-dimensions.js?v=20261010-free-cook70';
-import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-free-cook70';
+import {createGunEffects} from './gun-effects.js?v=20261010-free-cook71';
+import {createBodycam} from './bodycam.js?v=20261010-free-cook71';
+import {createWorldAudio} from './world-audio.js?v=20261010-free-cook71';
+import {createWorldInteraction} from './world-interaction.js?v=20261010-free-cook71';
+import {fallbackMuzzle} from './weapon-dimensions.js?v=20261010-free-cook71';
+import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-free-cook71';
 import * as THREE from 'three';
-import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js?v=20261010-free-cook70';
-import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261010-free-cook70';
+import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js?v=20261010-free-cook71';
+import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261010-free-cook71';
 export function createWorldExperience({scene,camera,get,send,notify,openChat,openMenu,onModal,onTeleport,onCharacter,onAim,makeFace,skinURL,names,openMap}){
  const positionKey='vrs-last-position'+(new URL(location.href).searchParams.get('vrsDepth')?'-embedded-'+new URL(location.href).searchParams.get('vrsDepth'):'');
  const shell=document.createElement('div');shell.innerHTML=`

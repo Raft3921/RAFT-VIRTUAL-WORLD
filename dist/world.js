@@ -7,7 +7,7 @@ import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const materials=new Map();
-function material(color){if(!materials.has(color)){const mat=withLocalLighting(new THREE.MeshStandardMaterial({color,roughness:.82}));if(['#c9a575','#af8960','#e4c797'].includes(color)){const canvas=document.createElement('canvas');canvas.width=canvas.height=64;const c=canvas.getContext('2d');c.fillStyle='#ffffff';c.fillRect(0,0,64,64);let seed=42;for(let i=0;i<900;i++){seed=(seed*1664525+1013904223)>>>0;const x=seed%64;seed=(seed*1664525+1013904223)>>>0;const y=seed%64;c.fillStyle=i%2?'#bdb5a530':'#7e6b4720';c.fillRect(x,y,1,1);}const texture=new THREE.CanvasTexture(canvas);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.colorSpace=THREE.SRGBColorSpace;mat.map=texture;mat.roughness=.94;}materials.set(color,mat);}return materials.get(color);}
+function material(color){if(!materials.has(color)){const mat=withLocalLighting(new THREE.MeshStandardMaterial({color,roughness:.82}));if(['#c9a575','#af8960','#e4c797','#b99d79','#936c4f','#dbc29b'].includes(color)){const canvas=document.createElement('canvas');canvas.width=canvas.height=64;const c=canvas.getContext('2d');c.fillStyle='#ffffff';c.fillRect(0,0,64,64);let seed=42;for(let i=0;i<900;i++){seed=(seed*1664525+1013904223)>>>0;const x=seed%64;seed=(seed*1664525+1013904223)>>>0;const y=seed%64;c.fillStyle=i%2?'#bdb5a530':'#7e6b4720';c.fillRect(x,y,1,1);}const texture=new THREE.CanvasTexture(canvas);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.colorSpace=THREE.SRGBColorSpace;mat.map=texture;mat.roughness=.94;}materials.set(color,mat);}return materials.get(color);}
 const WHITE='#faf8f1',TRIM='#d4d7d5',WOOD='#bd8d60',STONE='#c9c4b7';
 export function createWorld(scene){
   const group=new THREE.Group();scene.add(group);group.name='RAFT World';
@@ -26,11 +26,11 @@ export function createWorld(scene){
     if(!batches.has(key))batches.set(key,{color,list:[]});
     batches.get(key).list.push(body);return body;
   }
-  function sign(text,x,y,z,width=3){
+  function sign(text,x,y,z,width=3,yaw=0){
     const c=document.createElement('canvas');c.width=512;c.height=128;const ctx=c.getContext('2d');
     ctx.fillStyle='#172c35';ctx.fillRect(0,0,512,128);ctx.fillStyle='#eafbf4';ctx.font='bold 46px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,256,64);
     const mesh=new THREE.Mesh(new THREE.PlaneGeometry(width,width/4),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),side:THREE.DoubleSide}));
-    mesh.position.set(x,y,z);group.add(mesh);return mesh;
+    mesh.position.set(x,y,z);mesh.rotation.y=yaw;group.add(mesh);return mesh;
   }
   function board(x,floor,z,kind='world',checkpoint=null,face=-1){
     if(checkpoint)face=Math.sign(checkpoint.z-z)||-1;

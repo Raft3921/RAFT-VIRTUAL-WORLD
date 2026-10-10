@@ -1,3 +1,4 @@
+import {GUN_ZONE} from './gun-layout.js';
 import * as THREE from 'three';
 
 // All vegetation and terrain are geometry/shaders: no image textures or downloads.
@@ -104,9 +105,14 @@ function makeGround() {
       float detailRange = 1.0 - smoothstep(12.0, 32.0, length(vViewPosition));
       diffuseColor.rgb *= mix(.80, 1.09, broad) * mix(.94, 1.035, groundPatch);
       diffuseColor.rgb *= mix(1.0, mix(.89, 1.05, fine), detailRange * .6);
+      vec2 townMin=vec2(${GUN_ZONE.minX.toFixed(1)},${GUN_ZONE.minZ.toFixed(1)}),townMax=vec2(${GUN_ZONE.maxX.toFixed(1)},${GUN_ZONE.maxZ.toFixed(1)});
+      vec2 outside=max(max(townMin-vGroundPosition.xz,vGroundPosition.xz-townMax),vec2(0.));
+      float desert=1.-smoothstep(0.,5.,length(outside));
+      float approach=(1.-smoothstep(4.8,6.5,abs(vGroundPosition.z+92.)))*step(47.,vGroundPosition.x)*(1.-step(124.,vGroundPosition.x));
+      diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.60,.43,.25)*mix(.9,1.1,groundPatch),max(desert,approach));
     `);
   };
-  material.customProgramCacheKey = () => 'studio-meadow-ground-v1';
+  material.customProgramCacheKey = () => 'studio-meadow-ground-sandtown-v2';
   const ground = new THREE.Mesh(geometry, material);
   ground.name = 'Flat meadow and distant rolling hills';
   ground.receiveShadow = true;
@@ -192,6 +198,8 @@ function makeGrass(tier, uniforms) {
       bool homes=false;
       for(int k=0;k<4;k++){float hx=-39.+float(k)*26.;if(abs(root.x-hx)<8.2 && (abs(root.y-45.)<7.8 || abs(root.y-80.)<7.8)) homes=true;if(abs(root.x-hx)<2.8 && root.y>51. && root.y<74.) homes=true;}
       bool arena=distance(root,vec2(112.,8.))<33.5;
+      bool gunTown=root.x>${(GUN_ZONE.minX-4).toFixed(1)} && root.x<${(GUN_ZONE.maxX+4).toFixed(1)} && root.y>${(GUN_ZONE.minZ-4).toFixed(1)} && root.y<${(GUN_ZONE.maxZ+4).toFixed(1)};
+      bool gunApproach=root.x>47. && root.x<124. && abs(root.y+92.)<6.5;
       if(studio || road || homes || arena) transformed*=0.;
 
       float visibility = 1.0 - smoothstep(uSpan * .30, uSpan * .47, distanceToFocus);
@@ -203,6 +211,7 @@ function makeGrass(tier, uniforms) {
       transformed.x += (breeze + .26) * tipWeight * .075 * uWind;
       transformed.z += sin(phase * .71 + uMeadowTime * 1.3) * tipWeight * .028 * uWind;
       transformed *= visibility;
+      if(gunTown || gunApproach) transformed=vec3(0.0);
       // Undo the instance's rotation/scale for the world-space wrap offset.
       transformed += vec3(dot(instanceMatrix[0].xz, wrap) / dot(instanceMatrix[0].xyz, instanceMatrix[0].xyz),
                           0.0,
@@ -221,7 +230,7 @@ function makeGrass(tier, uniforms) {
       diffuseColor.rgb = bladeColor;
     `);
   };
-  material.customProgramCacheKey = () => 'studio-meadow-grass-clumps-v4';
+  material.customProgramCacheKey = () => 'studio-meadow-grass-clumps-sandtown-v5';
   const grass = new THREE.InstancedMesh(geometry, material, tier.clumps);
   const transform = new THREE.Object3D(), color = new THREE.Color();
   const baseColor = new THREE.Color('#ffffff');

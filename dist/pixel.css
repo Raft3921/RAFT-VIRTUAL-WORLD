@@ -115,3 +115,23 @@ body[data-house-editing=true] .home-edit-prompt,body[data-clean=true] .home-edit
 .house-editor[data-touch=true][data-pane=edit] #houseSelection>.button-pair:first-of-type{display:none}
 .house-editor[data-touch=true] .house-placement-hud strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(orientation:portrait) and (max-width:699px){.house-editor[data-touch=true][data-pane=edit] #houseTouchHint{display:none!important}.house-editor[data-touch=true][data-pane=edit] .house-placement-hud{padding:3px 6px}.house-editor[data-touch=true][data-pane=edit] .house-save-status{padding:3px;margin-top:3px}}
+
+
+/* Portrait iPhone: separate thumb zones and large stable multi-touch targets. */
+body[data-touch=true]{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+body[data-touch=true] :is(input,textarea){-webkit-user-select:text;user-select:text}
+body[data-touch=true] :is(#moveStick,#punchBtn,#jumpBtn){touch-action:none;-webkit-tap-highlight-color:transparent}
+body[data-touch=true] #punchBtn{width:78px;height:78px;min-height:78px;right:max(18px,env(safe-area-inset-right));bottom:calc(28px + env(safe-area-inset-bottom));padding:8px;z-index:6}
+body[data-touch=true] #jumpBtn{width:60px;height:60px;min-height:60px;right:max(27px,env(safe-area-inset-right));bottom:calc(126px + env(safe-area-inset-bottom));z-index:6}
+body[data-touch=true] #moveStick{width:132px;height:132px;left:max(18px,env(safe-area-inset-left));bottom:calc(24px + env(safe-area-inset-bottom));z-index:6}
+body[data-touch=true] #stickKnob{width:48px;height:48px;left:calc(50% - 24px);top:calc(50% - 24px)}
+#houseAddMore{width:100%;min-height:44px;margin-top:5px;font-size:13px}
+.house-editor[data-touch=true] #houseAddMore{min-height:48px;font-size:14px}
+.house-editor[data-touch=true] .house-browse-pane .furniture-card:active{background:#345848;border-color:#ceefad}
+@media(orientation:portrait) and (max-width:699px){
+ .house-editor[data-touch=true][data-pane=edit]{height:calc(var(--house-visible-height,100dvh)*.48);max-height:calc(var(--house-visible-height,100dvh)*.48)}
+ .house-editor[data-touch=true][data-pane=edit] .house-save-status{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .house-editor[data-touch=true] #houseSelectedName{font-size:14px}
+ body[data-touch=true] #chargeHud{bottom:calc(218px + env(safe-area-inset-bottom))}
+}
+@media(orientation:landscape) and (max-height:500px){body[data-touch=true] #moveStick{width:110px;height:110px;bottom:calc(14px + env(safe-area-inset-bottom))}body[data-touch=true] #punchBtn{width:68px;height:68px;min-height:68px;bottom:calc(16px + env(safe-area-inset-bottom))}body[data-touch=true] #jumpBtn{bottom:calc(102px + env(safe-area-inset-bottom))}}

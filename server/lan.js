@@ -42,6 +42,7 @@ const rules=new GameRules(players,broadcast,scores,s=>writeFileSync('.room-score
 function remove(socket) {
   const entry = players.get(socket);
   if (!entry) return;
+  rules.savePosition(entry.player,true);
   players.delete(socket);
   rules.removed(entry.player.id);
   broadcast({ type: 'player-left', id: entry.player.id });
@@ -110,8 +111,9 @@ sockets.on('connection', (socket, request) => {
     headYaw: 0, headPitch: 0, vx: 0, vy: 0, vz: 0,
     gesture: 'none', speed: 0, grounded: true, verticalSpeed: 0, flight: false, ragdoll: false,
   };
+  Object.assign(player,rules.savedPosition(profile)||{});
   players.set(socket, { player, lastStateAt: 0 });
-  send(socket, { type: 'joined', version:SYNC_VERSION, chat:rules.chat.page(), projectiles:rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:rules.houses.snapshots(), characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
+  send(socket, { type: 'joined', version:SYNC_VERSION, gunShots:rules.guns.shots, chat:rules.chat.page(), projectiles:rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:rules.houses.snapshots(), characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
   broadcast({ type: 'player-joined', player }, socket);
   send(socket,rules.snapshot());
 

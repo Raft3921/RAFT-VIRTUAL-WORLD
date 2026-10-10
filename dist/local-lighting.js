@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import {houseDescriptor,ROOM,furnitureDefinition,furniturePose} from './housing-data.js';
 import {furnitureParts} from './furniture-models.js';
 
-export const STREET_LAMPS=[[-25,20],[25,20],[-25,62],[25,62],[16,-15],[-34,12],[60,27],[78,27]];
+import {STREET_LAMPS} from './street-lamps.js';
+export {STREET_LAMPS};
 export const nightLight={value:0};
 const patched=new WeakSet();
 const lampFill=STREET_LAMPS.map(([x,z])=>`raftLamp=max(raftLamp,pow(max(0.0,1.0-length(raftPosition.xz-vec2(${x.toFixed(1)},${z.toFixed(1)}))/6.0),2.0));`).join('\n');

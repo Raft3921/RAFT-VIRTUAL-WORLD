@@ -1,3 +1,4 @@
+import {createGunModel} from './gun-visual.js';
 import * as THREE from 'three';
 import {withLocalLighting} from './local-lighting.js';
 import { sampleAttack,sampleCharge } from './combat-motion.js';
@@ -288,6 +289,7 @@ export async function createAvatar(url,{model=null}={}) {
     knees[side].rotation.x = damp(knees[side].rotation.x, kneeAngle, 22, dt);
   }
 
+  let gunModel=null,gunId=null;
   function update(dt, state = {}) {
     if (disposed) return;
     if(state.punchSwing>0&&previousAttack===0){entryPose={y:pelvis.position.y,rotation:pelvis.rotation.clone(),torso:torso.rotation.clone(),joints:{}};for(const side of ['right','left'])for(const [name,list]of [['shoulder',shoulders],['elbow',elbows],['hip',hips],['knee',knees]])entryPose.joints[side+name]=list[side].rotation.clone();}
@@ -435,6 +437,8 @@ export async function createAvatar(url,{model=null}={}) {
       const t=state.impactTime,u=t/state.impactDuration,amount=(.012+.035*(state.impactStrength||0))*Math.sin(Math.PI*u);
       pelvis.position.x+=Math.sin(t*155)*amount;pelvis.position.z+=Math.sin(t*119+.8)*amount;pelvis.rotation.z+=Math.sin(t*142)*amount*.4;
     }
+    if(gunId!==state.equippedWeapon){gunId=state.equippedWeapon;gunModel?.removeFromParent();gunModel=gunId?createGunModel(gunId):null;if(gunModel){torso.add(gunModel);gunModel.position.set(-.10,.78,.55);}}
+    if(gunModel){gunModel.visible=!state.ragdoll&&!state.sleeping&&!state.seated;if(gunModel.visible){const aim=clamp(-(state.lookPitch||0),-.7,.7);shoulders.right.rotation.set(-1.30+aim*.65,.14,-.12);elbows.right.rotation.set(-.68,0,0);shoulders.left.rotation.set(-1.12+aim*.65,-.35,.44);elbows.left.rotation.set(-.87,0,0);torso.rotation.y=-.09;gunModel.rotation.x=-aim;gunModel.position.y=.78+Math.sin(elapsed*1.7)*.002;}}
     // Keep the supporting foot planted after the combat pose has been blended.
     if(grounded&&airborne<.02&&sitWeight<.01&&sleepWeight<.01&&ragdollWeight<.01){
       let sole=Infinity;for(const side of ['right','left']){const a=hips[side].rotation.x,b=a+knees[side].rotation.x,z=hips[side].rotation.z;const y=legHeight*PX+pelvis.position.y-(legHalf*PX*Math.cos(a)+legHalf*PX*Math.cos(b))*Math.cos(z)-.125*Math.abs(Math.sin(b));sole=Math.min(sole,y);}

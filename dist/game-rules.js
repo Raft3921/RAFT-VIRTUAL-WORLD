@@ -1,3 +1,5 @@
+import {GunRules} from './gun-rules.js';
+import {weaponById} from './gun-layout.js';
 import {WorldChatStore} from './world-chat-store.js';
 import { ARENA,insideArena } from './world-layout.js';
 import { ATTACKS } from './combat-motion.js';
@@ -10,14 +12,14 @@ import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} f
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js';
 import {furnitureAction} from './furniture-actions.js';
-export const SYNC_VERSION='2026-10-09-vrs-chat-26';
+export const SYNC_VERSION='2026-10-10-vrs-guns-30';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin,realms){
   if(![s?.x,s?.y,s?.z,s?.yaw].every(Number.isFinite)||s.y<0||s.y>512)return null;
   const realm=mirrorRealm(s.mirrorRealm,realms);if(s.mirrorRealm&&!realm)return null;
   if(realm?Math.abs(s.x-realm.x)>65||Math.abs(s.z-(realm.z-62.5))>42:Math.abs(s.x)>1300||Math.abs(s.z)>1300)return null;
   const n=(key,a,b)=>Number.isFinite(s[key])?clamp(s[key],a,b):0;
-  return {mirrorRealm:realm?.key||null,x:s.x,y:s.y,z:s.z,yaw:s.yaw,skin:playableSkin(skin),
+  return {equippedWeapon:weaponById(s.equippedWeapon)?.id||null,mirrorRealm:realm?.key||null,x:s.x,y:s.y,z:s.z,yaw:s.yaw,skin:playableSkin(skin),
     headYaw:n('headYaw',-1,1),headPitch:n('headPitch',-.7,.7),vx:n('vx',-200,200),vy:n('vy',-200,200),vz:n('vz',-200,200),
     speed:n('speed',0,20),verticalSpeed:n('verticalSpeed',-200,200),grounded:s.grounded!==false,flight:s.flight===true,
     ragdoll:s.ragdoll===true,seated:s.seated===true,sleeping:s.sleeping===true&&s.ragdoll!==true,crownEnabled:s.crownEnabled===true,
@@ -37,7 +39,7 @@ export function applyPlayerState(player,state){
     state.vx=state.vy=state.vz=state.speed=state.verticalSpeed=0;
     if(player.hitPhase==='impact'){state.ragdoll=true;state.hitPhase='impact';}
   }
-  state.hitSerial=serial;state.crownEnabled=player.crownEnabled;Object.assign(player,state);
+  state.equippedWeapon=player.equippedWeapon;state.hitSerial=serial;state.crownEnabled=player.crownEnabled;Object.assign(player,state);
 }
 export class GameRules{
   constructor(players,broadcast,scores={},save=()=>{},settings={},saveSettings=()=>{},characters={},saveCharacters=()=>{},houses={},saveHouses=()=>{},onAsyncWork=()=>{},chat=[],saveChat=()=>{}){
@@ -47,8 +49,10 @@ export class GameRules{
     this.characters=new CharacterStore(characters,scores,saveCharacters,(skin,record)=>this.broadcastCharacter(skin,record),()=>this.broadcast({type:'character-save-error',message:'キャラクターの状態をサーバーに保存できませんでした。'}));
     this.houses=new HousingStore(houses,saveHouses,broadcast);this.chat=new WorldChatStore(chat,saveChat);
     this.projectiles=[];this.projectileTimer=null;this.projectileSequence=0;this.onAsyncWork=onAsyncWork;this.projectileFlight=null;this.finishFlight=null;
-    this.settings.cycle=cleanCycle(settings.cycle);this.pianoSteps=new Map();this.records=new Map();this.furnitureStates=new Map();this.furnitureSequence=0;
+    this.settings.cycle=cleanCycle(settings.cycle);this.pianoSteps=new Map();this.records=new Map();this.furnitureStates=new Map();this.furnitureSequence=0;this.guns=new GunRules(this);
   }
+  savedPosition(profile){const p=this.settings.positions?.[profile];return p&&[p.x,p.y,p.z,p.yaw].every(Number.isFinite)?{...p}:null;}
+  savePosition(p,force=false){if(!p.profile||p.ragdoll)return;const now=Date.now();this.positionTimes??=new Map();if(!force&&now-(this.positionTimes.get(p.profile)||0)<5000)return;this.positionTimes.set(p.profile,now);const position={x:p.x,y:p.y,z:p.z,yaw:p.yaw,mirrorRealm:p.mirrorRealm||null};this.settingsQueue=this.settingsQueue.then(async()=>{const settings={...this.settings,positions:{...this.settings.positions,[p.profile]:position}};try{await this.saveSettings(settings);this.settings=settings;}catch{}});this.onAsyncWork(this.settingsQueue);}
   entries(){return [...this.players.values()];}
   character(skin,profile,enabled=false){return skin===GUEST_SKIN?cleanCharacter():this.characters.get(skin,profile,enabled);}
   broadcastCharacter(skin,record=this.characters.get(skin)){
@@ -58,11 +62,11 @@ export class GameRules{
   selectCharacter(entry,value){
     const skin=playableSkin(value,null),p=entry.player;if(skin===null)return false;
     if(p.guest&&skin!==GUEST_SKIN){this.broadcast({type:'character-select-rejected',id:p.id,skin:p.skin,reason:'ゲストは入室中にメンバーへ変更できません'});return false;}
-    if(p.skin!==skin&&(this.duel?.ids.includes(p.id)||p.ragdoll)){this.broadcast({type:'character-select-rejected',id:p.id,skin:p.skin});return false;}
+    if(p.skin!==skin&&(this.duel?.ids.includes(p.id)||this.guns.phase==='active'&&this.guns.members.has(p.id)||p.ragdoll)){this.broadcast({type:'character-select-rejected',id:p.id,skin:p.skin});return false;}
     p.skin=skin;p.guest=skin===GUEST_SKIN;Object.assign(p,this.character(skin,p.profile));if(!p.guest)this.broadcastCharacter(skin);this.broadcast({type:'state',player:p});return true;
   }
   inside(p){return insideArena(p);}
-  snapshot(){this.pruneRecords();return {type:'world',version:SYNC_VERSION,backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel,cycle:this.settings.cycle,serverNow:Date.now(),records:[...this.records.values()],furnitureStates:[...this.furnitureStates.values()]};}
+  snapshot(){this.pruneRecords();return {type:'world',version:SYNC_VERSION,gunBattle:this.guns.snapshot(),backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel,cycle:this.settings.cycle,serverNow:Date.now(),records:[...this.records.values()],furnitureStates:[...this.furnitureStates.values()]};}
   flashlightPreference(profile){return this.settings.flashlights?.[profile]!==false;}
   setFlashlight(p,enabled){
     if(p.guest){p.flashlightEnabled=enabled;this.broadcast({type:'flashlight-state',id:p.id,enabled});return;}
@@ -82,9 +86,9 @@ export class GameRules{
     return this.settingsQueue;
   }
   cancel(){if(this.duel){this.duel=null;this.ready.clear();this.broadcast({type:'duel-cancel',reason:'プレイヤーが闘技場から離れたため終了しました'});}}
-  removed(id){this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
+  removed(id){this.guns.remove(id);this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
   state(entry){
-    const p=entry.player;
+    const p=entry.player;this.guns.state(p);this.savePosition(p);
     // One server-owned window per knockdown, never reset by repeat packets.
     // The full flight is also protected so attacks cannot restart a juggle.
     if(p.awaitingDown&&p.ragdoll&&['down','recover'].includes(p.hitPhase)){p.awaitingDown=false;p.protectedUntil=Date.now()+DOWN_PROTECTION_SECONDS*1000;}
@@ -153,7 +157,11 @@ export class GameRules{
   receive(entry,m,now=Date.now()){
     const p=entry.player;
     if(m.type==='chat-history'){this.broadcast({type:'chat-history',playerId:p.id,...this.chat.page(m.before)});return;}
-    if(m.type==='chat-post'){if(!entry.chatTerminal||p.ragdoll||this.duel?.ids.includes(p.id)){this.broadcast({type:'chat-error',playerId:p.id,message:'家のパソコンを殴ってチャットを開いてください'});return;}const h=houseDescriptor(entry.chatTerminal.index,this.houses.realms),item=this.houses.snapshots()[entry.chatTerminal.index]?.items.find(i=>i.id===entry.chatTerminal.itemId);if(!h||!item||furnitureAction(FURNITURE_BY_ID.get(item.t)).kind!=='chat'){this.broadcast({type:'chat-error',playerId:p.id,message:'このパソコンはなくなりました'});return;}const pose=furniturePose(item);if(Math.hypot(p.x-h.x-pose.x*h.front,p.z-h.z-pose.z*h.front)>7){this.broadcast({type:'chat-error',playerId:p.id,message:'パソコンの近くで送信してください'});return;}if(now-(entry.lastChatAt||0)<1000){this.broadcast({type:'chat-error',playerId:p.id,message:'少し待ってから送信してください'});return;}if(typeof m.text!=='string'||m.text.length>400)return;entry.lastChatAt=now;return this.chat.post(p.skin,m.text).then(message=>this.broadcast({type:'chat-message',scope:'world',authorId:p.id,message})).catch(()=>this.broadcast({type:'chat-error',playerId:p.id,message:'保存できませんでした。もう一度送信してください'}));}
+    if(m.type==='position-save'){this.savePosition(p,true);return this.settingsQueue;}
+    if(this.guns.receive(entry,m,now))return;
+    if(m.type==='chat-open'){this.broadcast({type:'chat-open',playerId:p.id,...this.chat.page()});return;}
+    if(m.type==='chat-post'){if(now-(entry.lastChatAt||0)<1000){this.broadcast({type:'chat-error',playerId:p.id,message:'少し待ってから送信してください'});return;}if(typeof m.text!=='string'||m.text.length>400)return;entry.lastChatAt=now;return this.chat.post(p.skin,m.text).then(message=>this.broadcast({type:'chat-message',scope:'world',authorId:p.id,message})).catch(()=>this.broadcast({type:'chat-error',playerId:p.id,message:'保存できませんでした。もう一度送信してください'}));}
+
     if(m.type==='piano-play'||m.type==='record-toggle'||m.type==='furniture-hit'){
       if(p.ragdoll||this.duel?.ids.includes(p.id))return;
       const h=houseDescriptor(m.index,this.houses.realms),item=this.houses.snapshots()[m.index]?.items.find(i=>i.id===m.itemId);if(!h||!item)return;
@@ -162,7 +170,7 @@ export class GameRules{
       const pose=furniturePose(item),x=h.x+pose.x*h.front,z=h.z+pose.z*h.front,dx=x-p.x,dz=z-p.z;
       if(Math.hypot(dx,dz)>3.8+Math.min(1,Math.max(definition.w,definition.d)*.25)||Math.abs(p.y+1.05-(ROOM.floor+pose.centerY))>2.7||dx*Math.sin(p.yaw)+dz*Math.cos(p.yaw)<-.2)return;
       entry.lastInstrumentAt=now;const key=h.index+':'+item.id;
-      if(family==='chat'){entry.chatTerminal={index:h.index,itemId:item.id};this.broadcast({type:'chat-open',playerId:p.id,...this.chat.page()});return;}
+      if(family==='chat'){entry.chatTerminal={index:h.index,itemId:item.id};this.broadcast({type:'pc-open',playerId:p.id});return;}
       if(family==='record'){const playing=!this.records.has(key),record={type:'record-state',index:h.index,itemId:item.id,playing,startedAt:now};if(playing)this.records.set(key,record);else this.records.delete(key);this.broadcast(record);return;}
       if(family==='piano'||family==='instrument'){const step=this.pianoSteps.get(key)||0,note=PIANO_MELODY[step%PIANO_MELODY.length];this.pianoSteps.set(key,(step+1)%PIANO_MELODY.length);this.broadcast({type:family==='piano'?'piano-play':'instrument-play',index:h.index,itemId:item.id,note,instrument:action.instrument,serial:++this.furnitureSequence,playerId:p.id});return;}
       const previous=this.furnitureStates.get(key),enabled=action.toggle?!(previous?.enabled??action.defaultEnabled):true,event={type:'furniture-event',index:h.index,itemId:item.id,kind:family,enabled,serial:++this.furnitureSequence,playerId:p.id};if(action.toggle)this.furnitureStates.set(key,event);this.broadcast(event);return;
@@ -171,7 +179,7 @@ export class GameRules{
     if(p.guest&&['housing-op','crown-toggle','checkpoint','duel-settings','backdrop','cycle-settings'].includes(m.type)){
       this.broadcast({type:'guest-denied',id:p.id,message:'ゲストは家・ワールド設定・メンバーの保存データを変更できません'});return;
     }
-    if(m.type==='housing-op'){if(this.duel?.ids.includes(p.id)||p.ragdoll){const house=this.houses.snapshots()[m.index];if(house)this.broadcast({type:'house-state',index:m.index,house,requestId:m.requestId,error:'試合・被弾中は家を編集できません'});return;}return Promise.resolve(this.houses.apply(p.skin,m)).then(()=>this.pruneRecords());}
+    if(m.type==='housing-op'){const home=houseDescriptor(m.index,this.houses.realms);if(!home||Math.hypot(p.x-home.x,p.z-(home.z+home.front*7.8))>5){this.broadcast({type:'house-state',index:m.index,house:this.houses.snapshots()[m.index],requestId:m.requestId,error:'家の入り口からカスタマイズしてください'});return;}if(this.duel?.ids.includes(p.id)||p.ragdoll){const house=this.houses.snapshots()[m.index];if(house)this.broadcast({type:'house-state',index:m.index,house,requestId:m.requestId,error:'試合・被弾中は家を編集できません'});return;}return Promise.resolve(this.houses.apply(p.skin,m)).then(()=>{this.pruneRecords();const c=this.characters.get(p.skin),total=Object.entries(this.houses.snapshots()).filter(([index])=>houseDescriptor(index,this.houses.realms)?.owner===p.skin).reduce((n,[,h])=>n+(h.items?.length||0),0),peak=Math.max(c.furniturePeak,total);return this.characters.change(p.skin,{furniturePeak:peak,coins:c.coins+Math.floor(peak/5)-Math.floor(c.furniturePeak/5)});});}
     if(m.type==='character-select'){this.selectCharacter(entry,m.skin);return this.characters.pending;}
     if(m.type==='crown-toggle'&&typeof m.enabled==='boolean')return this.characters.change(p.skin,{crownEnabled:m.enabled});
     if(m.type==='checkpoint')return this.characters.checkpoint(p.skin,m.id);
@@ -182,6 +190,7 @@ export class GameRules{
       this.backdrop=m.value;this.broadcast(this.snapshot());return;
     }
     if(m.type==='ready'){this.prepare(p,now);return;}
+    if(this.guns.members.has(p.id)||p.equippedWeapon)return;
     if(m.type!=='swing'||protectedFromHit(p,now)||now-(this.cooldowns.get(p.id)||0)<260)return;
     this.cooldowns.set(p.id,now);
     const throwing=p.skin===GYOZA_SKIN&&Number(m.held)<1&&Number(m.kind??p.attackKind)===3;

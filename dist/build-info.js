@@ -1,1 +1,1 @@
-export const BUILD_ID='vrs-chat26';
+export const BUILD_ID='vrs-guns30';

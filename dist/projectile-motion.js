@@ -10,8 +10,8 @@ export function segmentBox(a,b,box,radius=0){
   return enter>=0&&enter<=1?enter:null;
 }
 const STUDIO=[{x:-10.9,y:3.5,z:0,w:.3,h:7,d:18},{x:10.9,y:3.5,z:0,w:.3,h:7,d:18},{x:0,y:3.5,z:-8.9,w:22,h:7,d:.3},{x:-7.5,y:3.5,z:8.9,w:7,h:7,d:.3},{x:7.5,y:3.5,z:8.9,w:7,h:7,d:.3},{x:0,y:6.1,z:8.9,w:8,h:1.8,d:.3},{x:0,y:7,z:0,w:22.5,h:.25,d:18.5}];
-export function projectileWallFraction(a,b,layouts=[]){
-  let first=null;const check=box=>{const fraction=segmentBox(a,b,box,BROWN_PROJECTILE.radius);if(fraction!==null&&(first===null||fraction<first))first=fraction;};
+export function projectileWallFraction(a,b,layouts=[],radius=BROWN_PROJECTILE.radius){
+  let first=null;const check=box=>{const fraction=segmentBox(a,b,box,radius);if(fraction!==null&&(first===null||fraction<first))first=fraction;};
   for(const box of STUDIO)check(box);
   const realms=new Map(Object.entries(layouts.$realms||{})),houses=[...HOUSES.slice(0,8),...Object.keys(layouts).filter(key=>key.startsWith('m|')).map(key=>houseDescriptor(key,realms)).filter(Boolean)];
   for(const house of houses){
@@ -21,6 +21,6 @@ export function projectileWallFraction(a,b,layouts=[]){
     for(const item of layouts[house.index]?.items||[]){const def=FURNITURE_BY_ID.get(item.t);if(!def||def.solid===false)continue;const p=furniturePose(item);check({x:x+p.x*f,y:ROOM.floor+p.centerY,z:z+p.z*f,w:p.w,h:p.h,d:p.d,yaw:p.yaw+(f<0?Math.PI:0)});}
   }
   const floor=Math.hypot(b.x-ARENA.x,b.z-ARENA.z)<ARENA.radius?.24:0;
-  if(b.y<=floor+BROWN_PROJECTILE.radius){const t=(a.y-floor-BROWN_PROJECTILE.radius)/Math.max(.0001,a.y-b.y);if(first===null||t<first)first=Math.max(0,Math.min(1,t));}
+  if(b.y<=floor+radius){const t=(a.y-floor-radius)/Math.max(.0001,a.y-b.y);if(first===null||t<first)first=Math.max(0,Math.min(1,t));}
   return first;
 }

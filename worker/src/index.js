@@ -54,13 +54,14 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
       yaw: Math.atan2(-Math.sin(angle), -Math.cos(angle)), headYaw: 0, headPitch: 0,
       gesture: 'none', speed: 0, grounded: true, verticalSpeed: 0, flight: false, ragdoll: false,
     };
+    Object.assign(player,this.rules.savedPosition(profile)||{});
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     server.accept();
     this.players.set(server, { player, lastStateAt: 0 });
 
     this.roomContext.waitUntil(this.rules.characters.pending);
-    server.send(json({ type: 'joined', version:SYNC_VERSION, chat:this.rules.chat.page(), projectiles:this.rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:this.rules.houses.snapshots(), characters:this.rules.characters.snapshots(), self: player, players: [...this.players.values()].map(entry => entry.player).filter(other => other.id !== id) }));
+    server.send(json({ type: 'joined', version:SYNC_VERSION, gunShots:this.rules.guns.shots, chat:this.rules.chat.page(), projectiles:this.rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:this.rules.houses.snapshots(), characters:this.rules.characters.snapshots(), self: player, players: [...this.players.values()].map(entry => entry.player).filter(other => other.id !== id) }));
     this.broadcast({ type: 'player-joined', player }, server);
     server.send(json(this.rules.snapshot()));
     server.addEventListener('message', event => this.receive(server, event.data));
@@ -101,7 +102,7 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
   remove(socket) {
     const entry = this.players.get(socket);
     if (!entry) return;
-    this.players.delete(socket);
+    this.rules.savePosition(entry.player,true);this.players.delete(socket);
     this.rules.removed(entry.player.id);
     this.broadcast({ type: 'player-left', id: entry.player.id });
   }

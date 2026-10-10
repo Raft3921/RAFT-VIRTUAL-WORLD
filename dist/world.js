@@ -1,3 +1,4 @@
+import {buildGunTown} from './gun-layout.js';
 import * as THREE from 'three';
 import { ARENA, COURSE, buildCourse } from './world-layout.js';
 import { buildDistrict } from './district.js';
@@ -6,7 +7,7 @@ import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const materials=new Map();
-function material(color){if(!materials.has(color))materials.set(color,withLocalLighting(new THREE.MeshStandardMaterial({color,roughness:.82})));return materials.get(color);}
+function material(color){if(!materials.has(color)){const mat=withLocalLighting(new THREE.MeshStandardMaterial({color,roughness:.82}));if(['#c9a575','#af8960','#e4c797'].includes(color)){const canvas=document.createElement('canvas');canvas.width=canvas.height=64;const c=canvas.getContext('2d');c.fillStyle='#ffffff';c.fillRect(0,0,64,64);let seed=42;for(let i=0;i<900;i++){seed=(seed*1664525+1013904223)>>>0;const x=seed%64;seed=(seed*1664525+1013904223)>>>0;const y=seed%64;c.fillStyle=i%2?'#bdb5a530':'#7e6b4720';c.fillRect(x,y,1,1);}const texture=new THREE.CanvasTexture(canvas);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.colorSpace=THREE.SRGBColorSpace;mat.map=texture;mat.roughness=.94;}materials.set(color,mat);}return materials.get(color);}
 const WHITE='#faf8f1',TRIM='#d4d7d5',WOOD='#bd8d60',STONE='#c9c4b7';
 export function createWorld(scene){
   const group=new THREE.Group();scene.add(group);group.name='RAFT World';
@@ -98,7 +99,7 @@ export function createWorld(scene){
     box(x,.39,z-front*7.28,15.5,.35,.16,TRIM,false);
     for(const side of [-1,1])box(x+side*2.6,1.9,z+front*9,.24,3.6,.24,WHITE);
     box(x,3.8,z+front*8.4,5.8,.18,3.1,accent);
-    currentHouse.board=board(x-6,.22,z+front*9,currentHouse.owner===null?'world':'house',null,front);
+    currentHouse.board=board(x-6,.22,z+front*9,'world',null,front);
     currentHouse=null;
   }
   // Colosseum: sunken combat floor, four accessible terraces, radial seats,
@@ -185,6 +186,7 @@ export function createWorld(scene){
   athletic.finish=athletic.checkpoints.at(-1);
   box(COURSE.exit.x,.08,COURSE.exit.z,10,.16,10,STONE);board(COURSE.exit.x+3,.16,COURSE.exit.z,'world');
   buildDistrict({box,board,sign,seats,clockHands});
+  buildGunTown({box,board,sign});
   // Flush repeated parts to one draw per material, with instance indices for moving pads.
   for(const {color,list} of batches.values()){
     const mesh=new THREE.InstancedMesh(boxGeometry,list[0].streetLamp?lampMaterial:material(color),list.length);mesh.userData.noShadow=!!list[0].noShadow;
@@ -296,6 +298,7 @@ export function createWorld(scene){
     }
     return to.clone().lerp(from,1-fraction);
   }
+  function surfaceNormal(point,incoming){let best=.65,result=incoming.clone().negate();for(const b of nearby(point)){if(b.disabled)continue;const q=localPoint(point,b),coords=[q.x,point.y-b.y,q.z],half=[b.w/2,b.h/2,b.d/2];if(coords.some((v,i)=>Math.abs(v)>half[i]+.3))continue;for(let axis=0;axis<3;axis++){const distance=Math.abs(Math.abs(coords[axis])-half[axis]);if(distance>=best)continue;best=distance;const sign=Math.sign(coords[axis])||1;if(axis===0)result.set(q.c*sign,0,-q.s*sign);else if(axis===1)result.set(0,sign,0);else result.set(q.s*sign,0,q.c*sign);}}if(point.y<.25&&best>.1)result.set(0,1,0);return result;}
   function cull(view){
     for(const mesh of chunks){const sphere=mesh.boundingSphere,d=sphere.center.distanceTo(view);mesh.visible=d<160+sphere.radius;mesh.castShadow=!mesh.userData.noShadow&&mesh.visible&&d<55+sphere.radius;}
     for(const b of boards)b.label.visible=!b.editorHidden&&Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<85;
@@ -317,5 +320,5 @@ export function createWorld(scene){
   // Keep the inexpensive pool draw registered even during the day (alpha 0)
   // so its shader is not first compiled when night begins.
   function setNight(value){nightLight.value=THREE.MathUtils.clamp(value||0,0,1);lampMaterial.emissiveIntensity=nightLight.value*1.8;}
-  const api={setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);},group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
+  const api={setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);},group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
 }

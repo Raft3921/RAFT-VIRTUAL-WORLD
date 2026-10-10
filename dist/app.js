@@ -1,4 +1,4 @@
-import {createPlazaMap} from './plaza-map.js?v=20261010-plaza-map67';
+import {createPlazaMap} from './plaza-map.js?v=20261010-plaza-map68-pixel';
 import {createWorldExperience} from './world-experience.js?v=20261010-plaza-map67';
 import {inGunZone,weaponById} from './gun-layout.js?v=20261010-plaza-map67';
 import {createWorldChat} from './world-chat.js?v=20261010-plaza-map67';

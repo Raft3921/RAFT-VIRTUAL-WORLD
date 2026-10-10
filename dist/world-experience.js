@@ -1,9 +1,9 @@
 import {createGunEffects} from './gun-effects.js';
 import {createBodycam} from './bodycam.js';
 import {createWorldAudio} from './world-audio.js';
-import {createWorldInteraction} from './world-interaction.js?v=20261010-victory40';
+import {createWorldInteraction} from './world-interaction.js?v=20261010-feedback41';
 import {fallbackMuzzle} from './weapon-dimensions.js';
-import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-victory40';
+import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-feedback41';
 import * as THREE from 'three';
 import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js';
 import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash} from './gun-visual.js';
@@ -11,7 +11,7 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
  const positionKey='vrs-last-position'+(new URL(location.href).searchParams.get('vrsDepth')?'-embedded-'+new URL(location.href).searchParams.get('vrsDepth'):'');
  const shell=document.createElement('div');shell.innerHTML=`
  <aside id="economyHud"><strong id="coinCount"><span id="coinBalance">1</span><span class="coin-unit">ラフトコイン</span></strong><button id="quickChat" aria-label="チャットを開く">▤ チャット</button></aside>
- <button id="nearBoard" hidden>開く</button><div id="gunCrosshair" hidden></div><div id="gunHud" hidden></div><div id="gunBattleHud" hidden></div><div id="gunHealthHud" hidden></div><div id="gunCountdown" hidden aria-live="polite"></div>
+ <button id="nearBoard" hidden>開く</button><div id="gunCrosshair" hidden></div><div id="gunHud" hidden></div><div id="gunBattleHud" hidden></div><div id="gunHealthHud" hidden></div><div id="gunCountdown" hidden aria-live="polite"></div><div id="gunDamageTint" aria-hidden="true"></div>
  <section id="pcDesktop" class="experience-panel" hidden><header><strong>VRS Desktop</strong><button id="closePC">閉じる</button></header><div id="desktopApps"><button id="pcChat">▤ チャット</button><button id="pcWeb">◎ ウェブ</button><button id="pcStore">▣ ストア</button></div><div id="pcContent"></div></section>
  <section id="teamPanel" class="experience-panel" hidden><header><strong>SAND TOWN · チーム</strong><button id="closeTeams">閉じる</button></header><p>入場順に自動割り振り。4人は2対2。開始前にアイコンを選び、移動先チームを押せます。配置地点は毎回ランダムです。</p><div id="teamModes"><button data-mode="auto">自動</button><button data-mode="solo">個人戦</button><button data-mode="teams">2チーム</button></div><div id="teamList"></div><button id="gunTravel">入場</button><p id="teamStatus"></p></section>
  <div id="scopeOverlay" hidden><div class="scope-circle"></div><span>離すと発砲</span></div>
@@ -21,7 +21,7 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
  const chatIcon='M2 3h20v14H10l-5 4v-4H2V3zm3 3v8h3v3l3-3h8V6H5zm2 2h10v2H7V8zm0 4h7v2H7v-2z';
  $('pcChat').innerHTML=appIcon(chatIcon)+'<span>チャット</span>';$('pcWeb').innerHTML=appIcon('M3 2h18v20H3V2zm3 3v3h3V5H6zm5 0v3h3V5h-3zm5 0v3h3V5h-3zM6 11v8h12v-8H6zm2 2h8v2H8v-2zm0 4h5v2H8v-2z')+'<span>ウェブ</span>';$('pcStore').innerHTML=appIcon('M8 2h8v4h5v16H3V6h5V2zm2 2v2h4V4h-4zM6 9v10h12V9H6zm2 2h2v3H8v-3zm6 0h2v3h-2v-3z')+'<span>ストア</span>';$('quickChat').innerHTML=appIcon(chatIcon)+'<span>チャット</span>';
  $('coinCount').prepend(coinIcon(32));const coinRewards=createCoinRewards(camera,{get,anchor:$('coinCount')});
- const bodycam=createBodycam(),worldAudio=createWorldAudio(camera),gunEffects=createGunEffects(scene);let aimYaw=null,aimPitch=null,swayX=0,swayY=0,lateralSway=0,forwardSway=0,walkBlend=0;let bodycamActive=false;const soundedShots=new Map(),seenImpacts=new Map();
+ const bodycam=createBodycam(),worldAudio=createWorldAudio(camera),gunEffects=createGunEffects(scene);let aimYaw=null,aimPitch=null,swayX=0,swayY=0,lateralSway=0,forwardSway=0,walkBlend=0,cameraLean=0,damageAnimation=null;let bodycamActive=false;const soundedShots=new Map(),seenImpacts=new Map();
  const interaction=createWorldInteraction(scene,camera,document.getElementById('scene'),p=>{if(bodycamActive&&!scoped)bodycam.mapNdc(p);});
  const firstRig=new THREE.Group();camera.add(firstRig);scene.add(camera);firstRig.position.set(.22,-.17,-.58);firstRig.rotation.y=Math.PI;
  const maxShots=96,maxMarks=128,shots=new Map(),marks=Array.from({length:maxMarks},()=>({until:0})),transform=new THREE.Object3D(),color=new THREE.Color(),up=new THREE.Vector3(0,0,1),direction=new THREE.Vector3();let markCursor=0;
@@ -58,6 +58,10 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
    else{const right=new THREE.Vector3(-Math.cos(s.yaw),0,Math.sin(s.yaw)),target=eye.clone().addScaledVector(direction,80),desired=eye.clone().addScaledVector(right,.62).addScaledVector(direction,-2.15);camera.position.copy(s.world.cameraPosition(eye,desired,.18));camera.lookAt(target);}
    camera.fov=scoped?18:bodycamActive?92:s.fov;firstRig.visible=(zone||s.cameraMode==='first')&&!scoped;
   }else{firstRig.visible=false;}
+  const canLean=bodycamActive&&!watching&&!s.ragdoll&&!s.seated&&s.grounded;
+  const sideSpeed=canLean?THREE.MathUtils.clamp((-Math.cos(s.yaw)*(s.moveX||0)+Math.sin(s.yaw)*(s.moveZ||0))/4,-1,1):0;
+  cameraLean+=(-sideSpeed*.018-cameraLean)*(1-Math.exp(-dt*7));
+  if(bodycamActive&&!watching&&!s.ragdoll){camera.rotateZ(cameraLean*(scoped?.35:1));camera.rotateX(recoil*(scoped?.08:.20));}
   if(bodycamActive&&!scoped){const phase=s.avatar?.animation.phase||0,walking=s.grounded&&!s.seated&&!s.ragdoll?Math.min(1,s.speed/4):0;camera.rotateZ(Math.sin(phase)*.0015*walking);camera.rotateX(Math.sin(phase*2)*.0004*walking);if(!weapon)camera.fov=92;}if(!bodycamActive)bodycam.reset();
   camera.updateProjectionMatrix();camera.updateMatrixWorld();$('scopeOverlay').hidden=!scoped||watching;
  }
@@ -85,7 +89,7 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
   firstRig.position.set(.25+swayX-lateralSway*.022+Math.sin(phase)*.010*walkBlend,-.25+swayY+Math.cos(phase*2)*.005*walkBlend+recoil*.14,-.85+recoil*.18-forwardSway*.009);
   // Keep the receiver upright while the right hand follows directional momentum.
   const targetX=-firstRig.position.x,targetY=-firstRig.position.y,targetZ=-70-firstRig.position.z;
-  firstRig.rotation.set(-Math.atan2(targetY,Math.hypot(targetX,targetZ))-recoil-forwardSway*.012,Math.atan2(targetX,targetZ)+swayX*.7-lateralSway*.014,Math.sin(phase)*.006*walkBlend+lateralSway*.025+swayX*.2,'YXZ');
+  firstRig.rotation.set(-Math.atan2(targetY,Math.hypot(targetX,targetZ))-recoil-forwardSway*.012,Math.atan2(targetX,targetZ)+swayX*.7-lateralSway*.014,Math.sin(phase)*.006*walkBlend-lateralSway*.010+swayX*.2,'YXZ');
   if(weaponId!==weapon?.id||firstHandOwner!==s.avatar){weaponId=weapon?.id;firstHandOwner=s.avatar;firstModel?.removeFromParent();firstModel=weapon?createGunModel(weapon.id):null;if(firstModel){firstModel.add(s.avatar?.createFirstPersonHand?.()||createFiringHand(s.avatar?.gripColor||'#bd9271'));firstRig.add(firstModel);}}updateGunFlash(firstModel);
   if(s.now-lastUi>150){lastUi=s.now;nearBoard=s.inStudio&&!s.paused&&!s.ragdoll?s.world?.boards.filter(b=>!b.editorHidden&&Math.hypot(s.player.position.x-b.x,s.player.position.z-b.z)<4&&Math.abs(s.player.position.y+1.5-b.y)<3).sort((a,b)=>Math.hypot(s.player.position.x-a.x,s.player.position.z-a.z)-Math.hypot(s.player.position.x-b.x,s.player.position.z-b.z)).find(b=>{const from=s.player.position.clone();from.y+=1.5;const to=new THREE.Vector3(b.x,b.y+1.25,b.z);return s.world.cameraPosition(from,to,.025,b.boardId).distanceTo(to)<.15;}):null;
    if(!nearBoard&&s.inStudio&&!s.paused){const origin=s.player.position.clone();origin.y+=1.05;const item=s.housing?.instrumentHit(origin,new THREE.Vector3(Math.sin(s.yaw),0,Math.cos(s.yaw)));if(item&&['chat','screen'].includes(item.kind))nearBoard={...item,kind:item.kind==='chat'?'pc':'screen',x:item.position.x,y:item.position.y,z:item.position.z};}
@@ -100,6 +104,7 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
   marks.forEach((mark,i)=>{if(mark.until>s.now){transform.position.copy(mark.position);transform.quaternion.copy(mark.rotation);transform.scale.setScalar(.07*Math.min(1,(mark.until-s.now)/1000));}else transform.scale.setScalar(0);transform.updateMatrix();holes.setMatrixAt(i,transform.matrix);});holes.instanceMatrix.needsUpdate=true;
  }
  function receive(message){const s=get();if(message.type==='coin-award'){if(message.playerId===s.selfId)coinRewards.award(message.amount);return true;}if(message.type==='gun-inventory'&&message.playerId===s.selfId){onCharacter(message.character);ammo=message.ammo;if(!$('pcDesktop').hidden&&$('pcContent').querySelector('.store-row'))refreshStore();return true;}
+  if(message.type==='gun-damage'){if(message.playerId===s.selfId&&s.inStudio){damageAnimation?.cancel();const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;damageAnimation=$('gunDamageTint').animate([{opacity:reduced?.38:.8},{opacity:.32,offset:.25},{opacity:0}],{duration:650,easing:'ease-out'});}return true;}
   if(message.type==='gun-error'&&message.playerId===s.selfId){notify(message.message);return true;}
   if(message.type==='pc-open'&&message.playerId===s.selfId){desktop();return true;}
   if(message.type==='gun-battle'){const previous=battle.phase,previousOut=selfMember()?.out;battle=message.battle;if(previous!=='active'&&battle.phase==='active'&&selfMember()){startFlashUntil=s.now+1400;close();}if(battle.phase!=='active')startFlashUntil=0;if(!previousOut&&selfMember()?.out){cancel();notify('脱落 · チームの決着まで観戦できます',5000);document.body.classList.add('gun-eliminated-flash');setTimeout(()=>document.body.classList.remove('gun-eliminated-flash'),600);}if(!$('teamPanel').hidden)renderTeams();return true;}
@@ -110,5 +115,5 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
  }
  function restorePosition(){try{return JSON.parse(localStorage.getItem(positionKey)||'null');}catch{return null;}}
  addEventListener('pagehide',()=>{if(get().connected)send({type:'position-save'});});document.addEventListener('visibilitychange',()=>{if(document.hidden&&get().connected)send({type:'position-save'});});
- return {get bodycamActive(){return bodycamActive;},renderBodycam(renderer,scene,camera){if(!bodycamActive)return false;bodycam.render(renderer,scene,camera,{...get(),scoped});return true;},get active(){return !$('pcDesktop').hidden||!$('teamPanel').hidden;},get scoped(){return scoped;},get watching(){return watching;},get eliminated(){return battle.phase==='active'&&!!selfMember()?.out;},get inZone(){return inGunZone(get().player?.position);},get battle(){return battle;},desktop,close,press,release,cancel,update,cameraOverride,receive,restorePosition,pointer:e=>interaction.pointer(e),key(e){if(interaction.key(e))return true;if(!this.active)return false;if(e.code==='Escape'){e.preventDefault();close();}return true;},disconnected(){interaction.hide();for(const tracer of tracerPool)tracer.life=0;coinRewards.clear();shots.clear();battle={phase:'waiting',members:[]};startFlashUntil=0;$('gunCountdown').hidden=$('gunHealthHud').hidden=true;ammo=null;recoil=recoilVelocity=0;aimYaw=aimPitch=null;walkBlend=lateralSway=forwardSway=0;cancel();close();}};
+ return {get bodycamActive(){return bodycamActive;},renderBodycam(renderer,scene,camera){if(!bodycamActive)return false;bodycam.render(renderer,scene,camera,{...get(),scoped});return true;},get active(){return !$('pcDesktop').hidden||!$('teamPanel').hidden;},get scoped(){return scoped;},get watching(){return watching;},get eliminated(){return battle.phase==='active'&&!!selfMember()?.out;},get inZone(){return inGunZone(get().player?.position);},get battle(){return battle;},desktop,close,press,release,cancel,update,cameraOverride,receive,restorePosition,pointer:e=>interaction.pointer(e),key(e){if(interaction.key(e))return true;if(!this.active)return false;if(e.code==='Escape'){e.preventDefault();close();}return true;},disconnected(){interaction.hide();for(const tracer of tracerPool)tracer.life=0;coinRewards.clear();shots.clear();battle={phase:'waiting',members:[]};startFlashUntil=0;$('gunCountdown').hidden=$('gunHealthHud').hidden=true;ammo=null;recoil=recoilVelocity=0;aimYaw=aimPitch=null;walkBlend=lateralSway=forwardSway=cameraLean=0;damageAnimation?.cancel();cancel();close();}};
 }

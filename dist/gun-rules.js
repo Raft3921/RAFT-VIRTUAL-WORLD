@@ -32,10 +32,10 @@ export class GunRules{
   const winner=alive[0]?.team??null;this.phase='finished';this.nextRoundAt=Date.now()+12000;const rewarded=new Set();
   for(const m of this.members.values()){const p=this.players().find(p=>p.id===m.id);if(p&&m.team===winner&&!rewarded.has(p.skin)){rewarded.add(p.skin);this.rules.onAsyncWork(Promise.resolve(this.reward(p,{coins:1,weapon:m.weapon})));}}
   this.send({type:'gun-result',winner,round:this.round});
-  // Finish rewards first, then restore every winning member's entry equipment.
-  const winners=[...this.members.values()].filter(m=>m.team===winner);this.shots=[];
-  winners.forEach((m,index)=>{const p=this.players().find(p=>p.id===m.id);this.remove(m.id,{publish:false,reassign:false});if(p)this.move(p,{...GUN_ENTRY,x:GUN_ENTRY.x-2+(index%3)*1.3,z:GUN_ENTRY.z+3+Math.floor(index/3)*1.5});});
-  this.publish();
+  // Finish rewards first, then restore every participant's entry equipment.
+  const participants=[...this.members.values()];this.shots=[];
+  participants.forEach((m,index)=>{const p=this.players().find(p=>p.id===m.id);this.remove(m.id,{publish:false,reassign:false});if(p)this.move(p,{...GUN_ENTRY,x:GUN_ENTRY.x-2+(index%3)*1.3,z:GUN_ENTRY.z+3+Math.floor(index/3)*1.5});});
+  this.phase='waiting';this.startAt=0;this.nextRoundAt=0;this.publish();
  }
  damage(owner,victim,shot,now){
   const attacker=this.members.get(owner.id),target=this.members.get(victim.id);
@@ -45,6 +45,7 @@ export class GunRules{
   }else if(this.rules.duel?.ids.includes(owner.id)||this.rules.duel?.ids.includes(victim.id))return;
   // Reuse light punch reaction; each pellet scores independently, without stun immunity.
   this.rules.hit(owner,victim,1,now,{kind:0,held:0});
+  this.send({type:'gun-damage',playerId:victim.id,remaining:target?Math.max(0,3-target.damage):null});
   if(target){this.publish();this.resolve();}
  }
  blocked(a,b,layouts,radius=.025){let first=projectileWallFraction(a,b,layouts,radius);const candidates=new Set(),steps=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/6));for(let i=0;i<=steps;i++){const point=interpolate(a,b,i/steps);for(const box of this.buckets.get(Math.floor(point.x/12)+','+Math.floor(point.z/12))||[])candidates.add(box);}for(const box of candidates){

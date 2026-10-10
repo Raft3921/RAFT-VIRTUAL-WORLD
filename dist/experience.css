@@ -24,3 +24,7 @@ body:has(#scopeOverlay:not([hidden])) #gunCrosshair{display:none!important;}
 #gunCountdown{position:fixed;left:50%;top:43%;transform:translate(-50%,-50%);z-index:45;color:#fff1bd;font:clamp(80px,18vmin,170px)/1 DotGothic16,monospace;text-shadow:4px 4px 0 #13212b,-2px -2px 0 #13212b;pointer-events:none;white-space:nowrap;}
 #gunCountdown[data-start=true]{color:#c6f5be;font-size:clamp(44px,11vmin,110px);}
 body[data-screen=lobby] :is(#gunHealthHud,#gunCountdown){display:none!important;}
+
+
+#gunDamageTint{position:fixed;inset:0;z-index:22;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(182,12,8,.08) 24%,rgba(190,15,10,.4) 68%,rgba(140,0,0,.85) 100%);}
+body[data-screen=lobby] #gunDamageTint{display:none!important;}

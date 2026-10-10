@@ -16,3 +16,11 @@ body[data-first-person="true"] :is(#economyHud,#gunHud,#gunBattleHud,#chatLatest
 #scopeOverlay .scope-circle{width:min(78vw,78vh);height:min(78vw,78vh);border:5px solid #151b20;border-radius:50%;box-shadow:0 0 0 5px #495158,0 0 0 8px #0a1015,0 0 0 200vmax rgba(0,0,0,.97),inset 0 0 38px 12px rgba(10,30,40,.32);background:radial-gradient(circle at 30% 18%,rgba(170,214,233,.08),transparent 48%),linear-gradient(transparent calc(50% - .5px),#172119 calc(50% - .5px),#172119 calc(50% + .5px),transparent calc(50% + .5px)),linear-gradient(90deg,transparent calc(50% - .5px),#172119 calc(50% - .5px),#172119 calc(50% + .5px),transparent calc(50% + .5px));}
 #scopeOverlay .scope-circle:after{content:"";position:absolute;left:calc(50% - 7px);top:50%;width:14px;height:20%;background:repeating-linear-gradient(to bottom,transparent 0,transparent 15px,rgba(20,32,22,.85) 15px,rgba(20,32,22,.85) 16px);}
 body:has(#scopeOverlay:not([hidden])) #gunCrosshair{display:none!important;}
+
+
+/* Essential match feedback remains visible over first-person bodycam. */
+#gunHealthHud{position:fixed;left:max(12px,env(safe-area-inset-left));top:max(12px,env(safe-area-inset-top));z-index:18;padding:5px 8px;background:#13212bb3;border:1px solid #94aca4;color:#eff8e5;font:12px DotGothic16,monospace;pointer-events:none;box-shadow:2px 2px 0 #0005;}
+#gunHealthHud[data-danger=true]{color:#ffc5a0;border-color:#df8f74;}
+#gunCountdown{position:fixed;left:50%;top:43%;transform:translate(-50%,-50%);z-index:45;color:#fff1bd;font:clamp(80px,18vmin,170px)/1 DotGothic16,monospace;text-shadow:4px 4px 0 #13212b,-2px -2px 0 #13212b;pointer-events:none;white-space:nowrap;}
+#gunCountdown[data-start=true]{color:#c6f5be;font-size:clamp(44px,11vmin,110px);}
+body[data-screen=lobby] :is(#gunHealthHud,#gunCountdown){display:none!important;}

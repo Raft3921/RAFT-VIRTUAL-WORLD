@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {createPortalViews,portalFrame,passageTransform} from './portal-view.js?v=20261010-shared64';
+import {createPortalViews,portalFrame,passageTransform} from './portal-view.js?v=20261010-mirror-entry65';
 import {HOUSES,ROOM,mirrorRealmKey,mirrorRealm,mirrorHouseKey,houseDescriptor} from './housing-data.js';
 
 // Portal windows render their linked rooms from the viewer’s perspective. A source mirror owns
@@ -99,27 +99,22 @@ export function createHousingMirrors(scene,world){
     const f=portalFrame(mesh),before=previous.clone().sub(f.center).dot(f.normal),after=position.clone().sub(f.center).dot(f.normal);
     return before>.025&&after<=.025&&after<before&&intersectsBody(mesh,position,height);
   }
-  // Open only the small part of a thin house wall covered by a live portal.
-  // All other parts retain their regular collision and camera obstruction.
+  // Walking never disables a wall collider. Portal entry is detected on its
+  // front side before the collider prevents crossing the mirror plane.
   world.portalPassage=(body,position,previous,height=1.9,cameraRay=false)=>{
-    if(body.h<.5)return false;
+    if(!cameraRay||body.h<.5)return false;
     const portals=livePortals();for(const space of spaces.values())for(const gate of space.gates.values())portals.push(gate.mesh);
     for(const mesh of portals){const f=portalFrame(mesh);if(Math.hypot(position.x-f.center.x,position.z-f.center.z)>Math.hypot(f.width,f.height)+5&&!cameraRay)continue;
       const c=Math.cos(body.rotation||0),sn=Math.sin(body.rotation||0),extent=Math.abs(f.normal.x*c-f.normal.z*sn)*body.w/2+Math.abs(f.normal.x*sn+f.normal.z*c)*body.d/2;
       if(extent>.45||Math.abs((body.x-f.center.x)*f.normal.x+(body.z-f.center.z)*f.normal.z)>extent+.18)continue;
       if(cameraRay){const a=previous.clone().sub(f.center).dot(f.normal),b=position.clone().sub(f.center).dot(f.normal);if(a*b>0||Math.abs(a-b)<.0001)continue;const crossingPoint=previous.clone().lerp(position,a/(a-b));mesh.updateWorldMatrix(true,false);probe.copy(crossingPoint).applyMatrix4(inverse.copy(mesh.matrixWorld).invert());if(Math.abs(probe.x)<.49&&Math.abs(probe.y)<.49)return true;
-      }else{
-        // The wall remains solid except during a forward crossing through the
-        // aperture. Walking sideways or away from a mirror cannot open it.
-        const before=previous.clone().sub(f.center).dot(f.normal),after=position.clone().sub(f.center).dot(f.normal);
-        if(before<-.05||after>=before||Math.abs(after)>.55)continue;
-        mesh.updateWorldMatrix(true,false);probe.set(position.x,position.y+height*.5,position.z).applyMatrix4(inverse.copy(mesh.matrixWorld).invert());
-        if(Math.abs(probe.x)+.32/f.width<.5&&Math.abs(probe.y)<.5&&intersectsBody(mesh,position,height))return true;
       }
     }return false;
   };
   function travel(source,destination,position,entering,realm,time){
-    const matrix=passageTransform(source,destination),newPosition=position.clone().applyMatrix4(matrix),rotation=new THREE.Matrix3().setFromMatrix4(matrix),heading=new THREE.Vector3(0,0,1).applyMatrix3(rotation),yawDelta=Math.atan2(heading.x,heading.z);
+    const sourceFrame=portalFrame(source),entryPosition=position.clone(),distance=entryPosition.clone().sub(sourceFrame.center).dot(sourceFrame.normal);
+    if(distance>0)entryPosition.addScaledVector(sourceFrame.normal,-distance-.4);
+    const matrix=passageTransform(source,destination),newPosition=entryPosition.applyMatrix4(matrix),rotation=new THREE.Matrix3().setFromMatrix4(matrix),heading=new THREE.Vector3(0,0,1).applyMatrix3(rotation),yawDelta=Math.atan2(heading.x,heading.z);
     active=realm;cooldownUntil=time+.12;bridge={source,destination,matrix:matrix.clone(),inverse:matrix.clone().invert()};
     return {position:newPosition,yawDelta,matrix,rotation,entering,seamless:true};
   }
@@ -137,7 +132,7 @@ export function createHousingMirrors(scene,world){
   }
   function step(position,velocity,height,time,previous){
     if(!previous||time<cooldownUntil)return null;
-    const enters=mesh=>travelMode==='classic'?approaching(mesh,position,previous,velocity,height):crossing(mesh,position,previous,height);
+    const enters=mesh=>{if(travelMode==='classic')return approaching(mesh,position,previous,velocity,height);if(crossing(mesh,position,previous,height))return true;const f=portalFrame(mesh),distance=position.clone().sub(f.center).dot(f.normal);return distance>=0&&distance<=.6&&velocity.dot(f.normal)<-.02&&intersectsBody(mesh,position,height);};
     if(active){const space=createSpace(active);if(!space)return null;refreshGateways(space);for(const gate of space.gates.values())if(enters(gate.mesh))return travelMode==='classic'?classicTravel(counterpart(gate),null,time):travel(gate.mesh,counterpart(gate),position,false,null,time);
       for(const e of entries){const h=houseDescriptor(e.house);if(h?.realm===active&&originals().some(p=>p.house===h.sourceIndex&&p.id===e.id)&&enters(e.mesh))return travelMode==='classic'?classicTravel(counterpart({house:h.sourceIndex,id:e.id}),null,time):travel(e.mesh,counterpart({house:h.sourceIndex,id:e.id}),position,false,null,time);}return null;}
     for(const entry of originals()){if(!enters(entry.mesh))continue;const key=mirrorRealmKey(entry.house,entry.id),space=createSpace(key);if(!space)continue;const gate=space.gates.get(entry.house+':'+entry.id);if(gate)return travelMode==='classic'?classicTravel(gate,key,time):travel(entry.mesh,gate.mesh,position,true,key,time);}return null;

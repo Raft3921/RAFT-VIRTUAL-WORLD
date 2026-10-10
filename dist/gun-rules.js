@@ -22,7 +22,7 @@ export class GunRules{
   const previousWeapon=p.equippedWeapon||null;this.members.set(p.id,{id:p.id,skin:p.skin,team:0,damage:0,out:false,manual:false,weapon,previousWeapon});if(previousWeapon!==weapon){p.equippedWeapon=weapon;this.rules.onAsyncWork(this.rules.characters.change(p.skin,{equippedWeapon:weapon}));}this.economy(p);this.assign();this.teleport(p,this.members.get(p.id).team);this.phase='waiting';this.startAt=this.members.size>=2?Date.now()+3000:0;this.publish();this.ensureTimer();
  }
  state(p){const m=this.members.get(p.id);if(m){if(!inGunZone(p)){if(m.lastPosition)this.move(p,m.lastPosition);else this.teleport(p,m.team);}p.flight=false;p.seated=false;p.sleeping=false;m.lastPosition={x:p.x,y:p.y,z:p.z,yaw:p.yaw};if(m.out&&this.phase==='active'){p.speed=0;Object.assign(p,m.outPosition||m.lastPosition);p.vx=p.vy=p.vz=0;}}else if(inGunZone(p)){this.move(p,{...GUN_ENTRY,z:GUN_ENTRY.z+3});}}
- remove(id){const m=this.members.get(id);if(!m)return;this.members.delete(id);const p=this.players().find(p=>p.id===id);if(p)p.equippedWeapon=m.previousWeapon;this.rules.onAsyncWork(this.rules.characters.change(m.skin,{equippedWeapon:m.previousWeapon}));if(p)this.economy(p);for(const key of this.ammo.keys())if(key.startsWith(id+':'))this.ammo.delete(key);if(this.phase==='active'){this.phase='finished';this.nextRoundAt=Date.now()+8000;this.send({type:'gun-result',winner:null,round:this.round});}else{this.assign();this.startAt=this.members.size>=2?Date.now()+3000:0;}this.publish();}
+ remove(id,{publish=true,reassign=true}={}){const m=this.members.get(id);if(!m)return;this.members.delete(id);const p=this.players().find(p=>p.id===id);if(p)p.equippedWeapon=m.previousWeapon;this.rules.onAsyncWork(this.rules.characters.change(m.skin,{equippedWeapon:m.previousWeapon}));if(p)this.economy(p);for(const key of this.ammo.keys())if(key.startsWith(id+':'))this.ammo.delete(key);if(this.phase==='active'){this.phase='finished';this.nextRoundAt=Date.now()+8000;this.send({type:'gun-result',winner:null,round:this.round});}else if(reassign){this.assign();this.startAt=this.members.size>=2?Date.now()+3000:0;}if(publish)this.publish();}
  begin(now){if(this.members.size<2||new Set([...this.members.values()].map(m=>m.team)).size<2){this.startAt=0;this.publish();return;}
   this.phase='active';this.round++;this.shots=[];this.startAt=0;
   for(const m of this.members.values()){const p=this.players().find(p=>p.id===m.id);if(!p)continue;m.damage=0;m.out=false;m.weapon=p.equippedWeapon||'pistol';this.teleport(p,m.team);for(const key of this.ammo.keys())if(key.startsWith(p.id+':'))this.ammo.delete(key);this.economy(p);}
@@ -31,7 +31,11 @@ export class GunRules{
  resolve(){if(this.phase!=='active')return;const alive=[...this.members.values()].filter(m=>!m.out),teams=new Set(alive.map(m=>m.team));if(teams.size>1)return;
   const winner=alive[0]?.team??null;this.phase='finished';this.nextRoundAt=Date.now()+12000;const rewarded=new Set();
   for(const m of this.members.values()){const p=this.players().find(p=>p.id===m.id);if(p&&m.team===winner&&!rewarded.has(p.skin)){rewarded.add(p.skin);this.rules.onAsyncWork(Promise.resolve(this.reward(p,{coins:1,weapon:m.weapon})));}}
-  this.send({type:'gun-result',winner,round:this.round});this.publish();
+  this.send({type:'gun-result',winner,round:this.round});
+  // Finish rewards first, then restore every winning member's entry equipment.
+  const winners=[...this.members.values()].filter(m=>m.team===winner);this.shots=[];
+  winners.forEach((m,index)=>{const p=this.players().find(p=>p.id===m.id);this.remove(m.id,{publish:false,reassign:false});if(p)this.move(p,{...GUN_ENTRY,x:GUN_ENTRY.x-2+(index%3)*1.3,z:GUN_ENTRY.z+3+Math.floor(index/3)*1.5});});
+  this.publish();
  }
  damage(owner,victim,shot,now){
   const attacker=this.members.get(owner.id),target=this.members.get(victim.id);

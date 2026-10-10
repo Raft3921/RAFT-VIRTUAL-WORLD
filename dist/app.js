@@ -1,24 +1,24 @@
-import {createWorldExperience} from './world-experience.js?v=20261010-countdown38';
+import {createWorldExperience} from './world-experience.js?v=20261010-motion39';
 import {inGunZone,weaponById} from './gun-layout.js';
-import {createWorldChat} from './world-chat.js?v=20261010-countdown38';
-import {startUpdateNotice} from './update-notice.js?v=20261010-countdown38';
+import {createWorldChat} from './world-chat.js?v=20261010-motion39';
+import {startUpdateNotice} from './update-notice.js?v=20261010-motion39';
 import {memberColor} from './housing-data.js';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261010-countdown38';
+import { createAvatar } from './avatar.js?v=20261010-motion39';
 import { createEnvironment } from './environment.js';
-import { createWorld } from './world.js?v=20261010-countdown38';
+import { createWorld } from './world.js?v=20261010-motion39';
 import { ARENA,insideArena } from './world-layout.js';
 import { SYNC_ENDPOINT } from './sync-config.js';
 import { ATTACKS,chargeAttack } from './combat-motion.js';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js';
 import { createCombatEffects } from './combat-effects.js';
 import { createBrownProjectiles } from './brown-projectiles.js';
-import { SYNC_VERSION } from './game-rules.js?v=20261010-countdown38';
+import { SYNC_VERSION } from './game-rules.js?v=20261010-motion39';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js';
 import { cleanCharacter } from './character-store.js';
-import { createHousingRenderer } from './housing-renderer.js?v=20261010-countdown38';
+import { createHousingRenderer } from './housing-renderer.js?v=20261010-motion39';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261010-countdown38';
+import { createHouseEditor } from './house-editor.js?v=20261010-motion39';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js';
 import {createWorldGuide} from './world-guide.js';
@@ -275,7 +275,7 @@ const guestButton=document.createElement('button');guestButton.className='charac
 async function replaceSkin(i,url){const actor=await playerAvatar(i,url);const old=actors[i];if(old){actor.root.position.copy(old.root.position);actor.root.rotation.copy(old.root.rotation);scene.remove(old.root);old.dispose()}actors[i]=actor;const appearance=cachedCharacter(i);actor.setAppearance(appearance.appearanceLevel,appearance.crownEnabled);scene.add(actor.root);makeFace(url,faces[i]);updateSelection();updateVisibility()}
 worldChat=createWorldChat({names:skinDefs.map(s=>s[0]),skinURL,makeFace,getSelfId:()=>roomSelfId,isConnected:()=>roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,send:message=>roomSocket.send(JSON.stringify(message)),onOpen(){if(housingEditor?.active)housingEditor.close();worldGuide?.close(false);setClean(false);unlocked();punchSwing=0;pendingAttack=null;queuedAttack=null;},onClose(){clearInput();canvas.focus();}});
 experience=createWorldExperience({scene,camera,names:skinDefs.map(s=>s[0]),skinURL,makeFace,
- get:()=>({skin:selected,targets:[...remoteActors.values()].map(r=>r.actor.root),remoteTeleport:(id,position)=>{const r=remoteActors.get(id);if(r){r.target.set(position.x,position.y,position.z);r.actor.root.position.copy(r.target);r.yaw=position.yaw;}},avatar:actors[selected],houseInteraction:housingEditor?.interaction,flashActor:id=>{if(id===roomSelfId)actors[selected]?.fireGun();else remoteActors.get(id)?.actor.fireGun();},selfId:roomSelfId,player:actors[selected]?.root,character:cachedCharacter(),connected:roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,paused:paused(),ragdoll:localRagdoll,seated,seat,inStudio,world,housing:housingView,now:serverNow(),time,yaw,pitch,cameraMode,eyeHeight:actors[selected]?.eyeHeight||1.68,speed:velocity.length(),fov,duelPlaying:duelIds.length>0,muzzle:point=>emitParticles(point,'#ffe4a0',2,.6,0),impact:(point,explosion)=>{emitParticles(point,explosion?'#ffad52':'#ded0b7',explosion?32:5,explosion?7:1.5,7);if(explosion)shockwave(point,.8);}}),
+ get:()=>({skin:selected,targets:[...remoteActors.values()].map(r=>r.actor.root),remoteTeleport:(id,position)=>{const r=remoteActors.get(id);if(r){r.target.set(position.x,position.y,position.z);r.actor.root.position.copy(r.target);r.yaw=position.yaw;}},avatar:actors[selected],houseInteraction:housingEditor?.interaction,flashActor:id=>{if(id===roomSelfId)actors[selected]?.fireGun();else remoteActors.get(id)?.actor.fireGun();},selfId:roomSelfId,player:actors[selected]?.root,character:cachedCharacter(),connected:roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,paused:paused(),ragdoll:localRagdoll,seated,seat,inStudio,world,housing:housingView,now:serverNow(),time,yaw,pitch,cameraMode,eyeHeight:actors[selected]?.eyeHeight||1.68,speed:velocity.length(),moveX:velocity.x,moveZ:velocity.z,grounded,verticalSpeed,fov,duelPlaying:duelIds.length>0,muzzle:point=>emitParticles(point,'#ffe4a0',2,.6,0),impact:(point,explosion)=>{emitParticles(point,explosion?'#ffad52':'#ded0b7',explosion?32:5,explosion?7:1.5,7);if(explosion)shockwave(point,.8);}}),
  send:message=>{if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));else notify('サーバーに接続してください');},notify,
  openChat:()=>{closeWorldMenu();worldChat.open();if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'chat-open'}));},openMenu:openWorldMenu,
  onModal:active=>{if(active){if(housingEditor?.active)housingEditor.close();worldGuide?.close(false);closeWorldMenu();$('menu').hidden=$('master').hidden=true;unlocked();setClean(false);}clearInput();},

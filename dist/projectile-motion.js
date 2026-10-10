@@ -1,5 +1,5 @@
-import {ARENA} from './world-layout.js?v=20261011-free-cook73';
-import {HOUSES,houseDescriptor,ROOM,FURNITURE_BY_ID,furniturePose} from './housing-data.js?v=20261011-free-cook73';
+import {ARENA} from './world-layout.js?v=20261011-free-cook74';
+import {HOUSES,houseDescriptor,ROOM,FURNITURE_BY_ID,furniturePose} from './housing-data.js?v=20261011-free-cook74';
 export const BROWN_PROJECTILE={speed:15,up:1.2,gravity:2,radius:.19,life:1.5,damage:2};
 export function projectileAt(p,now){const t=Math.max(0,Math.min(BROWN_PROJECTILE.life,(now-p.born)/1000));return {x:p.x+p.vx*t,y:p.y+p.vy*t-BROWN_PROJECTILE.gravity*t*t/2,z:p.z+p.vz*t};}
 export function segmentBox(a,b,box,radius=0){

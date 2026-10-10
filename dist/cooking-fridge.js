@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import {part,foodModel} from './cooking-models.js?v=20261011-free-cook73';
-import {INGREDIENTS} from './cooking-data.js?v=20261011-free-cook73';
+import {part,foodModel} from './cooking-models.js?v=20261011-free-cook74';
+import {INGREDIENTS} from './cooking-data.js?v=20261011-free-cook74';
 
 export function fridgeModel(station,session,pickable){
  const root=new THREE.Group(),door=new THREE.Group(),w=station.w*.88,h=station.h*.88,d=station.d*.88;pickable(root,station,'fridge-body');

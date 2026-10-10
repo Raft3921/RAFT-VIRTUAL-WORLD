@@ -1,6 +1,6 @@
-import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261011-free-cook73';
-import {expandedParts} from './furniture-shapes.js?v=20261011-free-cook73';
-import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook73';
+import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261011-free-cook74';
+import {expandedParts} from './furniture-shapes.js?v=20261011-free-cook74';
+import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook74';
 const WOOD='#bd9166',DARK='#354353',METAL='#87929a',WHITE='#f4eee2',LEAF='#52a96d';
 const partsCache=new Map();
 export function furnitureParts(item){

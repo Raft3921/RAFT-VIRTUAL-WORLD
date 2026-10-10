@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {FOOD_BY_ID} from './cooking-data.js?v=20261011-free-cook73';
+import {FOOD_BY_ID} from './cooking-data.js?v=20261011-free-cook74';
 
 const cube=new THREE.BoxGeometry(1,1,1),material=new THREE.MeshStandardMaterial({roughness:.76,metalness:0}),pose=new THREE.Object3D();
 const palette={tomato:'#f34f35',carrot:'#ff9235',pepper:'#69bd42',broccoli:'#42a65b',spinach:'#4fba57',cabbage:'#9ed650',lettuce:'#b5df5e',pumpkin:'#eea23b',corn:'#ffd153',apple:'#ee574b',strawberry:'#f25058',orange:'#ffa531',lemon:'#ffe05a',banana:'#ffd65b',grape:'#ad69c8',peach:'#ffad7d',pineapple:'#efb43f',salmon:'#ff976d',tuna:'#e85b70',beef:'#df6558',pork:'#ffb49a',shrimp:'#ffad80',egg:'#fff1be',rice:'#fff5d9',pasta:'#ffd77c',noodles:'#ffc960',udon:'#fff0cb',bread:'#dba253',potato:'#d5a65f',onion:'#efd096',tofu:'#fff5da',cheese:'#ffcf58',butter:'#ffe08b'};
@@ -16,7 +16,12 @@ export function voxelFood(food,{portion=false}={}){
  const f=FOOD_BY_ID.get(food.id);if(!f)return new THREE.Group();const b=builder();
  let color=palette[f.id]||f.color;
  if(food.peeled&&['potato','onion','radish','apple'].includes(f.id))color='#ffe1a4';
- if(food.progress>0){const cooked=['meat','fish'].includes(f.group)?'#d79850':f.group==='vegetable'?'#a7b84b':color;color=new THREE.Color(color).lerp(new THREE.Color(cooked),Math.min(.8,Math.floor(food.progress/Math.max(1,f.time)*5)/5)).getStyle();}
+ if(food.progress>0){
+  const browned=['fry','bake'].includes(food.method),leafy=['spinach','broccoli','cabbage','lettuce','pepper','leek'].includes(f.id);
+  const warm={potato:browned?'#edb856':'#ffe4a5',onion:browned?'#dca35a':'#f8dda0',carrot:'#f9a347',pumpkin:'#f3b551',corn:'#ffd15a',mushroom:'#c89864',egg:'#ffe3a5'};
+  const cooked=warm[f.id]||(['meat','fish'].includes(f.group)?'#dc9b59':leafy?'#6eae4f':color);
+  color=new THREE.Color(color).lerp(new THREE.Color(cooked),Math.min(.85,food.progress/Math.max(1,f.time)*.85)).getStyle();
+ }
  if(food.burn>35)color='#875036';
  const blob=(nx,ny,nz,size,at,c=color)=>b.grid(nx,ny,nz,size,at,c,(x,y,z)=>Math.pow((x-(nx-1)/2)/(nx*.53),2)+Math.pow((y-(ny-1)/2)/(ny*.56),2)+Math.pow((z-(nz-1)/2)/(nz*.53),2)<1);
  if(portion&&(['milk','cream','yogurt'].includes(f.id)||['cheese','butter'].includes(f.id)&&food.progress>3)){blob(8,1,7,.023,[0,0,0],color);return model(b.blocks);}

@@ -1,5 +1,17 @@
 # RAFT-VIRTUAL-WORLD
 
+## Cooking touch controls, block cookware and crouching — 2026-10-11 / cook74
+
+Potatoes now turn golden when fried/baked and creamy when boiled; leaf vegetables, roots and meat use separate cooking colours. The cooking readout lists the actual ingredients in a vessel, individual heating progress, cooked state and burning, with persistent action feedback. Aim at a vessel with another ingredient to add it, or pour from another vessel to combine food, water and seasonings. The touch action label changes for adding food, sprinkling, cutting and placing.
+
+Cookware, jars, handles and utensils now use box geometry, including hollow square pan/pot walls, stepped square bowls and open square rims. The cutting board, tool shelves, spice shelves and cookware shelf also provide object collision surfaces for free placement. District stall goods/front canopy strips and gun-town market roofs no longer opt out of collision.
+
+Cooking hides combat/jump controls and provides separate touch buttons for using the aimed object, opening equipment settings and placement. Touch detection happens in the cooking input owner; a second touch no longer replaces the view pointer, and picking up food no longer clears a held movement joystick. Category, cut-style, heating and timer menus are reachable through the equipment button. Desktop retains E/Q and direct clicks.
+
+Flight ascent/descent buttons have explicit labels and separate screen space from jumping. C or the on-screen crouch toggle lowers the camera, bends the avatar, reduces walking speed and collision height; it works while cooking to reach lower shelves. Standing up waits for headroom. Crouch state is shared with other players and reduces the server gun-hit box as well.
+
+Per the standing user instruction, no tests, validation commands, builds for validation or browser/device checks were run. Commit/push and Worker deployment are publication only.
+
 ## Voxel ingredients and free placement — 2026-10-11 / cook73
 
 Every ingredient and assembled solid-food base now uses equal-sided cubic voxels with warmer, brighter colours, including cut pieces, cooked noodles, rice, bread, dairy portions and dough. Food batches use instancing; replaced batches release their instance resources. Cookware, liquids and cooking effects retain their existing shapes.

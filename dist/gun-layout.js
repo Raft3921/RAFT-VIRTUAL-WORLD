@@ -63,7 +63,7 @@ export function buildGunTown({box,board=()=>{},sign=()=>{}}){
  // Crossroads plaza: a dry fountain, low cover and a shaded arcade.
  box(182,.145,-100,15,.07,11,trim);box(182,.43,-102,5.6,.7,4.8,brick);box(182,.82,-102,4.8,.12,4,trim);box(182,1.3,-102,1.2,1.1,1.2,stone);box(182,2.02,-102,1.7,.32,1.7,trim);
  for(const x of [174,190]){box(x,2.1,-102,.7,4.2,.7,stone);box(x,4.35,-102,1.15,.4,1.15,trim);}box(182,4.7,-102,17,.35,1.1,stone);detail(182,4.93,-102,12,.15,1.3,rust);
- function market(x,z,accent){for(const dx of [-2.6,2.6])for(const dz of [-1.4,1.4])box(x+dx,1.8,z+dz,.16,3.6,.16,dark);for(let i=0;i<6;i++)detail(x-2.5+i,3.65,z,1,.15,3.4,i%2?trim:accent);box(x,.9,z+.6,4.8,1.8,1,dark);for(const dx of [-1.5,0,1.5])box(x+dx,1.95,z+.6,1.1,.3,.7,brick);}
+ function market(x,z,accent){for(const dx of [-2.6,2.6])for(const dz of [-1.4,1.4])box(x+dx,1.8,z+dz,.16,3.6,.16,dark);for(let i=0;i<6;i++)box(x-2.5+i,3.65,z,1,.15,3.4,i%2?trim:accent);box(x,.9,z+.6,4.8,1.8,1,dark);for(const dx of [-1.5,0,1.5])box(x+dx,1.95,z+.6,1.1,.3,.7,brick);}
  market(174,-112,teal);market(192,-76,rust);market(171,-70,blue);
  // Low maze walls interrupt long sightlines without closing circulation.
  for(const [x,z,w,d]of [[171,-87,.45,9],[178,-80,9,.45],[195,-97,.45,7],[191,-108,7,.45],[146,-72,6,.4],[217,-112,.4,9],[216,-72,6,.4]]){box(x,1.1,z,w,2.2,d,stone);box(x,2.25,z,w+.2,.16,d+.2,trim);}

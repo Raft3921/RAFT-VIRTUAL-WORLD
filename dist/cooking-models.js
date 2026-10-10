@@ -1,15 +1,8 @@
 import * as THREE from 'three';
-import {describeDish} from './cooking-data.js?v=20261011-free-cook73';
-import {voxelFood,voxelMound} from './cooking-food.js?v=20261011-free-cook73';
-const profile=points=>new THREE.LatheGeometry(points.map(([x,y])=>new THREE.Vector2(x,y)),32);
-const geometries={
- box:new THREE.BoxGeometry(1,1,1),round:new THREE.SphereGeometry(.5,16,10),disc:new THREE.CylinderGeometry(.5,.5,1,32),
- tube:new THREE.CylinderGeometry(.5,.5,1,32,1,true),cone:new THREE.ConeGeometry(.5,1,12),
- rim:new THREE.TorusGeometry(.48,.025,8,32).rotateX(Math.PI/2),
- wire:new THREE.TorusGeometry(.42,.022,6,24),
- bowl:profile([[0,0],[.22,0],[.36,.15],[.47,.65],[.5,1],[.46,1],[.43,.67],[.32,.2],[0,.15]]),
- basket:profile([[0,0],[.35,0],[.49,.9],[.5,1],[.465,1],[.315,.1],[0,.1]])
-},materials=new Map();
+import {describeDish} from './cooking-data.js?v=20261011-free-cook74';
+import {voxelFood,voxelMound} from './cooking-food.js?v=20261011-free-cook74';
+import {cookingGeometry as geometries} from './cooking-blocks.js?v=20261011-free-cook74';
+const materials=new Map();
 function material(color){
  if(!materials.has(color)){
   const metal=['#b9c8cf','#e9f1f4','#536675'].includes(color);

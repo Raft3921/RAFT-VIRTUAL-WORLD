@@ -1,7 +1,7 @@
-import {fallbackMuzzle} from './weapon-dimensions.js?v=20261011-free-cook73';
-import {WEAPONS,weaponById,inGunZone,GUN_SPAWNS,GUN_SOLIDS,GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261011-free-cook73';
-import {segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261011-free-cook73';
-import {buildDistrict} from './district.js?v=20261011-free-cook73';
+import {fallbackMuzzle} from './weapon-dimensions.js?v=20261011-free-cook74';
+import {WEAPONS,weaponById,inGunZone,GUN_SPAWNS,GUN_SOLIDS,GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261011-free-cook74';
+import {segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261011-free-cook74';
+import {buildDistrict} from './district.js?v=20261011-free-cook74';
 const district=[];buildDistrict({box:(x,y,z,w,h,d,color,solid=true)=>{if(solid)district.push({x,y,z,w,h,d});},board:()=>{},sign:()=>{},seats:[],clockHands:[]});
 const interpolate=(a,b,t)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,z:a.z+(b.z-a.z)*t});
 export class GunRules{
@@ -63,7 +63,7 @@ export class GunRules{
   ammo.lastAt=now;ammo.left--;this.ammo.set(p.id+':'+weapon.id,ammo);this.economy(p);
   const expected=fallbackMuzzle(p,weapon.id,aim),requested=message.muzzle;
   let origin=requested&&[requested.x,requested.y,requested.z].every(Number.isFinite)&&Math.hypot(requested.x-p.x,requested.z-p.z)<2.3&&requested.y>p.y+.2&&requested.y<p.y+2.8?{x:requested.x,y:requested.y,z:requested.z}:expected;
-  const shoulder={x:p.x-Math.cos(p.yaw)*.3,y:p.y+(p.skin===7?1:1.4),z:p.z+Math.sin(p.yaw)*.3},fraction=this.blocked(shoulder,origin,this.rules.houses.snapshots(),.02);if(fraction!==null)origin=interpolate(shoulder,origin,fraction);
+  const shoulder={x:p.x-Math.cos(p.yaw)*.3,y:p.y+(p.skin===7?1:1.4)-(p.crouched?.52:0),z:p.z+Math.sin(p.yaw)*.3},fraction=this.blocked(shoulder,origin,this.rules.houses.snapshots(),.02);if(fraction!==null)origin=interpolate(shoulder,origin,fraction);
   for(let i=0;i<weapon.pellets;i++){
    const dx=aim.x/length+(Math.random()-.5)*weapon.spread*2,dy=aim.y/length+(Math.random()-.5)*weapon.spread*2,dz=aim.z/length+(Math.random()-.5)*weapon.spread*2,n=Math.hypot(dx,dy,dz);
    const shot={id:'gun-'+(++this.sequence),owner:p.id,weapon:weapon.id,serial:message.serial,position:{...origin},origin:{...origin},vx:dx/n*weapon.speed,vy:dy/n*weapon.speed,vz:dz/n*weapon.speed,born:now,lastAt:now,life:weapon.range/weapon.speed,round:inGunZone(p)?this.round:null};this.shots.push(shot);this.send({type:'gun-shot',shot});
@@ -79,7 +79,7 @@ export class GunRules{
   for(const shot of this.shots){const owner=players.find(p=>p.id===shot.owner);if(!owner||shot.round!==null&&(this.phase!=='active'||shot.round!==this.round))continue;
    const shotDt=Math.max(0,Math.min(.2,(now-(shot.lastAt||shot.born))/1000,shot.life-((shot.lastAt||shot.born)-shot.born)/1000));shot.lastAt=now;const a=shot.position,b={x:a.x+shot.vx*shotDt,y:a.y+shot.vy*shotDt,z:a.z+shot.vz*shotDt},weapon=weaponById(shot.weapon),radius=weapon.radius ? .18 : .025;let first=this.blocked(a,b,layouts,radius),victim=null;
    for(const q of players){if(q.id===owner.id)continue;const own=this.members.get(owner.id),target=this.members.get(q.id);if(shot.round!==null&&(!target||target.out||target.team===own?.team))continue;if(shot.round===null&&inGunZone(q))continue;
-    const fraction=segmentBox(a,b,{x:q.x,y:q.y+.9,z:q.z,w:.65,h:1.8,d:.65},radius);if(fraction!==null&&(first===null||fraction<first)){first=fraction;victim=q;}}
+    const height=q.crouched?1.28:1.8,fraction=segmentBox(a,b,{x:q.x,y:q.y+height/2,z:q.z,w:.65,h:height,d:.65},radius);if(fraction!==null&&(first===null||fraction<first)){first=fraction;victim=q;}}
    if(first!==null){const point=interpolate(a,b,first);this.impact({type:'gun-impact',id:shot.id,position:point,explosion:!!weapon.radius,velocity:{x:shot.vx,y:shot.vy,z:shot.vz},wall:!victim});
     if(weapon.radius){for(const q of players){if(q.id===owner.id)continue;const center={x:q.x,y:q.y+.9,z:q.z};if(Math.hypot(center.x-point.x,center.y-point.y,center.z-point.z)>weapon.radius)continue;
       const direction={x:center.x-point.x,y:center.y-point.y,z:center.z-point.z},size=Math.hypot(direction.x,direction.y,direction.z)||1,from={x:point.x+direction.x/size*.25,y:point.y+direction.y/size*.25,z:point.z+direction.z/size*.25};if(this.blocked(from,center,layouts,.01)===null)this.damage(owner,q,shot,now);}}

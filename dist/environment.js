@@ -1,4 +1,4 @@
-import {GUN_ZONE} from './gun-layout.js?v=20261011-free-cook73';
+import {GUN_ZONE} from './gun-layout.js?v=20261011-free-cook74';
 import * as THREE from 'three';
 
 // All vegetation and terrain are geometry/shaders: no image textures or downloads.

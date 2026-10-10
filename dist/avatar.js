@@ -1,9 +1,9 @@
-import {createGunModel,triggerGunFlash,updateGunFlash} from './gun-visual.js?v=20261011-free-cook73';
+import {createGunModel,triggerGunFlash,updateGunFlash} from './gun-visual.js?v=20261011-free-cook74';
 import * as THREE from 'three';
-import {withLocalLighting} from './local-lighting.js?v=20261011-free-cook73';
-import { sampleAttack,sampleCharge } from './combat-motion.js?v=20261011-free-cook73';
-import { sampleHit } from './hit-reaction.js?v=20261011-free-cook73';
-import { jemAvatarDefinition } from './jem-avatar.js?v=20261011-free-cook73';
+import {withLocalLighting} from './local-lighting.js?v=20261011-free-cook74';
+import { sampleAttack,sampleCharge } from './combat-motion.js?v=20261011-free-cook74';
+import { sampleHit } from './hit-reaction.js?v=20261011-free-cook74';
+import { jemAvatarDefinition } from './jem-avatar.js?v=20261011-free-cook74';
 
 const PX = 1 / 16;
 const TAU = Math.PI * 2;
@@ -326,9 +326,9 @@ export async function createAvatar(url,{model=null}={}) {
     const breathing = Math.sin(elapsed * 1.7);
     const bob = (1 - Math.cos(phase * 2)) * .0055 * motion;
     braking=damp(braking,clamp((previousSpeed-speed)*1.6,0,.16),18,dt);previousSpeed=speed;
-    pelvis.position.set(0,(-.085 * motion + bob - landing)*motionScale,0);
+    pelvis.position.set(0,(-.085 * motion + bob - landing - (state.crouched&&!state.ragdoll&&!state.seated&&!state.sleeping?.48:0))*motionScale,0);
     pelvis.rotation.set(0,0,0);
-    torso.rotation.x = damp(torso.rotation.x, motion * (.07 + running * .10) - braking + airborne * .05 + flying * .38, 16, dt);
+    torso.rotation.x = damp(torso.rotation.x, motion * (.07 + running * .10) + (state.crouched?.13:0) - braking + airborne * .05 + flying * .38, 16, dt);
     torso.rotation.y = Math.sin(phase) * .035 * motion;
     torso.rotation.z = Math.sin(phase) * .012 * motion;
     // Breathing is limited to the upper body so the feet never bounce at rest.

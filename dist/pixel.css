@@ -137,6 +137,25 @@ body[data-touch=true] #stickKnob{width:48px;height:48px;left:calc(50% - 24px);to
 @media(orientation:landscape) and (max-height:500px){body[data-touch=true] #moveStick{width:110px;height:110px;bottom:calc(14px + env(safe-area-inset-bottom))}body[data-touch=true] #punchBtn{width:68px;height:68px;min-height:68px;bottom:calc(16px + env(safe-area-inset-bottom))}body[data-touch=true] #jumpBtn{bottom:calc(102px + env(safe-area-inset-bottom))}}
 
 /* Safari: scroll the whole library instead of shrinking a nested flex grid to zero. */
+/* Keep descending, crouching and kitchen actions reachable without a keyboard. */
+#flightControls{display:flex;flex-direction:column;gap:8px;right:calc(110px + env(safe-area-inset-right));bottom:calc(96px + env(safe-area-inset-bottom));z-index:7}
+#flightControls button{width:90px;height:52px;min-height:52px;font-size:15px;touch-action:none}
+#crouchBtn{position:fixed;right:calc(110px + env(safe-area-inset-right));bottom:calc(26px + env(safe-area-inset-bottom));width:90px;min-height:52px;z-index:7;background:#203d4ae8;border:3px solid #aacdc6;font-size:13px;touch-action:none}
+#crouchBtn[aria-pressed=true]{background:#52754b}
+body:not([data-screen=studio]) #crouchBtn,body[data-house-editing=true] #crouchBtn,body[data-clean=true] #crouchBtn{display:none!important}
+body[data-cooking=true] :is(#punchBtn,#jumpBtn,#flightControls,#chargeHud,#targetHud){display:none!important}
+#cookingHUD .cook-feedback{color:#f4dba2;font-size:11px;line-height:1.4;max-width:580px}
+#cookingHUD .cook-food-state{color:#c8e5af;font-size:11px;line-height:1.5;max-height:70px;overflow:auto;pointer-events:auto}
+#cookingHUD .cook-touch-actions{display:none}
+body[data-touch=true] #cookingHUD .cook-touch-actions{display:flex;position:absolute;right:max(14px,env(safe-area-inset-right));bottom:calc(24px + env(safe-area-inset-bottom));flex-direction:column;gap:6px;pointer-events:auto}
+body[data-touch=true] #cookingHUD .cook-touch-actions button{margin:0;width:78px;min-height:48px;touch-action:manipulation}
+body[data-touch=true] #cookingHUD .cook-touch-actions [data-act=use]{min-height:60px;background:#506e42}
+body[data-touch=true] #cookingHUD .cook-readout{bottom:calc(212px + env(safe-area-inset-bottom));max-width:calc(100vw - 28px);width:calc(100vw - 28px);padding:6px 10px;max-height:130px;overflow:auto}
+body[data-touch=true] #cookingHUD .cook-place{display:none}
+body[data-touch=true] #cookingHUD .cook-top{top:calc(8px + env(safe-area-inset-top));left:8px;right:8px;max-width:none;padding:6px;flex-wrap:wrap;gap:2px}
+body[data-touch=true] #cookingHUD .cook-top button{min-height:40px;padding:5px 8px;font-size:11px}
+body[data-touch=true] #cookingHUD .cook-tools{bottom:calc(202px + env(safe-area-inset-bottom));max-height:calc(100dvh - 300px)}
+@media(orientation:landscape) and (max-height:550px){body[data-touch=true] #cookingHUD .cook-readout{left:50%;bottom:10px;width:calc(100vw - 440px);max-width:460px;max-height:100px;font-size:11px}body[data-touch=true] #cookingHUD .cook-tools{bottom:20px;right:210px;max-height:calc(100dvh - 100px)}}
 .house-editor[data-touch=true][data-pane=browse] .house-editor-body{display:block;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}
 .house-editor[data-touch=true][data-pane=browse] .house-browse-pane{display:block;height:auto;min-height:0;overflow:visible;padding-bottom:10px}
 .house-editor[data-touch=true][data-pane=browse] .furniture-catalogue{display:grid;flex:none;height:auto;min-height:126px;max-height:none;overflow:visible;grid-auto-rows:minmax(126px,auto);margin:10px 0}

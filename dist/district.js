@@ -1,4 +1,4 @@
-import {STREET_LAMPS} from './street-lamps.js?v=20261011-free-cook73';
+import {STREET_LAMPS} from './street-lamps.js?v=20261011-free-cook74';
 // Low-poly town details share the world's box instances and collision grid.
 export function buildDistrict({box,board,sign,seats,clockHands}){
   const stone='#c9c4b7',white='#faf8f1',wood='#9a6748',trim='#d4d7d5';
@@ -27,8 +27,8 @@ export function buildDistrict({box,board,sign,seats,clockHands}){
     const x=-13+i*8.6,z=-59,accent=['#d84a42','#52a96d','#48b8d4','#e88a38'][i];
     box(x,.1,z,6,.2,5,trim);for(const dx of [-2.5,2.5])for(const dz of [-1.8,1.8])box(x+dx,1.75,z+dz,.18,3.5,.18,wood);
     for(let stripe=0;stripe<6;stripe++)box(x-2.5+stripe,3.55,z,1,.2,5,stripe%2?white:accent);
-    box(x,3.27,z+2.35,6,.55,.2,accent,false);box(x,1.05,z+1.2,5.2,1.05,.85,wood);
-    for(let j=0;j<3;j++)box(x-1.6+j*1.6,1.71,z+1.2,1.1,.27,.65,['#e4c84d','#d84a42','#52a96d'][j],false);
+    box(x,3.27,z+2.35,6,.55,.2,accent);box(x,1.05,z+1.2,5.2,1.05,.85,wood);
+    for(let j=0;j<3;j++)box(x-1.6+j*1.6,1.71,z+1.2,1.1,.27,.65,['#e4c84d','#d84a42','#52a96d'][j]);
     box(x-2.15,.6,z-1.05,1,1,1,wood);box(x-1.1,.38,z-1.2,.65,.65,.65,'#bd8d60');
   }
   // The two plaza homes are built by the housing system.

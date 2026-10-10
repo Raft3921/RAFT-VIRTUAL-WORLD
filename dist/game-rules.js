@@ -1,24 +1,24 @@
-import {cleanMeal,describeDish} from './cooking-data.js?v=20261011-free-cook73';
-import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook73';
-import {buildDistrict} from './district.js?v=20261011-free-cook73';
-import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261011-free-cook73';
-import {GunRules} from './gun-rules.js?v=20261011-free-cook73';
-import {weaponById} from './gun-layout.js?v=20261011-free-cook73';
-import {WorldChatStore} from './world-chat-store.js?v=20261011-free-cook73';
-import { ARENA,insideArena } from './world-layout.js?v=20261011-free-cook73';
-import { ATTACKS } from './combat-motion.js?v=20261011-free-cook73';
-import { CharacterStore,cleanCharacter } from './character-store.js?v=20261011-free-cook73';
-import { GYOZA_SKIN,GUEST_SKIN,playableSkin } from './player-types.js?v=20261011-free-cook73';
-import { HousingStore } from './housing-store.js?v=20261011-free-cook73';
-import {BROWN_PROJECTILE,projectileAt,segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261011-free-cook73';
-import {hitShape} from './hit-reaction.js?v=20261011-free-cook73';
-import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js?v=20261011-free-cook73';
-import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261011-free-cook73';
-import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js?v=20261011-free-cook73';
-import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook73';
+import {cleanMeal,describeDish} from './cooking-data.js?v=20261011-free-cook74';
+import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook74';
+import {buildDistrict} from './district.js?v=20261011-free-cook74';
+import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261011-free-cook74';
+import {GunRules} from './gun-rules.js?v=20261011-free-cook74';
+import {weaponById} from './gun-layout.js?v=20261011-free-cook74';
+import {WorldChatStore} from './world-chat-store.js?v=20261011-free-cook74';
+import { ARENA,insideArena } from './world-layout.js?v=20261011-free-cook74';
+import { ATTACKS } from './combat-motion.js?v=20261011-free-cook74';
+import { CharacterStore,cleanCharacter } from './character-store.js?v=20261011-free-cook74';
+import { GYOZA_SKIN,GUEST_SKIN,playableSkin } from './player-types.js?v=20261011-free-cook74';
+import { HousingStore } from './housing-store.js?v=20261011-free-cook74';
+import {BROWN_PROJECTILE,projectileAt,segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261011-free-cook74';
+import {hitShape} from './hit-reaction.js?v=20261011-free-cook74';
+import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js?v=20261011-free-cook74';
+import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261011-free-cook74';
+import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js?v=20261011-free-cook74';
+import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook74';
 const menuBoards=[{x:6,z:11},{x:ARENA.x+3,z:ARENA.z+20},GUN_ENTRY,...GUN_EXIT_BOARDS,...HOUSES.slice(0,8).map(h=>({x:h.x-6,z:h.z+h.front*9}))];
 buildDistrict({box:()=>{},sign:()=>{},board:(x,y,z)=>menuBoards.push({x,y,z}),seats:[],clockHands:[]});
-export const SYNC_VERSION='2026-10-11-vrs-free-cook-73';
+export const SYNC_VERSION='2026-10-11-vrs-free-cook-74';
 // Release labels identify updates; the protocol identifies connection compatibility.
 export const SYNC_PROTOCOL=1;
 export function compatibleSync(message){if(message?.protocol!==undefined)return message.protocol===SYNC_PROTOCOL;return message?.version===SYNC_VERSION||/^2026-10-10-vrs-(entry-37|countdown-38|victory-40|feedback-41|roster-46)$/.test(message?.version||'');}
@@ -32,7 +32,7 @@ export function cleanState(s,skin,realms){
   return {gunTeleportSerial:Math.floor(n('gunTeleportSerial',0,1e9)),equippedWeapon:weaponById(s.equippedWeapon)?.id||null,mirrorRealm:realm?.key||null,x:s.x,y:s.y,z:s.z,yaw:s.yaw,skin:playableSkin(skin),
     headYaw:n('headYaw',-1,1),headPitch:n('headPitch',-.7,.7),vx:n('vx',-200,200),vy:n('vy',-200,200),vz:n('vz',-200,200),
     speed:n('speed',0,20),verticalSpeed:n('verticalSpeed',-200,200),grounded:s.grounded!==false,flight:s.flight===true,
-    ragdoll:s.ragdoll===true,seated:s.seated===true,sleeping:s.sleeping===true&&s.ragdoll!==true,crownEnabled:s.crownEnabled===true,
+    crouched:s.crouched===true&&s.flight!==true&&s.ragdoll!==true&&s.seated!==true&&s.sleeping!==true,ragdoll:s.ragdoll===true,seated:s.seated===true,sleeping:s.sleeping===true&&s.ragdoll!==true,crownEnabled:s.crownEnabled===true,
     attackKind:Math.floor(n('attackKind',0,12)),attackProgress:n('attackProgress',0,1),attackDuration:n('attackDuration',0,2),attackStrength:n('attackStrength',0,1),attackSerial:Math.floor(n('attackSerial',0,1e9)),
     attackRushing:s.attackRushing===true,punchCharge:n('punchCharge',0,1),
     hitPhase:['impact','air','down','recover'].includes(s.hitPhase)?s.hitPhase:'none',hitTime:n('hitTime',0,60),hitDownTime:n('hitDownTime',0,10),hitRecovery:n('hitRecovery',0,1),hitStrength:n('hitStrength',0,1),

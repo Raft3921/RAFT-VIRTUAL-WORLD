@@ -1,4 +1,4 @@
-import {createCooking} from './cooking.js?v=20261010-cooking68';
+import {createCooking} from './cooking.js?v=20261010-cooking68b';
 import {createPlazaMap} from './plaza-map.js?v=20261010-cooking68';
 import {createWorldExperience} from './world-experience.js?v=20261010-cooking68';
 import {inGunZone,weaponById} from './gun-layout.js?v=20261010-cooking68';

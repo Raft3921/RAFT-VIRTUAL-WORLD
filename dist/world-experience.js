@@ -1,9 +1,9 @@
 import {createGunEffects} from './gun-effects.js';
 import {createBodycam} from './bodycam.js';
 import {createWorldAudio} from './world-audio.js';
-import {createWorldInteraction} from './world-interaction.js?v=20261010-feedback41';
+import {createWorldInteraction} from './world-interaction.js?v=20261010-optics42';
 import {fallbackMuzzle} from './weapon-dimensions.js';
-import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-feedback41';
+import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261010-optics42';
 import * as THREE from 'three';
 import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js';
 import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash} from './gun-visual.js';
@@ -60,7 +60,7 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
   }else{firstRig.visible=false;}
   const canLean=bodycamActive&&!watching&&!s.ragdoll&&!s.seated&&s.grounded;
   const sideSpeed=canLean?THREE.MathUtils.clamp((-Math.cos(s.yaw)*(s.moveX||0)+Math.sin(s.yaw)*(s.moveZ||0))/4,-1,1):0;
-  cameraLean+=(-sideSpeed*.018-cameraLean)*(1-Math.exp(-dt*7));
+  cameraLean+=(-sideSpeed*.055-cameraLean)*(1-Math.exp(-dt*7));
   if(bodycamActive&&!watching&&!s.ragdoll){camera.rotateZ(cameraLean*(scoped?.35:1));camera.rotateX(recoil*(scoped?.08:.20));}
   if(bodycamActive&&!scoped){const phase=s.avatar?.animation.phase||0,walking=s.grounded&&!s.seated&&!s.ragdoll?Math.min(1,s.speed/4):0;camera.rotateZ(Math.sin(phase)*.0015*walking);camera.rotateX(Math.sin(phase*2)*.0004*walking);if(!weapon)camera.fov=92;}if(!bodycamActive)bodycam.reset();
   camera.updateProjectionMatrix();camera.updateMatrixWorld();$('scopeOverlay').hidden=!scoped||watching;
@@ -89,7 +89,7 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
   firstRig.position.set(.25+swayX-lateralSway*.022+Math.sin(phase)*.010*walkBlend,-.25+swayY+Math.cos(phase*2)*.005*walkBlend+recoil*.14,-.85+recoil*.18-forwardSway*.009);
   // Keep the receiver upright while the right hand follows directional momentum.
   const targetX=-firstRig.position.x,targetY=-firstRig.position.y,targetZ=-70-firstRig.position.z;
-  firstRig.rotation.set(-Math.atan2(targetY,Math.hypot(targetX,targetZ))-recoil-forwardSway*.012,Math.atan2(targetX,targetZ)+swayX*.7-lateralSway*.014,Math.sin(phase)*.006*walkBlend-lateralSway*.010+swayX*.2,'YXZ');
+  firstRig.rotation.set(-Math.atan2(targetY,Math.hypot(targetX,targetZ))-recoil-forwardSway*.012,Math.atan2(targetX,targetZ)+swayX*.7-lateralSway*.014,Math.sin(phase)*.006*walkBlend-lateralSway*.022+swayX*.2,'YXZ');
   if(weaponId!==weapon?.id||firstHandOwner!==s.avatar){weaponId=weapon?.id;firstHandOwner=s.avatar;firstModel?.removeFromParent();firstModel=weapon?createGunModel(weapon.id):null;if(firstModel){firstModel.add(s.avatar?.createFirstPersonHand?.()||createFiringHand(s.avatar?.gripColor||'#bd9271'));firstRig.add(firstModel);}}updateGunFlash(firstModel);
   if(s.now-lastUi>150){lastUi=s.now;nearBoard=s.inStudio&&!s.paused&&!s.ragdoll?s.world?.boards.filter(b=>!b.editorHidden&&Math.hypot(s.player.position.x-b.x,s.player.position.z-b.z)<4&&Math.abs(s.player.position.y+1.5-b.y)<3).sort((a,b)=>Math.hypot(s.player.position.x-a.x,s.player.position.z-a.z)-Math.hypot(s.player.position.x-b.x,s.player.position.z-b.z)).find(b=>{const from=s.player.position.clone();from.y+=1.5;const to=new THREE.Vector3(b.x,b.y+1.25,b.z);return s.world.cameraPosition(from,to,.025,b.boardId).distanceTo(to)<.15;}):null;
    if(!nearBoard&&s.inStudio&&!s.paused){const origin=s.player.position.clone();origin.y+=1.05;const item=s.housing?.instrumentHit(origin,new THREE.Vector3(Math.sin(s.yaw),0,Math.cos(s.yaw)));if(item&&['chat','screen'].includes(item.kind))nearBoard={...item,kind:item.kind==='chat'?'pc':'screen',x:item.position.x,y:item.position.y,z:item.position.z};}

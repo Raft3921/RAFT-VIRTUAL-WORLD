@@ -181,6 +181,8 @@ A desktop left click on the scene now prioritises acquiring pointer lock, consum
 
 The first-person firing hand and forearm now use the selected avatar's actual right-arm atlas UVs, original nearest-filtered skin texture, base material and overlay sleeve material, including custom/JEM skin mappings. Switching character or replacing its skin rebuilds the view arm even when the equipped weapon remains the same. Leaving Sand Town releases its forced first-person camera and restores follow mode. This is a client change; the server protocol remains `2026-10-10-vrs-sandtown-33`. No tests, validation commands, runtime checks or browser verification were performed, per the standing user instruction.
 
+After a Sand Town elimination, the spectator camera now follows the actual eye direction of each remaining player; use the left/right spectator buttons to switch players. Television viewing keeps its venue-camera lineup. A virtual joystick now clears from both its captured control and the document-level pointer end/cancel paths, preventing stuck movement when the release happens outside the control. Reloads take up to 3.25 seconds when a magazine is empty and scale down linearly with the number of rounds being restored; the server timing, hand animation and reload audio all use that same duration. Client build: `vrs-reload60`. No tests, validation commands, runtime checks or browser verification were performed, per the standing user instruction.
+
 
 ### 2026-10-10 · 砂の街 / ボディカム視点
 - 銃撃戦は外の専用ボードから入場し、内側の四隅のボードから退出・チーム設定。物理的な入口を閉じ、外壁と同じ素材の屋根と、白い曇り空に見える内側を追加。

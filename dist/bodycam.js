@@ -5,18 +5,12 @@ export function createBodycam(){
  uniform sampler2D image;uniform sampler2D depthImage;uniform vec2 pixel;uniform vec2 blur;uniform float time;uniform float warp;uniform float nearPlane;uniform float farPlane;uniform float optics;varying vec2 vUv;
  float distanceAt(vec2 uv){float d=texture2D(depthImage,clamp(uv,0.,1.)).r;return nearPlane*farPlane/max(.0001,farPlane-(farPlane-nearPlane)*d);}
  vec3 sampleAt(vec2 uv){return texture2D(image,clamp(uv,0.,1.)).rgb;}
- vec3 brightSky(vec2 uv){vec3 c=sampleAt(uv);float l=dot(c,vec3(.2126,.7152,.0722));float farSurface=smoothstep(12.,22.,distanceAt(uv));return c*smoothstep(.63,.95,l)*farSurface;}
  void main(){vec2 p=vUv*2.-1.;vec2 uv=p*mix(1.,.88+.18*dot(p,p),warp)*.5+.5;float z=distanceAt(uv),focus=clamp(distanceAt(vec2(.5)),8.,35.);
  // A small depth-dependent circle of confusion. The held hand and aim remain crisp.
  float coc=smoothstep(2.,4.,z)*clamp(abs(z-focus)/max(focus,8.)*.75,0.,1.)*optics;vec2 dof=pixel*1.6*coc;
  vec2 offsets[4];offsets[0]=blur+dof;offsets[1]=-blur-dof;offsets[2]=blur*.45+vec2(dof.x,-dof.y);offsets[3]=-blur*.45+vec2(-dof.x,dof.y);
  vec3 col=sampleAt(uv)*.5;float total=.5;
  for(int i=0;i<4;i++){vec2 q=uv+offsets[i];float neighbor=distanceAt(q);float weight=.125*(1.-smoothstep(max(.5,z*.12),max(1.,z*.35),abs(neighbor-z)));col+=sampleAt(q)*weight;total+=weight;}col/=total;
- // Sparse wide taps let bright sky spill slightly across its silhouette.
- vec2 halo=pixel*7.;vec3 glow=brightSky(uv+vec2(halo.x,0.))+brightSky(uv-vec2(halo.x,0.))+brightSky(uv+vec2(0.,halo.y))+brightSky(uv-vec2(0.,halo.y));col+=glow*.055*optics;
- // Radial prism dispersion is strongest at a bright, sky-facing screen edge.
- float sky=dot(glow,vec3(.2126,.7152,.0722))*.25;vec2 prism=p*pixel*1.5*min(1.,dot(p,p))*(.25+sky)*optics;
- col.r=mix(col.r,sampleAt(uv+prism).r,.28*optics);col.b=mix(col.b,sampleAt(uv-prism).b,.28*optics);
  float edge=1.-smoothstep(.35,1.65,dot(p,p))*.62;float grain=(fract(sin(dot(gl_FragCoord.xy+time,vec2(12.9898,78.233)))*43758.5453)-.5)*.009;gl_FragColor=vec4(col*edge+grain,1.);
  #include <colorspace_fragment>
  }`});

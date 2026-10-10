@@ -1,20 +1,21 @@
 import * as THREE from 'three';
-import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook72';
-import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook72';
+import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook73';
+import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook73';
 
 export function createCookingMotion({scene,point}){
  const root=new THREE.Group();root.name='Cooking hand work';scene.add(root);
  const water=new THREE.MeshStandardMaterial({color:'#9ad9e7',transparent:true,opacity:.65,roughness:.15,depthWrite:false});
  let event=null,key='',tool=null,prop=null,stream=null;
  function play(id,station,source=null){if(!['cut','chop','peel','grate','mix','stir','drain','clean','roll','knead','plate','stove-pick','wash','fill','pour-water','stove-pour','bowl-merge','sprinkle'].includes(id))return;event={id,station,source,remaining:.65,duration:.65};key='';}
- function clear(){event=null;key='';root.clear();root.visible=false;}
+ function clearModels(){root.traverse(o=>{if(o.isInstancedMesh)o.dispose();});root.clear();}
+ function clear(){event=null;key='';clearModels();root.visible=false;}
  function update(session,task,dt){
   if(!session){clear();return;}
   if(event){event.remaining-=dt;if(event.remaining<=0)event=null;}
-  const work=task||event;root.visible=!!work;if(!work){key='';root.clear();return;}
+  const work=task||event;root.visible=!!work;if(!work){key='';clearModels();return;}
   const id=work.id,next=id+':'+(work.station?.item.id||'')+':'+(work.source?.id||'')+(id==='fill'?':'+Math.floor((session.vessels[work.source?.id]?.water||0)*10):'');
   if(key!==next){
-   key=next;root.clear();tool=null;prop=null;stream=null;
+   key=next;clearModels();tool=null;prop=null;stream=null;
    const toolId=work.source?.type==='tool'?work.source.id:{cut:'knife',chop:'knife',peel:'peeler',grate:'grater',mix:'whisk',stir:'ladle',drain:'colander',clean:'sponge',roll:'rolling-pin',knead:'rolling-pin',plate:'ladle','stove-pick':'mitt'}[id];
    if(toolId){tool=toolModel(toolId);root.add(tool);}
    if(id==='sprinkle'&&work.source?.type==='seasoning'){tool=seasoningModel(work.source.id);root.add(tool);}
@@ -25,13 +26,13 @@ export function createCookingMotion({scene,point}){
     stream=new THREE.Group();
     const foods=work.source?.vessel?.foods||[],transfer=['stove-pour','bowl-merge','plate'].includes(id);
     if(transfer&&foods.length){for(const food of foods.slice(0,8)){const piece=foodModel(food,{portion:true});piece.scale.setScalar(.35);stream.add(piece);}}
-    if(!transfer||work.source?.vessel?.water>0)for(let i=0;i<12;i++){const drop=part(stream,'round',0,0,0,.012,.018,.012,id==='sprinkle'?({oil:'#d1b653',soy:'#603b24',ketchup:'#ba4737',herbs:'#628943'}[work.source?.id]||'#d5bb88'):'#9ad9e7');if(id!=='sprinkle')drop.material=water;}
+    if(!transfer||work.source?.vessel?.water>0)for(let i=0;i<12;i++){const drop=part(stream,id==='sprinkle'?'box':'round',0,0,0,.012,id==='sprinkle'?.012:.018,.012,id==='sprinkle'?({oil:'#edc957',soy:'#8d4d27',ketchup:'#f06536',herbs:'#7abd46'}[work.source?.id]||'#ffe3a1'):'#9ad9e7');if(id!=='sprinkle')drop.material=water;}
     root.add(stream);
    }
   }
   const anchor=point(work.station),time=session.elapsed,p=1-work.remaining/work.duration;
   root.position.copy(anchor);root.rotation.y=work.station.yaw+(session.homeFront<0?Math.PI:0);
-  const counter=work.station.role==='counter',stove=work.station.role==='stove';
+  const counter=work.station.role==='counter'&&!work.station.worldPosition,stove=work.station.role==='stove';
   if(tool){
    tool.position.set(counter?(['mix','sprinkle','roll','knead','plate'].includes(id)?.45:-.27):stove?(session.selectedBurner===0?-.28:.28):0,.08,0);tool.rotation.set(0,0,0);
    if(id==='cut'||id==='chop'){tool.position.y=.055+Math.abs(Math.sin(p*Math.PI*2))*.16;tool.rotation.z=-.12+Math.sin(p*Math.PI*2)*.2;}

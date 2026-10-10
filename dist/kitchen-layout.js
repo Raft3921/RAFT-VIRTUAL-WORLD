@@ -1,4 +1,4 @@
-import {FURNITURE_BY_ID,furniturePose,ROOM,houseDescriptor} from './housing-data.js?v=20261011-free-cook72';
+import {FURNITURE_BY_ID,furniturePose,ROOM,houseDescriptor} from './housing-data.js?v=20261011-free-cook73';
 export function kitchenRole(f){if(!f)return null;if(f.family==='kitchen')return 'counter';if(f.family==='sink')return 'sink';if(f.family==='fridge'||f.id==='mini-fridge')return 'fridge';if(['stove','oven'].includes(f.family))return 'stove';return null;}
 export function recognizeKitchens(index,layout){
   const home=houseDescriptor(index);if(!home||!layout)return {zones:[],reason:'設備を置いてキッチンを作れます'};

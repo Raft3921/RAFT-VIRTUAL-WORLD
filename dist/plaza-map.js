@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import {HOUSES,mirrorRealm} from './housing-data.js?v=20261011-free-cook72';
-import {ARENA,COURSE} from './world-layout.js?v=20261011-free-cook72';
-import {GUN_ZONE} from './gun-layout.js?v=20261011-free-cook72';
+import {HOUSES,mirrorRealm} from './housing-data.js?v=20261011-free-cook73';
+import {ARENA,COURSE} from './world-layout.js?v=20261011-free-cook73';
+import {GUN_ZONE} from './gun-layout.js?v=20261011-free-cook73';
 
 export function createPlazaMap({world,names,skinURL,makeFace,getPlayers,getSelfId,getPlayer,isConnected,onOpen,onClose}){
   const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=800;

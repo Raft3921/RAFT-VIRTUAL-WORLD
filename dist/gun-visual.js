@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {WEAPON_DIMENSIONS} from './weapon-dimensions.js?v=20261011-free-cook72';
+import {WEAPON_DIMENSIONS} from './weapon-dimensions.js?v=20261011-free-cook73';
 const box=new THREE.BoxGeometry(1,1,1),tubeGeometry=new THREE.CylinderGeometry(1,1,1,12),steel=new THREE.MeshStandardMaterial({color:'#59616a',roughness:.43,metalness:.55}),slide=new THREE.MeshStandardMaterial({color:'#77838c',roughness:.3,metalness:.68}),black=new THREE.MeshStandardMaterial({color:'#252c32',roughness:.73,metalness:.2}),rubber=new THREE.MeshStandardMaterial({color:'#11171c',roughness:.93}),wood=new THREE.MeshStandardMaterial({color:'#876242',roughness:.68}),lens=new THREE.MeshBasicMaterial({color:'#93b8c5'});
 const flashMaterial=new THREE.MeshBasicMaterial({color:'#ffce69',transparent:true,opacity:.82,depthWrite:false,blending:THREE.AdditiveBlending}),coreMaterial=new THREE.MeshBasicMaterial({color:'#fff4c4',transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}),flashGeometry=new THREE.ConeGeometry(.12,.29,6),coreGeometry=new THREE.SphereGeometry(.048,6,4);
 export function createGunModel(id){

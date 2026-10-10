@@ -1,8 +1,8 @@
-import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook72';
+import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook73';
 import * as THREE from 'three';
-import {HOUSES,houseDescriptor,replaceMirrorRealms,registerMirrorRealm,MIRROR_REALMS,ROOM,GRID,HEIGHT_GRID,MAX_FURNITURE,FURNITURE,FURNITURE_SECTIONS,FURNITURE_BY_ID,FURNITURE_COLORS,FINISHES,emptyHouse,cleanHouse,furniturePose,pairFurniture,placementError,findPlacement,applyHouseOperation,mirrorPassageError} from './housing-data.js?v=20261011-free-cook72';
-import {furnitureThumbnail,furnitureParts} from './furniture-models.js?v=20261011-free-cook72';
-import {furnitureGeometry} from './furniture-geometry.js?v=20261011-free-cook72';
+import {HOUSES,houseDescriptor,replaceMirrorRealms,registerMirrorRealm,MIRROR_REALMS,ROOM,GRID,HEIGHT_GRID,MAX_FURNITURE,FURNITURE,FURNITURE_SECTIONS,FURNITURE_BY_ID,FURNITURE_COLORS,FINISHES,emptyHouse,cleanHouse,furniturePose,pairFurniture,placementError,findPlacement,applyHouseOperation,mirrorPassageError} from './housing-data.js?v=20261011-free-cook73';
+import {furnitureThumbnail,furnitureParts} from './furniture-models.js?v=20261011-free-cook73';
+import {furnitureGeometry} from './furniture-geometry.js?v=20261011-free-cook73';
 
 export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPlayer,isConnected,send,onOpen,onClose,notify}){
   const $=id=>document.getElementById(id),panel=$('houseEditor'),ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),intersection=new THREE.Vector3(),plane=new THREE.Plane(),normal=new THREE.Vector3();

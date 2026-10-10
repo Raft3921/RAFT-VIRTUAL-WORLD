@@ -14,7 +14,7 @@ export function createCookingControls({canvas,cooking,look,clearInput,isTouch,no
  canvas.addEventListener('pointerdown',e=>{
   if(!cooking.active)return;consume(e);canvas.focus();
   if(cooking.choosing){cooking.closeMenu();return;}
-  if(e.pointerType==='mouse'&&document.pointerLockElement===canvas){if(e.button===0||e.button===2)cooking.interact(undefined,e.button===2);return;}
+  if(e.pointerType==='mouse'&&document.pointerLockElement===canvas){if(e.button===0)cooking.interact();else if(e.button===2)cooking.alternate();return;}
   pointer={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,drag:false,button:e.button};
   if(e.pointerType==='mouse'&&e.button===0){resume();return;}
   try{canvas.setPointerCapture(e.pointerId);}catch{}
@@ -29,7 +29,8 @@ export function createCookingControls({canvas,cooking,look,clearInput,isTouch,no
  },true);
  canvas.addEventListener('pointerup',e=>{
   if(!cooking.active)return;consume(e);const p=pointer;pointer=null;
-  if(document.pointerLockElement===canvas||!p||p.id!==e.pointerId||p.drag||p.button!==0||cooking.choosing)return;
+  if(document.pointerLockElement===canvas||!p||p.id!==e.pointerId||p.drag||cooking.choosing)return;
+  if(p.button===2){cooking.alternate();return;}if(p.button!==0)return;
   // Touch and browsers without pointer lock use the furniture under the tap.
   const rect=canvas.getBoundingClientRect();cooking.interact({x:(e.clientX-rect.left)/rect.width*2-1,y:1-(e.clientY-rect.top)/rect.height*2});
  },true);

@@ -1,5 +1,15 @@
 # RAFT-VIRTUAL-WORLD
 
+## Voxel ingredients and free placement — 2026-10-11 / cook73
+
+Every ingredient and assembled solid-food base now uses equal-sided cubic voxels with warmer, brighter colours, including cut pieces, cooked noodles, rice, bread, dairy portions and dough. Food batches use instancing; replaced batches release their instance resources. Cookware, liquids and cooking effects retain their existing shapes.
+
+Tools are separated across two accessible rows on the front of the counter. Seasonings use a raised, spaced, stepped shelf and larger pick areas. Spare pots and pans sit below the front of the stove. The cooking refrigerator has an actual hinged door, hollow cabinet and two interior shelves. Click the door to open it and click food inside to pick it up; E selects a category or another group of eight ingredients. The local cooking cabinet temporarily replaces the ordinary fridge visual and restores it on exit without changing the saved furniture.
+
+While carrying something, Q or right click toggles placement. Aim at an empty horizontal surface, then left click/tap when the footprint is green. The on-screen placement button provides the same mode on touch devices. Clicking a bare counter or floor also places directly. Food, tools, seasoning jars, filled vessels and completed plates can be left on counters, other furniture or the floor within the kitchen bounds, then picked up again. Items fall under gravity, collide against world solids and one another, and settle with low restitution/friction. Placed open vessels still accept ingredients and seasoning. Placement uses upright box bodies and is local to the current cooking session; completed meal data continues to use the existing server save flow. Loose objects never block player movement.
+
+No tests, validation builds or browser/gameplay checks were run, following the standing instruction. Publication is not runtime or visual acceptance.
+
 ## Direct cooking — 2026-10-11 / cook72
 
 The normal camera-preference loop is now excluded during cooking. Previously it requested the saved follow camera every frame, while cooking forced that request back to first person; each call cleared the held movement keys. Kitchen entry now selects an unobstructed reachable floor position using the actual avatar extents and world solids. 通路へ戻る repositions within the same kitchen without discarding ingredients. Boundary handling permits movement back inside after a collision pushes the player past an edge.

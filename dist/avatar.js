@@ -1,4 +1,4 @@
-import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash} from './gun-visual.js';
+import {createGunModel,triggerGunFlash,updateGunFlash} from './gun-visual.js';
 import * as THREE from 'three';
 import {withLocalLighting} from './local-lighting.js';
 import { sampleAttack,sampleCharge } from './combat-motion.js';
@@ -289,6 +289,16 @@ export async function createAvatar(url,{model=null}={}) {
     knees[side].rotation.x = damp(knees[side].rotation.x, kneeAngle, 22, dt);
   }
 
+  let firingSkinGeometries=null;
+  function createSkinnedFiringHand({forearm=false}={}){
+    const part=parts.rightArm,length=Math.min(2,part.size[1]),start=part.size[1]-length;
+    if(!firingSkinGeometries){firingSkinGeometries={hand:[skinBox(part,false,start,length),skinBox(part,true,start,length)],arm:[skinBox(part,false,part.size[1]/2,part.size[1]/2),skinBox(part,true,part.size[1]/2,part.size[1]/2)]};geometries.push(...firingSkinGeometries.hand,...firingSkinGeometries.arm);}
+    const result=new THREE.Group();result.name='right hand with character skin';
+    const add=(source,x,y,z,w,h,d,rotation=null)=>{for(let layer=0;layer<2;layer++){const mesh=new THREE.Mesh(source[layer],layer?overlayMaterial:baseMaterial);mesh.position.set(x,y,z);mesh.scale.set(w/(part.size[0]*PX),h/(length*PX),d/(part.size[2]*PX));if(rotation)mesh.rotation.copy(rotation);result.add(mesh);}};
+    add(firingSkinGeometries.hand,0,-.115,-.012,.15,.135,.15);add(firingSkinGeometries.hand,-.083,-.11,.038,.042,.082,.077);for(let i=0;i<3;i++)add(firingSkinGeometries.hand,.073,-.077-i*.032,.035,.03,.028,.105);
+    if(forearm)for(let layer=0;layer<2;layer++){const mesh=new THREE.Mesh(firingSkinGeometries.arm[layer],layer?overlayMaterial:baseMaterial);mesh.position.set(.048,-.185,-.235);mesh.rotation.set(-Math.PI/2+.19,0,-.10);mesh.scale.set(.12/(part.size[0]*PX),.39/(part.size[1]/2*PX),.135/(part.size[2]*PX));result.add(mesh);}
+    return result;
+  }
   const weaponGrip=new THREE.Group(),gunInverse=new THREE.Quaternion(),gunAim=new THREE.Quaternion(),gunAxis=new THREE.Vector3(1,0,0);weaponGrip.name='right hand weapon grip';weaponGrip.position.set(0,-armHalf*PX+.04,0);elbows.right.add(weaponGrip);
   let gunModel=null,gunId=null;
   function update(dt, state = {}) {
@@ -438,7 +448,7 @@ export async function createAvatar(url,{model=null}={}) {
       const t=state.impactTime,u=t/state.impactDuration,amount=(.012+.035*(state.impactStrength||0))*Math.sin(Math.PI*u);
       pelvis.position.x+=Math.sin(t*155)*amount;pelvis.position.z+=Math.sin(t*119+.8)*amount;pelvis.rotation.z+=Math.sin(t*142)*amount*.4;
     }
-    if(gunId!==state.equippedWeapon){gunId=state.equippedWeapon;gunModel?.removeFromParent();gunModel=gunId?createGunModel(gunId):null;if(gunModel){weaponGrip.add(gunModel);gunModel.add(createFiringHand(skinColor,{forearm:false}));}}
+    if(gunId!==state.equippedWeapon){gunId=state.equippedWeapon;gunModel?.removeFromParent();gunModel=gunId?createGunModel(gunId):null;if(gunModel){weaponGrip.add(gunModel);gunModel.add(createSkinnedFiringHand());}}
     if(gunModel){gunModel.visible=!state.ragdoll&&!state.sleeping&&!state.seated;if(gunModel.visible){
       const aim=clamp(-(state.lookPitch||0),-.75,.75);
       shoulders.right.rotation.set(-1.20-aim*.82,0,-.035);elbows.right.rotation.set(-.22,0,0);
@@ -471,7 +481,7 @@ export async function createAvatar(url,{model=null}={}) {
 
   root.traverse(object=>{if(object.isMesh)withLocalLighting(object.material);});
   return {
-    root, update, dispose, head, setAppearance,gripColor:skinColor,
+    root, update, dispose, head, setAppearance,gripColor:skinColor,createFirstPersonHand:()=>createSkinnedFiringHand({forearm:true}),
     getGunMuzzle(target=new THREE.Vector3()){if(!gunModel?.visible)return null;root.updateMatrixWorld(true);return gunModel.userData.muzzle.getWorldPosition(target);},fireGun(){triggerGunFlash(gunModel);},
     reactHit(serial,strength=.2,age=0){if(!Number.isFinite(serial)||serial<=flinchSerial)return;flinchSerial=serial;if(age>=.24)return;flinchStart=elapsed-Math.max(0,age);flinchStrength=clamp(strength,0,1);},
     resetHitReaction(){flinchSerial=0;flinchStart=-Infinity;},

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import {part} from './cooking-models.js?v=20261011-free-cook80';
-import {FURNITURE_COLORS} from './housing-data.js?v=20261011-free-cook80';
-import {isIsland} from './kitchen-layout.js?v=20261011-free-cook80';
+import {part} from './cooking-models.js?v=20261011-free-cook81';
+import {FURNITURE_COLORS} from './housing-data.js?v=20261011-free-cook81';
+import {isIsland} from './kitchen-layout.js?v=20261011-free-cook81';
 export function cookingCabinet(station,open,pickable){
  const root=new THREE.Group(),contents=new THREE.Group(),doors=[],w=station.w*.88,h=station.h*.88,d=station.d*.88,paint=FURNITURE_COLORS[station.item.c]||'#d84a42';
  pickable(root,station,'cabinet-body');root.add(contents);

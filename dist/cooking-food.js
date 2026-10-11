@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {FOOD_BY_ID} from './cooking-data.js?v=20261011-free-cook80';
+import {FOOD_BY_ID,foodCookingState} from './cooking-data.js?v=20261011-free-cook81';
 
 const cube=new THREE.BoxGeometry(1,1,1),material=new THREE.MeshStandardMaterial({roughness:.76,metalness:0}),pose=new THREE.Object3D();
 const palette={tomato:'#f34f35',carrot:'#ff9235',pepper:'#69bd42',broccoli:'#42a65b',spinach:'#4fba57',cabbage:'#9ed650',lettuce:'#b5df5e',pumpkin:'#eea23b',corn:'#ffd153',apple:'#ee574b',strawberry:'#f25058',orange:'#ffa531',lemon:'#ffe05a',banana:'#ffd65b',grape:'#ad69c8',peach:'#ffad7d',pineapple:'#efb43f',salmon:'#ff976d',tuna:'#e85b70',beef:'#df6558',pork:'#ffb49a',shrimp:'#ffad80',egg:'#fff1be',rice:'#fff5d9',pasta:'#ffd77c',noodles:'#ffc960',udon:'#fff0cb',bread:'#dba253',potato:'#d5a65f',onion:'#efd096',tofu:'#fff5da',cheese:'#ffcf58',butter:'#ffe08b'};
@@ -12,20 +12,30 @@ function model(blocks){
 }
 function builder(){const blocks=[],used=new Set();return {blocks,put(x,y,z,size,color){const key=[x,y,z,size].map(n=>n.toFixed(4)).join(':');if(used.has(key))return;used.add(key);blocks.push({x,y,z,size,color});},grid(nx,ny,nz,size,at,color,mask=()=>true){for(let x=0;x<nx;x++)for(let y=0;y<ny;y++)for(let z=0;z<nz;z++)if(mask(x,y,z))this.put(at[0]+(x-(nx-1)/2)*size,at[1]+(y+.5)*size,at[2]+(z-(nz-1)/2)*size,size,typeof color==='function'?color(x,y,z):color);}};}
 
-export function voxelFood(food,{portion=false}={}){
- const f=FOOD_BY_ID.get(food.id);if(!f)return new THREE.Group();const b=builder();
+export function voxelFood(food,{portion=false,wet=false,mixed=false,formed=false}={}){
+ const f=FOOD_BY_ID.get(food.id);if(!f)return new THREE.Group();const b=builder(),state=foodCookingState(food,{wet});
  let color=palette[f.id]||f.color;
  if(food.peeled&&['potato','onion','radish','apple'].includes(f.id))color='#ffe1a4';
  if(food.progress>0){
   const browned=['fry','bake'].includes(food.method),leafy=['spinach','broccoli','cabbage','lettuce','pepper','leek'].includes(f.id);
   const warm={potato:browned?'#edb856':'#ffe4a5',onion:browned?'#dca35a':'#f8dda0',carrot:'#f9a347',pumpkin:'#f3b551',corn:'#ffd15a',mushroom:'#c89864',egg:'#ffe3a5'};
-  const cooked=warm[f.id]||(['meat','fish'].includes(f.group)?'#dc9b59':leafy?'#6eae4f':color);
+  const cooked=warm[f.id]||(f.group==='fish'?(browned?'#e0b37d':'#f1ddbc'):f.group==='meat'?(browned?'#bb8656':'#d2b18d'):leafy?'#6eae4f':color);
   color=new THREE.Color(color).lerp(new THREE.Color(cooked),Math.min(.85,food.progress/Math.max(1,f.time)*.85)).getStyle();
  }
  if(food.burn>35)color='#875036';
  const blob=(nx,ny,nz,size,at,c=color)=>b.grid(nx,ny,nz,size,at,c,(x,y,z)=>Math.pow((x-(nx-1)/2)/(nx*.53),2)+Math.pow((y-(ny-1)/2)/(ny*.56),2)+Math.pow((z-(nz-1)/2)/(nz*.53),2)<1);
+ if(portion&&formed&&state.fine&&['meat','fish'].includes(f.group)){for(let i=0;i<4;i++)b.grid(4,3,4,.021,[(i%2-.5)*.105,.009,(Math.floor(i/2)-.5)*.105],color,(x,y,z)=>!(y===2&&(x===0||x===3)&&(z===0||z===3)));return model(b.blocks);}
  if(portion&&(['milk','cream','yogurt'].includes(f.id)||['cheese','butter'].includes(f.id)&&food.progress>3)){blob(8,1,7,.023,[0,0,0],color);return model(b.blocks);}
- if(f.id==='egg'&&(food.cut||food.method==='fry')){blob(9,1,7,.025,[0,0,0],'#fff3d7');blob(4,2,4,.025,[0,.025,0],'#ffba36');return model(b.blocks);}
+ if(f.id==='egg'&&(food.cut||food.method==='fry')){if(mixed||food.cut){for(let i=0;i<12;i++)b.grid(2,1,2,.019,[(i%4-1.5)*.045,.008+(i%3)*.009,(Math.floor(i/4)-1)*.045],i%3?'#fff0cf':'#ffd25b');}else{blob(9,1,7,.025,[0,0,0],'#fff3d7');blob(4,2,4,.025,[0,.025,0],'#ffba36');}return model(b.blocks);}
+ if(state.heat>.15&&(state.flaked||state.softness>.15||food.cut)){
+  const fine=state.fine,flakes=state.flaked,soft=state.softness,count=fine?18:flakes?7:food.cut?8:5,size=fine?.012:flakes?.018:.022;
+  for(let i=0;i<count;i++){
+   const a=i*2.4,r=(fine?.02:.018)*Math.sqrt(i+1),x=Math.round(Math.cos(a)*r/size)*size,z=Math.round(Math.sin(a)*r/size)*size;
+   const ny=fine?1:flakes?1:Math.max(1,Math.round(3-soft*2)),nx=fine?1:flakes?3:food.cut==='slice'?4:3,nz=fine?1:flakes?2:3;
+   b.grid(nx,ny,nz,size,[x,.006+(i%3)*size*.25,z],(xx,yy,zz)=>flakes&&(xx+zz+i)%4===0?'#fff0d2':color);
+  }
+  return model(b.blocks);
+ }
  if(food.cut){
   const fine=['mince','grate'].includes(food.cut),slice=food.cut==='slice',size=fine?.016:.022;
   for(let i=0;i<8;i++)b.grid(fine?1:3,slice?1:fine?1:3,fine?1:3,size,[(i%3-1)*.07,.012+Math.floor(i/6)*.03,(Math.floor(i/3)-1)*.06],(x,y,z)=>slice&&x===1&&z===1?'#ffdb98':color);
@@ -48,7 +58,7 @@ export function voxelFood(food,{portion=false}={}){
  case 'corn':b.grid(4,9,4,.024,[0,0,0],(x,y,z)=>y%3===0?'#ffdc65':color);break;
  case 'pasta':case 'noodles':
   for(let i=0;i<7;i++)for(let j=0;j<13;j++){const x=food.progress>0?Math.round(Math.cos(j*.45+i)*4)*.02:(i-3)*.02,z=food.progress>0?Math.round(Math.sin(j*.45+i)*4)*.02:(j-6)*.02;b.put(x,.012+(food.progress>0?Math.floor(i/2)*.019:0),z,.018,color);}break;
- case 'grains':for(let i=0;i<40;i++){const a=i*2.4,r=.013*Math.sqrt(i);b.put(Math.round(Math.cos(a)*r/.012)*.012,.012+Math.floor((40-i)/14)*.012,Math.round(Math.sin(a)*r/.012)*.012,.011,color);}break;
+ case 'grains':{const size=.011+state.swelling*.007;for(let i=0;i<40;i++){const a=i*2.4,r=(.013+state.swelling*.005)*Math.sqrt(i);b.put(Math.round(Math.cos(a)*r/size)*size,size+Math.floor((40-i)/14)*size,Math.round(Math.sin(a)*r/size)*size,size,color);}break;}
  case 'powder':blob(8,3,7,.023,[0,0,0]);break;
  case 'bottle':b.grid(4,7,4,.028,[0,0,0],(x,y,z)=>z===3&&y>1&&y<5?'#f7bd56':'#fff0cd');b.grid(3,1,3,.028,[0,.196,0],'#72bcab');break;
  case 'bread':b.grid(9,5,7,.025,[0,0,0],(x,y,z)=>y===4||x===0||x===8?'#d88c3c':'#ffdb8f');blob(8,2,6,.025,[0,.125,0],'#edb051');break;

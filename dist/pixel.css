@@ -140,7 +140,7 @@ body[data-touch=true] #stickKnob{width:48px;height:48px;left:calc(50% - 24px);to
 /* Keep descending, crouching and kitchen actions reachable without a keyboard. */
 .cook-carry-world{position:fixed;z-index:40;left:50%;bottom:calc(25px + env(safe-area-inset-bottom));transform:translateX(-50%);max-width:calc(100vw - 250px);padding:10px 14px;background:#1d302be8;border:2px solid #afc39a;font-size:12px;text-align:center;pointer-events:auto}
 .cook-carry-world span{display:block}.cook-carry-world button{min-height:44px;margin-top:5px;background:#354d40}
-.cook-rating{position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:65;white-space:pre-line;text-align:center;line-height:1.9;font-size:22px;padding:20px 32px;color:#ffe39a;background:#1d302bf5;border:3px solid #e9d299;pointer-events:none}
+.cook-rating{position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:65;white-space:pre-line;text-align:center;line-height:1.9;font-size:clamp(14px,2vw,22px);padding:20px 24px;max-width:min(620px,calc(100vw - 28px));width:max-content;box-sizing:border-box;overflow-wrap:anywhere;color:#ffe39a;background:#1d302bf5;border:3px solid #e9d299;pointer-events:none}
 .cook-carry-world[hidden],.cook-rating[hidden]{display:none!important}
 body[data-carrying-meal=true] :is(#punchBtn,#chargeHud,#gunCrosshair){display:none!important}
 body[data-hands-on=true] :is(#punchBtn,#chargeHud,#gunCrosshair,#targetHud){display:none!important}

@@ -1,5 +1,13 @@
 # RAFT-VIRTUAL-WORLD
 
+## Cooking taste and cooked appearance — 2026-10-11 / cook81
+
+Five-star ratings now use the saved ingredients, cut styles, cooking progress/methods and seasoning amounts. Sugar-only fish or other savory dishes lose points for an unbalanced flavor; balanced soy/miso/stock seasoning can support a sweet savory dish. Excess salt, sugar, vinegar or spices, insufficient cooking/washing, burning, overcooking and unbound minced fish boiled into loose fragments each contribute explicit reasons. Merely adding multiple ingredients or any seasoning no longer grants five stars. The server persists the result and returns up to three reasons with the rating.
+
+Liquid colors, cloudiness and thickness now derive from stock extraction, starch, vegetables, soy, miso, curry, tomato, dairy and melted cheese/butter. Cooking progress and smaller cuts increase extraction. Soft cooked ingredients use smaller, flattened cube clusters; wet-cooked fish flakes, fine fish breaks into scattered fragments, rice swells, egg mixtures become curds and mixed minced meat/fish with egg/flour forms bound portions. Dissolved dairy, melted fats and absorbed flour contribute to the liquid or prepared base instead of remaining as bottles, solid blocks or flour piles. The same saved meal drives vessels, carried dishes and table dishes, preserving the cooked appearance after serving. All ingredient geometry remains cuboid.
+
+Per the standing user instruction, no tests, validation commands, validation builds or browser/device/gameplay checks were performed.
+
 ## Counter cutting board placement — 2026-10-11 / cook80
 
 The fixed cutting board now lives on one representative non-island kitchen counter. It no longer occupies or overlaps the sink. The board remains the only prep board, with ingredients, knife work, cut labels and bowl collection all using that counter; the sink remains dedicated to water, washing and draining. Existing saved sink-board contents migrate to the counter board when the shared kitchen is opened.

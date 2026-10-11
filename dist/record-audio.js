@@ -1,4 +1,4 @@
-import {houseDescriptor,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js?v=20261011-free-cook80';
+import {houseDescriptor,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js?v=20261011-free-cook81';
 
 // One lazily fetched music stream, even when several record machines are on.
 export function createRecordAudio(getLayout){

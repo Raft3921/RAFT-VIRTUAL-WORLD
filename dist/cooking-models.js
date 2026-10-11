@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import {describeDish} from './cooking-data.js?v=20261011-free-cook80';
-import {voxelFood,voxelMound} from './cooking-food.js?v=20261011-free-cook80';
-import {cookingGeometry as geometries} from './cooking-blocks.js?v=20261011-free-cook80';
+import {describeDish,brothAppearance,foodCookingState,FOOD_BY_ID} from './cooking-data.js?v=20261011-free-cook81';
+import {voxelFood,voxelMound} from './cooking-food.js?v=20261011-free-cook81';
+import {cookingGeometry as geometries} from './cooking-blocks.js?v=20261011-free-cook81';
 const materials=new Map();
 function material(color){
  if(!materials.has(color)){
@@ -9,7 +9,8 @@ function material(color){
   materials.set(color,new THREE.MeshStandardMaterial({color,roughness:metal?.25:.65,metalness:metal?.78:0,side:THREE.DoubleSide}));
  }return materials.get(color);
 }
-const waterMaterial=new THREE.MeshPhysicalMaterial({color:'#83c6cc',roughness:.13,metalness:.05,transparent:true,opacity:.68,depthWrite:false,side:THREE.DoubleSide});
+const liquidMaterials=new Map();
+function liquidMaterial(appearance){const key=appearance.color+':'+appearance.opacity;if(!liquidMaterials.has(key))liquidMaterials.set(key,new THREE.MeshPhysicalMaterial({color:appearance.color,roughness:.22,metalness:0,transparent:true,opacity:appearance.opacity,depthWrite:false,side:THREE.DoubleSide}));return liquidMaterials.get(key);}
 const glassMaterial=new THREE.MeshPhysicalMaterial({color:'#d1e8ea',roughness:.1,transparent:true,opacity:.27,depthWrite:false,side:THREE.DoubleSide});
 const steamMaterial=new THREE.MeshBasicMaterial({color:'#edf8fa',transparent:true,opacity:.11,depthWrite:false});
 const bubbleMaterial=new THREE.MeshBasicMaterial({color:'#e5fcff',transparent:true,opacity:.42,depthWrite:false});
@@ -34,12 +35,13 @@ export function vesselModel(vessel,{dish=false}={}){
  if(pan){part(root,'box',w*.72,.04,0,.32,.045,.06,'#35434b');for(const x of [.25,.29])part(root,'round',x,.066,0,.012,.005,.012,metal);}
  if(pot)for(const x of [-.28,.28]){part(root,'box',x,h*.7,0,.14,.04,.075,'#35434b');}
  if(jug){const handle=part(root,'wire',.16,.17,0,.2,.24,.08,metal);handle.rotation.y=Math.PI/2;for(let i=1;i<5;i++)part(root,'box',.085,.04+i*.05,.082,.045,.004,.004,'#425761');}
- const capacity={pan:.8,pot:3,bowl:1.5,jug:1.5},level=.033+(h-.05)*Math.min(1,(vessel.water||0)/(capacity[kind]||1));
+ const broth=brothAppearance(vessel),capacity={pan:.8,pot:3,bowl:1.5,jug:1.5},level=.033+(h-.05)*Math.min(1,broth.volume/(capacity[kind]||1));
  let base=plate?.042:.04;
- if(vessel.water>.01){
-  const liquid=part(root,'disc',0,level,0,w*.86,.014,w*.86,vessel.seasonings?.miso?'#b39669':vessel.seasonings?.curry?'#b59044':'#86b9c2');
-  if(!vessel.seasonings?.miso&&!vessel.seasonings?.curry)liquid.material=waterMaterial;
-  liquid.userData.effect={kind:'surface',y:level};base=Math.max(base,level-.025);
+ if(broth.volume>.01){
+  const liquid=part(root,'disc',0,level,0,w*.86,.014+broth.thickness*.008,w*.86,broth.color);
+  liquid.material=liquidMaterial(broth);
+  liquid.userData.effect={kind:'surface',y:level,thickness:broth.thickness};base=Math.max(base,level-.009);
+  if(broth.cloudiness>.2){for(let i=0;i<12;i++){const fleck=part(root,'box',0,level+.009,0,.008,.003,.008,broth.cloudiness>.65?'#eee0b5':'#d8cfac');fleck.raycast=()=>{};fleck.userData.effect={kind:'broth-fleck',i,level,radius:w*.32};}}
   if(vessel.temperature>75&&!dish){for(let i=0;i<16;i++){const bubble=fx(root,'round',bubbleMaterial);bubble.userData.effect={kind:'bubble',i,level,radius:w*.35,heat:Math.max(0,(vessel.temperature-75)/25)};}}
  }else if(vessel.seasonings?.oil){
   const oil=part(root,'disc',0,.033,0,w*.7,.004,w*.7,'#c9b76c');oil.userData.effect={kind:'surface',y:.033};
@@ -51,11 +53,13 @@ export function vesselModel(vessel,{dish=false}={}){
   if(info.shape==='pizza'){const sauce=voxelMound('pizza','#f06535');sauce.position.y=base;root.add(sauce);base+=.04;}
  }
  if(info?.shape==='sandwich'){const bread=voxelFood({id:'bread'});bread.position.y=base;root.add(bread);base+=.15;}
- const foods=vessel.foods||[],dough=vessel.mixed&&foods.some(f=>f.id==='flour');
+ const foods=vessel.foods||[],formed=vessel.mixed&&foods.some(f=>['egg','flour'].includes(f.id))&&foods.some(f=>['meat','fish'].includes(FOOD_BY_ID.get(f.id)?.group)&&['mince','grate'].includes(f.cut)),dough=vessel.mixed&&foods.some(f=>f.id==='flour')&&!formed;
  if(dough&&!dish){
   const doughMesh=voxelMound(vessel.rolled?'pizza':'rice','#ffe0a4');doughMesh.position.y=base;doughMesh.scale.setScalar(.7);root.add(doughMesh);
  }else for(let i=0;i<foods.length;i++){
-  const food=foods[i],item=foodModel(food,{portion:true}),angle=i*2.4,radius=foods.length===1?0:Math.min(w*.3,.045*Math.sqrt(i+1));
+  const food=foods[i],cooked=foodCookingState(food,{wet:vessel.water>.01});
+  if(['milk','cream','yogurt'].includes(food.id)||cooked.melted||cooked.absorbed||formed&&['egg','flour'].includes(food.id)||info&&['pizza','pancake','cake'].includes(info.shape)&&['flour','egg'].includes(food.id)||info?.shape==='rice'&&food.id==='rice')continue;
+  const item=foodModel(food,{portion:true,wet:vessel.water>.01,mixed:vessel.mixed,formed}),angle=i*2.4,radius=foods.length===1?0:Math.min(w*.3,.045*Math.sqrt(i+1));
   item.position.set(Math.cos(angle)*radius,base+Math.floor(i/8)*.035,Math.sin(angle)*radius);
   item.scale.setScalar(dish?.62:.48);root.add(item);
   if(vessel.temperature>=99&&vessel.water>.01&&!vessel.covered)item.userData.effect={kind:'food',y:item.position.y,i};
@@ -83,7 +87,8 @@ export function animateCookingModel(root,time){
   const e=mesh.userData.effect;if(!e)return;
   const phase=(time*.65+(e.i||0)*.137)%1;
   if(e.kind==='flame'){const pulse=.85+.15*Math.sin(time*18+e.i*2);mesh.scale.set(e.core?.021:.033,(.035+e.fire*.023)*pulse*(e.core?.6:1),e.core?.021:.033);mesh.rotation.z=Math.sin(time*11+e.i)*.12;}
-  if(e.kind==='surface'){mesh.position.y=e.y+Math.sin(time*3)*.0015;mesh.rotation.z=Math.sin(time*2.4)*.003;}
+  if(e.kind==='surface'){const movement=1-(e.thickness||0)*.7;mesh.position.y=e.y+Math.sin(time*3)*.0015*movement;mesh.rotation.z=Math.sin(time*2.4)*.003*movement;}
+  if(e.kind==='broth-fleck'){const a=e.i*2.4+time*.08,r=e.radius*Math.sqrt((e.i+1)/12);mesh.position.set(Math.cos(a)*r,e.level+.009,Math.sin(a)*r);}
   if(e.kind==='bubble'){const a=e.i*2.4,r=e.radius*Math.sqrt((e.i+1)/16),size=(.008+.021*phase)*e.heat;mesh.position.set(Math.cos(a)*r,e.level-.02+phase*.032,Math.sin(a)*r);mesh.scale.set(size,size*.6,size);}
   if(e.kind==='steam'){const a=e.i*2.4;mesh.position.set(Math.cos(a)*.07+Math.sin(time+e.i)*phase*.08,e.base+phase*.65,Math.sin(a)*.07);const size=(.035+phase*.16)*(e.covered?.55:1)*Math.sin(phase*Math.PI);mesh.scale.set(size,size*1.4,size);}
   if(e.kind==='food')mesh.position.y=e.y+Math.sin(time*3+e.i)*.006;

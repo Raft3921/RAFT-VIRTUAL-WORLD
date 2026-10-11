@@ -61,6 +61,64 @@ export const CUTS={dice:'角切り',slice:'薄切り',mince:'みじん切り',gr
 export const COOK_METHODS={raw:'そのまま',mix:'混ぜる',fry:'焼く・炒める',boil:'ゆでる',simmer:'煮込む',steam:'蒸す',bake:'オーブン焼き'};
 export function cleanFood(f){if(!FOOD_BY_ID.has(f?.id))return null;return {id:f.id,washed:f.washed===true,peeled:f.peeled===true,cut:Object.hasOwn(CUTS,f.cut)?f.cut:null,cuts:Math.min(3,Math.max(0,Number(f.cuts)||0)),progress:Math.min(180,Math.max(0,Number(f.progress)||0)),burn:Math.min(100,Math.max(0,Number(f.burn)||0)),method:Object.hasOwn(COOK_METHODS,f.method)?f.method:'raw'};}
 export function cleanMeal(meal){const foods=(Array.isArray(meal?.foods)?meal.foods:[]).slice(0,16).map(cleanFood).filter(Boolean),seasonings=Object.fromEntries(Object.keys(SEASONINGS).filter(k=>Number(meal?.seasonings?.[k])>0).map(k=>[k,Math.min(8,Math.floor(Number(meal.seasonings[k])))]));return {foods,seasonings,water:Math.max(0,Math.min(3,Number(meal?.water)||0)),mixed:meal?.mixed===true,kneaded:meal?.kneaded===true,rolled:meal?.rolled===true};}
+export function foodCookingState(food,{wet=false}={}){
+ const def=FOOD_BY_ID.get(food.id),heat=Math.max(0,food.progress||0)/Math.max(1,def?.time||1),moist=wet||['boil','simmer','steam'].includes(food.method);
+ const fine=['mince','grate'].includes(food.cut),fragile=def?.group==='fish'||['potato','pumpkin','tomato','onion','apple','tofu'].includes(food.id)||def?.shape==='leaf';
+ const softness=moist?Math.min(1,Math.max(0,(heat-.35)/(fine?.8:fragile?1.4:2.5))):0;
+ return {heat,moist,fine,softness,flaked:def?.group==='fish'&&moist&&heat>.45,melted:['butter','cheese'].includes(food.id)&&heat>.35,absorbed:food.id==='flour'&&moist,swelling:['rice','pasta','udon','noodles'].includes(food.id)?Math.min(1,heat):0};
+}
+export function tasteMeal(input){
+ const meal=cleanMeal(input),foods=meal.foods,sp=meal.seasonings,has=id=>foods.some(f=>f.id===id),group=g=>foods.some(f=>FOOD_BY_ID.get(f.id).group===g),issues=[];let score=80,cap=5;
+ const savory=group('fish')||group('meat')||group('vegetable')||has('tofu'),sweetDish=!savory&&(group('fruit')||has('yogurt')||has('flour')&&(has('egg')||has('milk'))),salt=(sp.salt||0)+(sp.soy||0)*.8+(sp.miso||0)*.8,umami=(sp.stock||0)+(sp.soy||0)+(sp.miso||0),sweet=sp.sugar||0;
+ const penalize=(points,reason,limit=5)=>{score-=points;issues.push(reason);cap=Math.min(cap,limit);};
+ if(!foods.length)return {stars:1,score:0,reasons:['食材がありません']};
+ if(foods.some(f=>!FOOD_BY_ID.get(f.id).raw&&f.progress<FOOD_BY_ID.get(f.id).time))penalize(60,'火の通りが足りない',1);
+ if(foods.some(f=>f.burn>35))penalize(45,'焦げの苦味が強い',2);
+ if(foods.some(f=>FOOD_BY_ID.get(f.id).wash&&!f.washed))penalize(22,'野菜や果物の下洗いが足りない',3);
+ if(savory&&sweet&&!salt&&!umami&&!sp.curry&&!sp.ketchup)penalize(group('fish')?52:40,group('fish')?'魚に砂糖だけが加わり、甘さと魚の風味が合っていない':'砂糖の甘さを支える塩味やうま味がない',2);
+ else if(savory&&sweet>Math.max(1,salt+umami)*1.2)penalize(25,'甘さが塩味とうま味に対して強すぎる',3);
+ const servings=Math.max(1,foods.length*.6+meal.water*.8);
+ if(salt/servings>2.2)penalize(35,'塩味が強すぎる',2);
+ if(sweetDish&&sweet/servings>3)penalize(30,'砂糖が多すぎて甘さが重い',2);
+ if((sp.vinegar||0)/servings>1.6)penalize(24,'酸味が強すぎる',3);
+ if((sp.pepper||0)/servings>2||(sp.curry||0)/servings>3)penalize(24,'香辛料が強すぎて食材の味が隠れている',3);
+ if(sweetDish&&(sp.miso||sp.curry||sp.stock||salt>1))penalize(35,'甘い料理に塩味や香辛料が強く混ざっている',2);
+ const bound=meal.mixed&&(has('egg')||has('flour'));
+ if(foods.some(f=>FOOD_BY_ID.get(f.id).group==='fish'&&f.cut==='mince'&&['boil','simmer'].includes(f.method)&&f.progress>0)&&!bound)penalize(18,'みじん切りの魚が煮汁に崩れ、食感がまとまっていない');
+ if(foods.some(f=>foodCookingState(f).moist&&f.progress>FOOD_BY_ID.get(f.id).time*2.4&&!['rice','flour','milk','cream','yogurt'].includes(f.id)))penalize(20,'加熱しすぎて食材の食感が失われている',3);
+ if(savory&&!salt&&!umami&&!sp.curry&&!sp.ketchup&&!sp.herbs&&!sweet)penalize(10,'味付けが薄く、食材の味がまとまっていない');
+ if((group('meat')||group('fish'))&&group('vegetable'))score+=5;
+ if(group('starch')&&(group('meat')||group('fish')||has('egg')))score+=4;
+ if(savory&&salt&&umami&&sweet<=Math.max(1,salt+umami)*1.2)score+=8;
+ if(savory&&(sp.pepper||sp.herbs||sp.curry)&&salt)score+=3;
+ if(sweetDish&&sweet&&sweet/servings<=3)score+=8;
+ if(meal.mixed&&foods.length>1)score+=3;
+ const stars=Math.min(cap,score<35?1:score<55?2:score<72?3:score<90?4:5);
+ return {stars,score:Math.max(0,Math.min(100,Math.round(score))),reasons:issues};
+}
+// Colours and texture are derived from the same saved food/process data everywhere.
+export function brothAppearance(input){
+ const foods=input.foods||[],sp=input.seasonings||{},dairy=foods.some(f=>['milk','cream','yogurt'].includes(f.id)),bound=input.mixed&&foods.some(f=>['egg','flour'].includes(f.id)),water=Math.max(0,input.water||0),melted=foods.some(f=>foodCookingState(f).melted),sauce=foods.some(f=>f.id==='tomato'&&foodCookingState(f).heat>.5&&(f.cut||input.mixed)),volume=water||(dairy?.3:melted?.055:sauce?.12:0);
+ let rgb=water?[186,214,215]:[238,216,152],cloud=0,thick=0;
+ const mix=(hex,amount)=>{const n=parseInt(hex.slice(1),16),c=[n>>16,(n>>8)&255,n&255];amount=Math.max(0,Math.min(1,amount));rgb=rgb.map((v,i)=>v+(c[i]-v)*amount);};
+ for(const f of foods){const def=FOOD_BY_ID.get(f.id),state=foodCookingState(f,{wet:water>.01});if(!def)continue;const extraction=Math.min(1,state.heat)*(state.fine?(bound&&['meat','fish'].includes(def.group)?.25:.8):f.cut?.5:.3);
+  if(['meat','fish'].includes(def.group)){mix(def.group==='fish'?'#dfd5be':'#c69c69',extraction*.85);cloud+=extraction*.8;}
+  else if(['rice','flour','potato'].includes(f.id)){mix('#eee0b5',extraction*.35);cloud+=extraction*.3;thick+=extraction*.25;}
+  else if(['tomato','carrot','pumpkin','onion','mushroom','shiitake'].includes(f.id)){mix({tomato:'#d8643b',carrot:'#e4a057',pumpkin:'#e6ad4c',onion:'#d8b878',mushroom:'#ac8b66',shiitake:'#9e7853'}[f.id],extraction*.55);thick+=state.softness*.12;}
+  else if(def.shape==='leaf'){mix('#a1b977',extraction*.18);cloud+=extraction*.08;}
+  if(state.melted){mix(f.id==='cheese'?'#edc771':'#ead392',.35);thick+=.2;}
+ }
+ if(sp.stock)mix('#dfbe73',Math.min(.75,sp.stock*.3));
+ if(sp.sugar)mix('#efdaad',Math.min(.25,sp.sugar*.04));
+ if(sp.soy){mix('#724522',Math.min(.95,sp.soy*.4));cloud+=.1;}
+ if(sp.ketchup){mix('#d35c35',Math.min(.8,sp.ketchup*.28));thick+=.2;}
+ if(dairy){mix('#f3e2bb',.9);cloud+=.9;thick+=.35;}
+ if(sp.miso){mix('#b2925f',Math.min(.95,.65+sp.miso*.08));cloud+=.8;thick+=.2;}
+ if(sp.curry){mix('#bd8837',Math.min(.98,.7+sp.curry*.07));cloud+=.95;thick+=.5;}
+ cloud=Math.min(1,cloud);thick=Math.min(1,thick);
+ const color='#'+rgb.map(n=>Math.round(n/4)*4).map(n=>Math.min(255,n).toString(16).padStart(2,'0')).join('');
+ return {color,opacity:Math.round((.35+cloud*.6)*20)/20,cloudiness:cloud,thickness:thick,volume};
+}
 export function describeDish(input){
  const meal=cleanMeal(input),foods=meal.foods,ids=new Set(foods.map(f=>f.id)),has=id=>ids.has(id),all=(...list)=>list.every(has),group=g=>foods.some(f=>FOOD_BY_ID.get(f.id).group===g),method=m=>foods.some(f=>f.method===m),hot=foods.some(f=>f.progress>0),ready=f=>FOOD_BY_ID.get(f.id).raw||f.progress>=FOOD_BY_ID.get(f.id).time,liquid=meal.water>.15,sp=meal.seasonings;
  let name='',shape='plate';
@@ -97,7 +155,7 @@ export function describeDish(input){
  else if(group('fruit')){name='フルーツ盛り合わせ';shape='dessert';}
  else if(group('vegetable'))name=hot?(method('steam')?'蒸し野菜':method('boil')?'温野菜':method('bake')?'野菜のオーブン焼き':method('simmer')?'野菜の煮込み':'野菜炒め'):'フレッシュサラダ';
  else name='自由な盛り合わせ';
- const quality=foods.some(f=>f.burn>35)?'焦げ気味':foods.some(f=>!ready(f))?'加熱不足':Object.entries(sp).some(([k,v])=>!['oil','stock'].includes(k)&&v>3)?'味付け濃いめ':foods.some(f=>FOOD_BY_ID.get(f.id).wash&&!f.washed)?'洗浄不足':'食べ頃';
+ const taste=tasteMeal(meal),quality=foods.some(f=>f.burn>35)?'焦げ気味':foods.some(f=>!ready(f))?'加熱不足':foods.some(f=>FOOD_BY_ID.get(f.id).wash&&!f.washed)?'洗浄不足':taste.stars<=2?'味や食感がまとまっていない':taste.stars===3?'味や食感に改善の余地':'食べ頃';
  const labels=[...ids].map(id=>FOOD_BY_ID.get(id).name),signature=[...ids].sort().join('+')+'|'+[...new Set(foods.map(f=>f.method))].sort().join('+')+'|'+Object.keys(sp).sort().join('+');
  return {name,shape,quality,signature,subtitle:labels.join('・'),meal,edible:foods.length>0&&quality!=='加熱不足'};
 }

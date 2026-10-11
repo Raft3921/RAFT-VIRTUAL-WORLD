@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import {houseDescriptor,ROOM,furnitureDefinition,furniturePose} from './housing-data.js?v=20261011-free-cook76';
-import {furnitureParts} from './furniture-models.js?v=20261011-free-cook76';
+import {houseDescriptor,ROOM,furnitureDefinition,furniturePose} from './housing-data.js?v=20261011-free-cook77';
+import {furnitureParts} from './furniture-models.js?v=20261011-free-cook77';
 
-import {STREET_LAMPS} from './street-lamps.js?v=20261011-free-cook76';
+import {STREET_LAMPS} from './street-lamps.js?v=20261011-free-cook77';
 export {STREET_LAMPS};
 export const nightLight={value:0};
 const patched=new WeakSet();

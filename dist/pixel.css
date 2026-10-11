@@ -143,6 +143,7 @@ body[data-touch=true] #stickKnob{width:48px;height:48px;left:calc(50% - 24px);to
 .cook-rating{position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:65;white-space:pre-line;text-align:center;line-height:1.9;font-size:22px;padding:20px 32px;color:#ffe39a;background:#1d302bf5;border:3px solid #e9d299;pointer-events:none}
 .cook-carry-world[hidden],.cook-rating[hidden]{display:none!important}
 body[data-carrying-meal=true] :is(#punchBtn,#chargeHud,#gunCrosshair){display:none!important}
+body[data-hands-on=true] :is(#punchBtn,#chargeHud,#gunCrosshair,#targetHud){display:none!important}
 #cookingStart{max-width:calc(100vw - 36px);font-size:13px}
 body[data-touch=true] .cook-carry-world{bottom:calc(216px + env(safe-area-inset-bottom));max-width:calc(100vw - 28px);width:calc(100vw - 28px)}
 #flightControls{display:flex;flex-direction:column;gap:8px;right:calc(110px + env(safe-area-inset-right));bottom:calc(96px + env(safe-area-inset-bottom));z-index:7}

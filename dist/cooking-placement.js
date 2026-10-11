@@ -6,7 +6,9 @@ export function createCookingPlacement({scene,camera,get,modelFor,bounds}){
  const root=new THREE.Group();root.name='Cooking loose objects';scene.add(root);
  const material=new THREE.MeshBasicMaterial({color:'#b6e881',transparent:true,opacity:.3,depthWrite:false});
  const ghost=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),material);ghost.visible=false;ghost.raycast=()=>{};scene.add(ghost);
- const bodies=[],ray=new THREE.Raycaster();let serial=0,preview=null,measuredHand=null,measuredShape=null,supportMeshes=[],supports=[];
+ const bodies=[],ray=new THREE.Raycaster();let serial=0,preview=null,measuredHand=null,measuredShape=null,supportMeshes=[],supports=[],previewItem=null,previewKey='';
+ const previewMaterials=new Set();
+ function clearPreview(){if(previewItem){previewItem.model.removeFromParent();dispose(previewItem.model);}for(const material of previewMaterials)material.dispose();previewMaterials.clear();previewItem=null;previewKey='';}
  function setSurfaces(meshes){
   supportMeshes=meshes;supports=meshes.map(mesh=>{mesh.updateWorldMatrix(true,false);mesh.geometry.computeBoundingBox();const size=mesh.geometry.boundingBox.getSize(new THREE.Vector3()).multiply(mesh.getWorldScale(new THREE.Vector3())),center=mesh.localToWorld(mesh.geometry.boundingBox.getCenter(new THREE.Vector3())),euler=new THREE.Euler().setFromQuaternion(mesh.getWorldQuaternion(new THREE.Quaternion()),'YXZ');return {x:center.x,z:center.z,top:center.y+size.y/2,bottom:center.y-size.y/2,w:size.x/2,d:size.z/2,c:Math.cos(euler.y),s:Math.sin(euler.y)};});
  }
@@ -29,11 +31,13 @@ export function createCookingPlacement({scene,camera,get,modelFor,bounds}){
   if(ray.ray.direction.y<-.001){const t=(floor-from.y)/ray.ray.direction.y;if(t>0&&t<=3.5&&(!surface||t<from.distanceTo(point))){point.copy(from).addScaledVector(ray.ray.direction,t);normal=new THREE.Vector3(0,1,0);surface=true;}}
   root.updateMatrixWorld(true);
   for(const hit of ray.intersectObjects([root,...supportMeshes],true)){if(hit.distance>3.5||surface&&hit.distance>=from.distanceTo(point))break;point.copy(hit.point);normal=hit.face.normal.clone().applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)).normalize();surface=true;break;}
-  if(measuredHand!==payload){const item=build(payload);measuredShape=item.shape;measuredHand=payload;dispose(item.model);}
+  const nextKey=JSON.stringify(payload);
+  if(!previewItem||previewKey!==nextKey){clearPreview();previewKey=nextKey;previewItem=build(payload);const clones=new Map();previewItem.model.traverse(mesh=>{if(!mesh.isMesh)return;const clone=material=>{if(!clones.has(material)){const next=material.clone();next.transparent=true;next.opacity=.36;next.depthWrite=false;clones.set(material,next);previewMaterials.add(next);}return clones.get(material);};mesh.material=Array.isArray(mesh.material)?mesh.material.map(clone):clone(mesh.material);mesh.raycast=()=>{};});scene.add(previewItem.model);measuredShape=previewItem.shape;measuredHand=payload;}
   const p=point.clone();p.y+=.09;const b=bounds(),s=measuredShape;
   const valid=surface&&normal.y>.7&&p.x-s.width>=b.minX&&p.x+s.width<=b.maxX&&p.z-s.depth>=b.minZ&&p.z+s.depth<=b.maxZ&&world.canStand(p,s)&&!bodies.some(other=>overlapping(p,s,other))&&!supports.some(support=>p.y<support.top&&p.y+s.height>support.bottom&&supportOverlap(p,s,support).hit);
   preview={p,shape:s,valid};
   ghost.position.copy(p).y+=s.height/2;ghost.scale.set(s.width*2,s.height,s.depth*2);ghost.material.color.set(valid?'#b6e881':'#ed8c66');ghost.visible=true;
+  previewItem.model.position.copy(p);previewItem.model.visible=valid;
   return valid;
  }
  function release(payload,ndc){
@@ -65,8 +69,8 @@ export function createCookingPlacement({scene,camera,get,modelFor,bounds}){
    body.spin*=Math.exp(-step*15);body.model.position.copy(body.p);
   }
  }
- function hide(){ghost.visible=false;preview=null;}
+ function hide(){ghost.visible=false;if(previewItem)previewItem.model.visible=false;preview=null;}
  function restore(records){for(const body of [...bodies])take(body);for(const record of records||[]){const item=build(record.payload),body={id:record.id||'restored-'+(++serial),payload:record.payload,...item,p:new THREE.Vector3(record.position.x,record.position.y,record.position.z),velocity:new THREE.Vector3(0,record.velocity||0,0),spin:0,tableId:record.tableId||''};body.model.userData.body=body;body.model.position.copy(body.p);root.add(body.model);bodies.push(body);}}
  function sync(records){const ids=new Set(records.map(b=>b.id));for(const body of [...bodies])if(!ids.has(body.id))take(body);for(const record of records){let body=bodies.find(b=>b.id===record.id);if(!body){const item=build(record.payload);body={id:record.id,payload:record.payload,...item,p:new THREE.Vector3(),velocity:new THREE.Vector3(),spin:0};body.model.userData.body=body;root.add(body.model);bodies.push(body);}body.payload=record.payload;body.tableId=record.tableId||'';body.p.set(record.position.x,record.position.y,record.position.z);body.velocity.set(0,record.velocity||0,0);body.model.position.copy(body.p);}}
- return {root,bodies,aim,release,take,refresh,update,hide,setSurfaces,restore,sync,clear(){for(const body of [...bodies])take(body);setSurfaces([]);hide();},get valid(){return !!preview?.valid;}};
+ return {root,bodies,aim,release,take,refresh,update,hide,setSurfaces,restore,sync,clear(){for(const body of [...bodies])take(body);setSurfaces([]);hide();clearPreview();},get valid(){return !!preview?.valid;}};
 }

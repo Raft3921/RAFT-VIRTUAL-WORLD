@@ -1,5 +1,15 @@
 # RAFT-VIRTUAL-WORLD
 
+## Direct handling, first-person serving and Shift crouch — 2026-10-11 / cook77
+
+Hold either Shift key to crouch on the ground, including in the kitchen. Releasing Shift attempts to stand and waits if there is insufficient headroom. C and the mobile crouch button retain their toggle behavior. Shift still descends while flying; desktop sprinting now uses a double press of W followed by holding it, and the touch stick keeps its existing full-deflection sprint.
+
+Serving retains first person for picking up the prepared dish. Holding any cooking item in ordinary play automatically selects first person until it is placed or returned. The saved normal camera preference cannot replace this view mid-placement. Preparation and serving share the same pointer-lock/drag/tap input owner, while ordinary carrying remains free to move around the whole house. Place a dish by looking at an empty table surface and clicking/tapping it; no placement-mode toggle or menu is required. A translucent object and green footprint preview the position. Placing the dish restores the previous camera. The serving phase can also end with **配膳を終える** before picking anything up.
+
+Cooking has no action-list popup. Left click/tap or E uses the actual targeted object. Right click cancels a hand task or an optional placement override and never opens a menu. Open cabinet handles, take a visible utensil, empty plate or cutting board, and carry it to a clear worktop. Empty plates and boards can be picked back up. Take ingredients from the fridge, put them on a board or into a vessel, and apply the held knife, peeler, seasoning or mixing tool directly. Physical board markings select cut styles; stove burner surfaces, fire knobs, method buttons and timer dials control cooking. Appliance time dials and start/stop buttons replace the previous appliance menus. Touch retains direct **使う** and **置く** controls; no **設備** menu is required. Existing shared server transactions still save changes and prevent conflicting pickups.
+
+Per the user's continuing instruction, no tests, validation commands, validation builds or browser/device/gameplay checks were performed. Git push and Worker/Pages publication are separate from gameplay acceptance.
+
 ## Shared cooking, table service and usable appliances — 2026-10-11 / cook76
 
 Cooking now uses a server-owned workspace per house/kitchen. Every client receives the same boards, containers, food, doors, stored tools, loose objects and finished dishes. Each player's hand is tracked separately, with other players' held objects rendered beside their avatar. Edits save before acknowledgement/broadcast, and compare independent resource versions: cooks can prepare on separate counters without overwriting each other. Conflicting pickups revert to the server state. Disconnected clients wait for reconnection instead of accumulating private edits. Joining players receive shared kitchen snapshots. Previous house-owner kitchen saves migrate once into shared storage.

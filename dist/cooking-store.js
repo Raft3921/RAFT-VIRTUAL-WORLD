@@ -1,9 +1,9 @@
-import {cleanKitchenState,COOK_VESSELS,dishRating} from './cooking-state.js?v=20261011-free-cook76';
-import {advanceCookingHeat} from './cooking-simulation.js?v=20261011-free-cook76';
-import {cleanMeal} from './cooking-data.js?v=20261011-free-cook76';
-import {copy,same,kitchenIdentity,kitchenResources,resourcesToKitchen,mergeKitchenEdit} from './cooking-shared.js?v=20261011-free-cook76';
-import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook76';
-import {houseDescriptor,FURNITURE_BY_ID,furniturePose,ROOM} from './housing-data.js?v=20261011-free-cook76';
+import {cleanKitchenState,COOK_VESSELS,dishRating} from './cooking-state.js?v=20261011-free-cook77';
+import {advanceCookingHeat} from './cooking-simulation.js?v=20261011-free-cook77';
+import {cleanMeal} from './cooking-data.js?v=20261011-free-cook77';
+import {copy,same,kitchenIdentity,kitchenResources,resourcesToKitchen,mergeKitchenEdit} from './cooking-shared.js?v=20261011-free-cook77';
+import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook77';
+import {houseDescriptor,FURNITURE_BY_ID,furniturePose,ROOM} from './housing-data.js?v=20261011-free-cook77';
 
 export class CookingStore{
  constructor(rules,data={},save=()=>{}){

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {part} from './cooking-models.js?v=20261011-free-cook76';
+import {part} from './cooking-models.js?v=20261011-free-cook77';
 
 // Every tool is a reusable model. Its local origin is the working end so that
 // the same model can sit in the rack or perform a preparation animation.
@@ -7,7 +7,11 @@ export function toolModel(kind){
  const root=new THREE.Group();root.name=kind;
  const metal='#b9c8cf',wood='#a77443',dark='#35434b';
  const p=(shape,x,y,z,w,h,d,c=metal)=>part(root,shape,x,y,z,w,h,d,c);
- if(kind==='knife'||kind==='peeler'){
+ if(kind==='board'){
+  p('box',0,.014,0,.52,.028,.32,'#cda16a');for(let i=0;i<6;i++)p('box',-.22+i*.085,.029,0,.002,.001,.29,'#a77b4c');
+ }else if(kind==='plate'){
+  p('box',0,.012,0,.45,.024,.45,'#fff1da');for(const sign of [-1,1]){p('box',sign*.215,.031,0,.02,.025,.45,'#e4d5b8');p('box',0,.031,sign*.215,.45,.025,.02,'#e4d5b8');}
+ }else if(kind==='knife'||kind==='peeler'){
   if(kind==='knife'){p('box',0,.04,0,.24,.085,.012);p('box',-.025,.001,0,.19,.005,.014,'#e9f1f4');p('box',.195,.04,0,.15,.038,.035,wood);for(const x of [.15,.19,.23])p('round',x,.04,.019,.008,.008,.004);}
   else{p('box',0,.12,0,.035,.17,.025,wood);for(const x of [-.04,.04])p('box',x,.035,0,.012,.09,.02);p('box',0,0,0,.095,.012,.012);}
  }else if(kind==='rolling-pin'){

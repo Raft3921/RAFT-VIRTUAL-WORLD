@@ -1,5 +1,5 @@
-import {cleanFood,cleanMeal,describeDish,SEASONINGS,FOOD_GROUPS,CUTS,COOK_METHODS} from './cooking-data.js?v=20261011-free-cook76';
-export const COOK_TOOLS=['knife','peeler','grater','whisk','spatula','ladle','tongs','colander','rolling-pin','mitt','sponge'];
+import {cleanFood,cleanMeal,describeDish,SEASONINGS,FOOD_GROUPS,CUTS,COOK_METHODS} from './cooking-data.js?v=20261011-free-cook77';
+export const COOK_TOOLS=['knife','peeler','grater','whisk','spatula','ladle','tongs','colander','rolling-pin','mitt','sponge','board','plate'];
 export const COOK_VESSELS=['pan','pot','bowl','jug'];
 const text=x=>typeof x==='string'?x.slice(0,128):'',num=(x,max)=>Math.max(0,Math.min(max,Number(x)||0));
 export function cleanDish(d){if(!d?.meal?.foods?.length||!text(d.id))return null;const meal=cleanMeal(d.meal);if(!meal.foods.length)return null;return {id:text(d.id),meal,...describeDish(meal),counterId:text(d.counterId),eaten:d.eaten===true,eatenAt:num(d.eatenAt,1e14),rating:Math.floor(num(d.rating,5))};}

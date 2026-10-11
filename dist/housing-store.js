@@ -1,4 +1,4 @@
-import {HOUSES,mirrorRealmKey,houseDescriptor,emptyHouse,cleanHouse,applyHouseOperation,mirrorPassageError,isMirror,reflectedMirror} from './housing-data.js?v=20261011-free-cook78';
+import {HOUSES,mirrorRealmKey,houseDescriptor,emptyHouse,cleanHouse,applyHouseOperation,mirrorPassageError,isMirror,reflectedMirror} from './housing-data.js?v=20261011-free-cook79';
 export class HousingStore{
   constructor(data,save,broadcast){
     this.save=save;this.broadcast=broadcast;this.pending=Promise.resolve();this.realms=new Map([[mirrorRealmKey(),0]]);

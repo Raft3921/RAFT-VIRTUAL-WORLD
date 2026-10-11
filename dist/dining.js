@@ -1,4 +1,4 @@
-import {ROOM,furnitureDefinition,furniturePose} from './housing-data.js?v=20261011-free-cook78';
+import {ROOM,furnitureDefinition,furniturePose} from './housing-data.js?v=20261011-free-cook79';
 
 // Shared geometry for ordinary furniture tables and their seats.
 // Kitchen counters do not participate in dining.

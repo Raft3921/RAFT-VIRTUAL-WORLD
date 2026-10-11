@@ -1,7 +1,15 @@
-import {FURNITURE_BY_ID,furniturePose,ROOM,houseDescriptor} from './housing-data.js?v=20261011-free-cook78';
+import {FURNITURE_BY_ID,furniturePose,ROOM,houseDescriptor} from './housing-data.js?v=20261011-free-cook79';
 export const isIsland=f=>f?.id==='island'||f?.design==='island';
 export function kitchenRole(f){if(!f)return null;if(f.family==='kitchen')return 'counter';if(f.family==='sink')return 'sink';if(f.family==='fridge'||f.id==='mini-fridge')return 'fridge';if(['stove','oven'].includes(f.family))return 'stove';if(f.id==='cutting-board')return 'board';if(['knife-block','cooking-knife','dish-rack','pot-rack-wall'].includes(f.id))return 'storage';if(['microwave','rice-cooker','kettle','blender','stand-mixer','toaster','dishwasher'].includes(f.id))return 'appliance';return null;}
 export const kitchenKey=stations=>JSON.stringify(stations.map(s=>s.item).sort((a,b)=>a.id.localeCompare(b.id)));
+export function pinKitchenBoard(state,zone){
+ const sinkId=zone.boardStationId;if(!sinkId)return;state.worktops??={};
+ const existed=!!state.worktops[sinkId];state.worktops[sinkId]??={foods:[],index:0,boardVisible:true};
+ for(const station of zone.worktops)state.worktops[station.item.id]??={foods:[],index:0,boardVisible:false};
+ if(!existed){const board=state.worktops[sinkId];for(const [id,work]of Object.entries(state.worktops)){if(id===sinkId||!work.boardVisible)continue;while(work.foods.length&&board.foods.length<4)board.foods.push(work.foods.shift());work.index=Math.min(work.index,Math.max(0,work.foods.length-1));}}
+ for(const [id,work]of Object.entries(state.worktops))work.boardVisible=id===sinkId;
+ if(!state.worktops[state.activeCounterId])state.activeCounterId=sinkId;
+}
 export function recognizeKitchens(index,layout){
  const home=houseDescriptor(index);if(!home||!layout)return {zones:[],reason:'設備を置いてキッチンを作れます'};
  const all=layout.items.map(item=>({item,def:FURNITURE_BY_ID.get(item.t),...furniturePose(item)})),stations=all.filter(s=>kitchenRole(s.def)).map(s=>({...s,role:kitchenRole(s.def)}));
@@ -28,8 +36,8 @@ export function recognizeKitchens(index,layout){
   }
   if(!cells)continue;
   const bounds={minX:Math.min(home.x+minX*home.front,home.x+maxX*home.front),maxX:Math.max(home.x+minX*home.front,home.x+maxX*home.front),minZ:Math.min(home.z+minZ*home.front,home.z+maxZ*home.front),maxZ:Math.max(home.z+minZ*home.front,home.z+maxZ*home.front)};
-  const worktops=cluster.filter(s=>s.role==='counter'||s.role==='board'),primary=worktops.find(s=>s.role==='counter'&&!isIsland(s.def));
-  zones.push({index:home.index,id:primary.item.id,key:kitchenKey(cluster),rev:layout.rev,home,stations:cluster,worktops,bounds,safeStarts:[...cells].map(cell=>{const [gx,gz]=cell.split(',').map(Number);return {x:home.x+gx*step*home.front,y:ROOM.floor+.025,z:home.z+gz*step*home.front};}),start:{x:home.x+start.x*home.front,y:ROOM.floor+.025,z:home.z+start.z*home.front},allowed:p=>p.x>=bounds.minX&&p.x<=bounds.maxX&&p.z>=bounds.minZ&&p.z<=bounds.maxZ&&Math.abs(p.y-ROOM.floor)<1.2});
+  const boardStationId=cluster.find(s=>s.role==='sink').item.id,worktops=cluster.filter(s=>s.role==='counter'||s.role==='board'||s.item.id===boardStationId).sort((a,b)=>Number(b.item.id===boardStationId)-Number(a.item.id===boardStationId)),primary=worktops.find(s=>s.role==='counter'&&!isIsland(s.def));
+  zones.push({index:home.index,id:primary.item.id,key:kitchenKey(cluster),rev:layout.rev,home,stations:cluster,worktops,boardStationId,bounds,safeStarts:[...cells].map(cell=>{const [gx,gz]=cell.split(',').map(Number);return {x:home.x+gx*step*home.front,y:ROOM.floor+.025,z:home.z+gz*step*home.front};}),start:{x:home.x+start.x*home.front,y:ROOM.floor+.025,z:home.z+start.z*home.front},allowed:p=>p.x>=bounds.minX&&p.x<=bounds.maxX&&p.z>=bounds.minZ&&p.z<=bounds.maxZ&&Math.abs(p.y-ROOM.floor)<1.2});
  }
  return {zones,reason:zones.length?'キッチン認定済み · カウンター3台以上＋アイランド1台以上':'設備をつながる距離にまとめ、カウンターの間と設備の正面に通路を空けてください'};
 }

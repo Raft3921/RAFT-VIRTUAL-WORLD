@@ -1,6 +1,6 @@
-import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261011-free-cook78';
-import {expandedParts} from './furniture-shapes.js?v=20261011-free-cook78';
-import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook78';
+import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261011-free-cook79';
+import {expandedParts} from './furniture-shapes.js?v=20261011-free-cook79';
+import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook79';
 const WOOD='#bd9166',DARK='#354353',METAL='#87929a',WHITE='#f4eee2',LEAF='#52a96d';
 const partsCache=new Map();
 export function furnitureParts(item){
@@ -31,7 +31,14 @@ export function furnitureParts(item){
       else{for(const x of [-.22,.22]){box(x,.5,.43,.45,.94,.1,f.family==='cabinet'?'#8fbac9':paint);box(x+(x<0?.16:-.16),.5,.5,.025,.08,.025,DARK,true);}if(f.family==='dresser')for(let row=0;row<rows;row++)box(0,(row+.5)/rows,.5,.2,.025,.02,DARK,true);}break;
     }
     case 'crate':box(0,.5,0,1,1,1,WOOD);for(const y of [.12,.5,.88])box(0,y,.505,1,.045,.015,DARK,true);for(const x of [-.42,.42])box(x,.5,.51,.08,1,.02,paint,true);break;
-    case 'kitchen':case 'sink':box(0,.43,0,1,.86,1);box(0,.94,0,1,.12,1,WHITE);for(const x of [-.25,.25]){box(x,.44,.505,.46,.78,.02,WOOD);box(x,.69,.52,.16,.03,.03,DARK,true);}if(f.family==='sink'){box(0,1.002,0,.6,.02,.6,DARK);box(0,1.08,-.24,.045,.2,.045,METAL);box(0,1.18,-.12,.045,.045,.3,METAL);}break;
+    case 'kitchen':{
+      const island=f.id==='island'||f.design==='island';
+      box(0,.43,0,island?.9:1,.86,island?.84:1);box(0,.94,0,1,.12,1,WHITE);
+      for(const side of island?[1,-1]:[1])for(const x of [-.25,.25]){box(x,.44,side*(island?.43:.505),.46,.78,.025,WOOD);box(x,.69,side*(island?.45:.525),.16,.03,.035,DARK,true);}
+      if(!island){box(0,.47,-.475,1,.84,.05);box(0,.79,.524,.93,.018,.024,DARK,true);}else box(0,.055,0,.78,.11,.72,DARK);
+      break;
+    }
+    case 'sink':box(0,.43,0,1,.86,1);box(0,.94,0,1,.12,1,WHITE);for(const x of [-.25,.25]){box(x,.44,.505,.46,.78,.02,WOOD);box(x,.69,.52,.16,.03,.03,DARK,true);}box(0,1.002,0,.6,.02,.6,DARK);box(0,1.08,-.24,.045,.2,.045,METAL);box(0,1.18,-.12,.045,.045,.3,METAL);break;
     case 'fridge':box(0,.5,0,1,1,1,WHITE);box(0,.75,.51,.96,.45,.02,paint);box(0,.25,.51,.96,.46,.02,paint);for(const y of [.35,.68])box(.31,y,.55,.04,.16,.06,DARK,true);break;
     case 'oven':box(0,.45,0,1,.9,1);box(0,.94,0,1,.12,1,WHITE);box(0,.48,.51,.78,.47,.03,DARK);box(0,.75,.54,.6,.035,.04,METAL,true);for(const x of [-.25,.25])for(const z of [-.23,.23])box(x,1.001,z,.25,.01,.25,DARK,true);break;
     case 'tv':box(0,.2,0,1,.4,1,WOOD);box(0,.44,-.1,.2,.2,.1,DARK);box(0,.75,-.1,.95,.5,.12,DARK);box(0,.75,-.03,.88,.42,.02,paint);box(0,.8,-.015,.55,.03,.008,WHITE,true);break;

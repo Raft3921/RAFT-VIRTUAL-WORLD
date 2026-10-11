@@ -1,10 +1,10 @@
-import {cleanKitchenState,COOK_VESSELS,dishRating} from './cooking-state.js?v=20261011-free-cook78';
-import {advanceCookingHeat} from './cooking-simulation.js?v=20261011-free-cook78';
-import {tableForObject,tableForSeat,diningSeatAt} from './dining.js?v=20261011-free-cook78';
-import {cleanMeal} from './cooking-data.js?v=20261011-free-cook78';
-import {copy,same,kitchenIdentity,kitchenResources,resourcesToKitchen,mergeKitchenEdit} from './cooking-shared.js?v=20261011-free-cook78';
-import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook78';
-import {houseDescriptor,FURNITURE_BY_ID,furniturePose,ROOM} from './housing-data.js?v=20261011-free-cook78';
+import {cleanKitchenState,COOK_VESSELS,dishRating} from './cooking-state.js?v=20261011-free-cook79';
+import {advanceCookingHeat} from './cooking-simulation.js?v=20261011-free-cook79';
+import {tableForObject,tableForSeat,diningSeatAt} from './dining.js?v=20261011-free-cook79';
+import {cleanMeal} from './cooking-data.js?v=20261011-free-cook79';
+import {copy,same,kitchenIdentity,kitchenResources,resourcesToKitchen,mergeKitchenEdit} from './cooking-shared.js?v=20261011-free-cook79';
+import {recognizeKitchens,pinKitchenBoard} from './kitchen-layout.js?v=20261011-free-cook79';
+import {houseDescriptor,FURNITURE_BY_ID,furniturePose,ROOM} from './housing-data.js?v=20261011-free-cook79';
 
 export class CookingStore{
  constructor(rules,data={},save=()=>{}){
@@ -18,16 +18,17 @@ export class CookingStore{
  within(p,home){return Math.abs(p.x-home.x)<ROOM.x+.5&&Math.abs(p.z-home.z)<ROOM.z+.5&&p.y>=ROOM.floor-1&&p.y<ROOM.floor+ROOM.height+1;}
  async publish(id,record,meta={}){if(JSON.stringify(record).length>120000)throw Error('kitchen capacity');const next={...this.data,[id]:record};await this.save(next);this.data=next;this.rules.broadcast({type:'kitchen-state',...copy(record),...meta});this.ensureTimer();}
  failure(entry,m,error,record){this.rules.broadcast({type:'kitchen-state',...(record?copy(record):{state:null,index:m.index,kitchenId:m.kitchenId}),playerId:entry.player.id,requestId:m.requestId,error});}
- fresh(zone){return cleanKitchenState({index:zone.index,kitchenId:zone.id,key:zone.key,at:Date.now(),worktops:Object.fromEntries(zone.worktops.map((s,i)=>[s.item.id,{foods:[],index:0,boardVisible:i===0}])),activeCounterId:zone.worktops[0].item.id,foodGroup:'all'});}
+ fresh(zone){return cleanKitchenState({index:zone.index,kitchenId:zone.id,key:zone.key,at:Date.now(),worktops:Object.fromEntries(zone.worktops.map((s,i)=>[s.item.id,{foods:[],index:0,boardVisible:s.item.id===zone.boardStationId}])),activeCounterId:zone.boardStationId,foodGroup:'all'});}
  open(entry,m){return this.enqueue(async()=>{
   const zone=this.zone(m.index,m.kitchenId);if(!zone||!this.within(entry.player,zone.home))return this.failure(entry,m,'キッチンの近くで接続してください');
   const id=kitchenIdentity(zone.index,zone.id);let record=this.data[id];
   for(const [otherId,old]of Object.entries(this.data)){if(otherId===id||!old.hands[entry.player.id])continue;const next=copy(old);this.returnHand(next.state,next.hands[entry.player.id]);delete next.hands[entry.player.id];const before=kitchenResources(old.state,old.hands),after=kitchenResources(next.state,next.hands);for(const key of new Set([...Object.keys(before),...Object.keys(after)]))if(!same(before[key],after[key]))next.versions[key]=(next.versions[key]||0)+1;next.rev++;await this.publish(otherId,next);}
   if(!record){const legacy=this.rules.characters.get(zone.home.owner).kitchenStates?.find(s=>String(s.index)===String(zone.index)&&s.kitchenId===zone.id),state=legacy?cleanKitchenState(legacy):this.fresh(zone);if(state.hand)this.returnHand(state,state.hand);state.hand=null;for(const b of state.loose)b.velocity=-.01;state.key=zone.key;state.foodGroup='all';state.foodPage=0;record={state,hands:{},versions:{},rev:1};await this.publish(id,record);}
   else if(record.state.key!==zone.key){record=copy(record);record.state.key=zone.key;for(const s of zone.worktops)record.state.worktops[s.item.id]??={foods:[],index:0,boardVisible:false};record.rev++;await this.publish(id,record);}
-  const repaired=copy(record);if(this.bindTables(repaired.state,zone.home,this.rules.houses.snapshots()[zone.index])){repaired.rev++;record=repaired;await this.publish(id,record);}
+  const repaired=copy(record);this.normalizeBoard(repaired.state,repaired.hands,zone);this.bindTables(repaired.state,zone.home,this.rules.houses.snapshots()[zone.index]);if(!same(repaired,record)){const before=kitchenResources(record.state,record.hands),after=kitchenResources(repaired.state,repaired.hands);for(const key of new Set([...Object.keys(before),...Object.keys(after)]))if(!same(before[key],after[key]))repaired.versions[key]=(record.versions[key]||0)+1;repaired.rev++;record=repaired;await this.publish(id,record);}
   this.rules.broadcast({type:'kitchen-state',...copy(record),playerId:entry.player.id,requestId:m.requestId});
  }).catch(()=>this.failure(entry,m,'キッチンをサーバーから読み込めませんでした。再接続してください'));}
+ normalizeBoard(state,hands,zone){pinKitchenBoard(state,zone);for(const [id,hand]of Object.entries(hands))if(hand?.type==='tool'&&hand.id==='board')delete hands[id];state.loose=state.loose.filter(b=>b.payload.type!=='tool'||b.payload.id!=='board');}
  bindTables(state,home,layout){let changed=false;for(const body of state.loose){const id=tableForObject(layout,home,body.position,body.tableId)?.itemId||'';if(id!==body.tableId){body.tableId=id;changed=true;}}return changed;}
  allowedKey(key,zone,p){if(key==='fridge'||key==='water'||key==='plate')return true;const at=key.indexOf(':'),kind=key.slice(0,at),id=key.slice(at+1);return kind==='hand'?id===p.id:kind==='vessel'?COOK_VESSELS.includes(id):kind==='board'?zone.worktops.some(s=>s.item.id===id):kind==='door'||kind==='appliance'?zone.stations.some(s=>s.item.id===id):kind==='home'?/^(tool|seasoning|vessel):/.test(id):['dish','loose'].includes(kind)&&/^[-a-zA-Z0-9]{1,128}$/.test(id);}
  consistent(state,hands,zone){
@@ -52,7 +53,7 @@ export class CookingStore{
   const refreshFood=f=>{const original=movedFoods.find(m=>m.live&&same(m.before,f));return original?copy(original.live):f;};for(const c of m.changes){const value=nextResources[c.key];if(value?.foods)value.foods=value.foods.map(refreshFood);if(value?.type==='food')value.food=refreshFood(value.food);if(value?.payload?.type==='food')value.payload.food=refreshFood(value.payload.food);if(value?.meal)value.meal.foods=value.meal.foods.map(refreshFood);}
   const {state,hands}=resourcesToKitchen(nextResources,record.state);state.key=zone.key;state.at=Date.now();for(const c of m.changes.filter(c=>c.key.startsWith('vessel:'))){const v=state.vessels[c.key.slice(7)];if(v&&c.after?.stirs!==c.before?.stirs)v.lastStir=state.elapsed;}
   // Derive membership from the saved furniture surface, including older unbound plates.
-  this.bindTables(state,zone.home,this.rules.houses.snapshots()[zone.index]);
+  this.normalizeBoard(state,hands,zone);this.bindTables(state,zone.home,this.rules.houses.snapshots()[zone.index]);const derived=kitchenResources(state,hands);for(const key of new Set([...Object.keys(nextResources),...Object.keys(derived)]))if(!same(nextResources[key],derived[key]))versions[key]=Math.max(versions[key]||0,(record.versions[key]||0)+1);
   if(!this.consistent(state,hands,zone))return this.failure(entry,m,'同じ道具や皿を同時に持てません。置き場所を確認してください',record);
   // A completed meal belongs to the shared kitchen, regardless of its cook.
   for(const d of record.state.dishes.filter(d=>d.eaten))if(state.dishes.find(n=>n.id===d.id)?.eaten===false)return this.failure(entry,m,'食べ終えた料理は戻せません',record);

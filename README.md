@@ -1,5 +1,13 @@
 # RAFT-VIRTUAL-WORLD
 
+## Fixed sink cutting board and kitchen furniture models — 2026-10-11 / cook79
+
+Each recognized kitchen has one permanent cutting board on one deterministically chosen sink. Food placement, knife clicks, cut-style markings, peeling/grating and bowl collection operate at that sink; water and washing remain available on the exposed sink and faucet. The board stays visible when empty and after cooking ends. Counter storage no longer supplies duplicate cutting boards, and earlier carried/loose board tools return to the fixed-board setup. Old prep food is retained, with up to four ingredients moved to the sink board during migration and remaining ingredients recoverable at their original worktops. Clients and the server normalize the same saved board state.
+
+Kitchen counters and islands have explicit furniture models, reused by the customization catalogue and placement preview. The counter shows front storage and its closed wall-side back; the island shows storage on both sides and an overhanging white top above its inset base. Saved furniture IDs, sizes and positions are retained.
+
+Per the standing user instruction, no tests, validation commands, validation builds or browser/device/gameplay checks were performed.
+
 ## Furniture dining and automatic eating — 2026-10-11 / cook78
 
 Ordinary furniture tables and desks use the same dining geometry on client and server. Seats retain the saved furniture pairing, with nearby table edges used as a fallback instead of a restrictive table-centre distance or a ray through furniture. Previously placed plates with missing table IDs are recognized from their actual tabletop positions and rebound on server load, edits and settling.

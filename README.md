@@ -1,5 +1,11 @@
 # RAFT-VIRTUAL-WORLD
 
+## Counter cutting board placement — 2026-10-11 / cook80
+
+The fixed cutting board now lives on one representative non-island kitchen counter. It no longer occupies or overlaps the sink. The board remains the only prep board, with ingredients, knife work, cut labels and bowl collection all using that counter; the sink remains dedicated to water, washing and draining. Existing saved sink-board contents migrate to the counter board when the shared kitchen is opened.
+
+Per the standing user instruction, no tests, validation commands, validation builds or browser/device/gameplay checks were performed.
+
 ## Fixed sink cutting board and kitchen furniture models — 2026-10-11 / cook79
 
 Each recognized kitchen has one permanent cutting board on one deterministically chosen sink. Food placement, knife clicks, cut-style markings, peeling/grating and bowl collection operate at that sink; water and washing remain available on the exposed sink and faucet. The board stays visible when empty and after cooking ends. Counter storage no longer supplies duplicate cutting boards, and earlier carried/loose board tools return to the fixed-board setup. Old prep food is retained, with up to four ingredients moved to the sink board during migration and remaining ingredients recoverable at their original worktops. Clients and the server normalize the same saved board state.

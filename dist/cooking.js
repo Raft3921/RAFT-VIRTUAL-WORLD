@@ -1,18 +1,18 @@
 import * as THREE from 'three';
-import {copy,same,kitchenIdentity,kitchenResources} from './cooking-shared.js?v=20261011-free-cook79';
-import {cookingAppliance,cookingToolStand} from './cooking-appliances.js?v=20261011-free-cook79';
-import {tableForObject} from './dining.js?v=20261011-free-cook79';
-import {cookingLabel} from './cooking-labels.js?v=20261011-free-cook79';
-import {cookingCabinet} from './cooking-storage.js?v=20261011-free-cook79';
-import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261011-free-cook79';
-import {recognizeKitchens,pinKitchenBoard} from './kitchen-layout.js?v=20261011-free-cook79';
-import {ROOM,FURNITURE_BY_ID,furniturePose} from './housing-data.js?v=20261011-free-cook79';
-import {INGREDIENTS,fridgeFoods,FOOD_BY_ID,FOOD_GROUPS,SEASONINGS,CUTS,COOK_METHODS,cleanMeal,describeDish} from './cooking-data.js?v=20261011-free-cook79';
-import {createCookingMotion} from './cooking-motion.js?v=20261011-free-cook79';
-import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook79';
-import {fridgeModel} from './cooking-fridge.js?v=20261011-free-cook79';
-import {createCookingPlacement} from './cooking-placement.js?v=20261011-free-cook79';
-import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook79';
+import {copy,same,kitchenIdentity,kitchenResources} from './cooking-shared.js?v=20261011-free-cook80';
+import {cookingAppliance,cookingToolStand} from './cooking-appliances.js?v=20261011-free-cook80';
+import {tableForObject} from './dining.js?v=20261011-free-cook80';
+import {cookingLabel} from './cooking-labels.js?v=20261011-free-cook80';
+import {cookingCabinet} from './cooking-storage.js?v=20261011-free-cook80';
+import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261011-free-cook80';
+import {recognizeKitchens,pinKitchenBoard} from './kitchen-layout.js?v=20261011-free-cook80';
+import {ROOM,FURNITURE_BY_ID,furniturePose} from './housing-data.js?v=20261011-free-cook80';
+import {INGREDIENTS,fridgeFoods,FOOD_BY_ID,FOOD_GROUPS,SEASONINGS,CUTS,COOK_METHODS,cleanMeal,describeDish} from './cooking-data.js?v=20261011-free-cook80';
+import {createCookingMotion} from './cooking-motion.js?v=20261011-free-cook80';
+import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook80';
+import {fridgeModel} from './cooking-fridge.js?v=20261011-free-cook80';
+import {createCookingPlacement} from './cooking-placement.js?v=20261011-free-cook80';
+import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook80';
 const toolNames={knife:'包丁',peeler:'ピーラー',grater:'おろし金',whisk:'泡立て器',spatula:'木べら',ladle:'おたま',tongs:'トング',colander:'ざる','rolling-pin':'めん棒',mitt:'ミトン',sponge:'スポンジ',board:'まな板',plate:'空のお皿'};
 const vesselNames={pan:'フライパン',pot:'鍋',bowl:'ボウル',jug:'水差し'},capacity={pan:.8,pot:3,bowl:1.5,jug:1.5};
 export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onReposition=point=>get().player.position.copy(point),onMenu=()=>{},onPrecisionChange=()=>{}}){
@@ -82,12 +82,12 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
  const raycaster=new THREE.Raycaster(),upAxis=new THREE.Vector3(0,1,0);
  const operationTimes={wash:4,fill:4,drain:2,clean:4,mix:5,stir:2,plate:2,peel:3,grate:4,knead:5,roll:4};
  const equipment=role=>role==='stove'?(zone?.stations.find(s=>s.role==='stove'&&s.item.id===session?.activeStoveId)||zone?.stations.find(s=>s.role==='stove')):role==='counter'?(zone?.worktops.find(s=>s.item.id===session?.activeCounterId)||zone?.worktops[0]):zone?.stations.find(s=>s.role===role),handVessel=()=>session?.hand?.type==='vessel'?session.vessels[session.hand.id]:null;
- function worldPoint(station){if(station.worldPosition)return station.worldPosition.clone();const h=zone.home,yaw=station.yaw+(h.front<0?Math.PI:0),point=new THREE.Vector3(h.x+station.x*h.front,ROOM.floor+station.y+station.def.h*.88+.025,h.z+station.z*h.front);if(station.prepBoard){point.x+=Math.cos(yaw)*(-.24)+Math.sin(yaw)*.08;point.z+=-Math.sin(yaw)*(-.24)+Math.cos(yaw)*.08;}return point;}
+ function worldPoint(station){if(station.worldPosition)return station.worldPosition.clone();const h=zone.home;return new THREE.Vector3(h.x+station.x*h.front,ROOM.floor+station.y+station.def.h*.88+.025,h.z+station.z*h.front);}
  function burner(){return Object.values(session.vessels).find(v=>v.location==='stove'&&(!v.counterId||v.counterId===equipment('stove')?.item.id)&&v.slot===session.selectedBurner);}
  function counterBowl(){return session.vessels.bowl.location==='counter'&&session.vessels.bowl.counterId===session.activeCounterId?session.vessels.bowl:null;}
  function nearbyVessel(){return menuTarget?.role==='stove'?burner():handVessel()||counterBowl();}
  function makeVessel(kind){return {kind,foods:[],seasonings:{},water:0,temperature:20,fire:0,covered:false,mixed:false,mode:kind==='pan'?'fry':'boil',location:'drawer',slot:0,stirs:0,lastStir:0,cookSeconds:0,timer:null,timerDone:false};}
- function begin(){if(!near)return;const candidate=near;if(session&&(String(zone.index)!==String(candidate.index)||zone.id!==candidate.id||session.ownerSkin!==get().skin)){saveWorkspace();disposeWorkspace();}zone=candidate;const entry=safeEntry();if(!entry){notify('通路に体が入る空間がありません。家具の間を広げてください');return;}onReposition(entry);if(!session)createSession();requestKitchen();running=true;servingPhase=false;syncPrecision();near=null;menuTarget=null;task=null;target=null;placeMode=false;hud.dataset.menu='false';status='まな板はシンクの上にあります。収納から皿・道具を取り、冷蔵庫の食材を運べます';start.hidden=true;hud.hidden=false;carryHUD.hidden=true;document.body.dataset.cooking='true';onStart(zone);wasConnected=get().connected;send({type:'cooking-start',index:zone.index,kitchenId:zone.id,recipe:'free'});renderModels(true);drawUI();}
+ function begin(){if(!near)return;const candidate=near;if(session&&(String(zone.index)!==String(candidate.index)||zone.id!==candidate.id||session.ownerSkin!==get().skin)){saveWorkspace();disposeWorkspace();}zone=candidate;const entry=safeEntry();if(!entry){notify('通路に体が入る空間がありません。家具の間を広げてください');return;}onReposition(entry);if(!session)createSession();requestKitchen();running=true;servingPhase=false;syncPrecision();near=null;menuTarget=null;task=null;target=null;placeMode=false;hud.dataset.menu='false';status='まな板はカウンターの上にあります。収納から皿・道具を取り、冷蔵庫の食材を運べます';start.hidden=true;hud.hidden=false;carryHUD.hidden=true;document.body.dataset.cooking='true';onStart(zone);wasConnected=get().connected;send({type:'cooking-start',index:zone.index,kitchenId:zone.id,recipe:'free'});renderModels(true);drawUI();}
  function end(){if(!running){servingPhase=false;placeMode=false;placement.hide();syncPrecision();return;}send({type:'kitchen-work',index:zone.index,kitchenId:zone.id,cancel:true});saveWorkspace(true);send({type:'cooking-stop'});running=false;target=null;menuTarget=null;task=null;placeMode=false;placement.hide();motion.clear();hud.hidden=true;document.body.dataset.cooking='false';syncPrecision();onEnd();start.hidden=true;}
  function placeModel(model,station,dx=0,dz=0){const h=zone.home,yaw=station.yaw+(h.front<0?Math.PI:0);model.position.copy(worldPoint(station));model.position.x+=Math.cos(yaw)*dx+Math.sin(yaw)*dz;model.position.z+=-Math.sin(yaw)*dx+Math.cos(yaw)*dz;model.rotation.y=yaw;visuals.add(model);}
  function pickable(model,station,type,id){model.userData.pick={station,type,id};return model;}
@@ -106,7 +106,7 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
    for(const [i,id]of tools.filter(id=>drawerFor('tool',id)===station).entries()){if(away('tool',id))continue;const tool=toolModel(id);tool.scale.setScalar(.65);if(id!=='colander')tool.rotation.x=Math.PI/2;tool.position.set((i-1)*Math.min(.42,cabinet.w/4),cabinet.h*.75,.03);pickArea(tool,.25,.2,.3);pickable(tool,station,'tool',id);cabinet.contents.add(tool);}
    for(const [i,id]of spices.filter(id=>drawerFor('seasoning',id)===station).entries()){if(away('seasoning',id))continue;const jar=seasoningModel(id);jar.position.set((i-1)*Math.min(.3,cabinet.w/4),cabinet.h*.5,cabinet.d*.16);pickArea(jar,.12,.16,.12);pickable(jar,station,'spice',id);cabinet.contents.add(jar);}
    }
-   const work=session.worktops[station.item.id],prepStation=work.boardVisible?{...station,prepBoard:true}:station;
+   const work=session.worktops[station.item.id],prepStation=station;
    if(work.boardVisible||work.foods.length){
     const board=new THREE.Group();if(work.boardVisible){part(board,'box',0,0,0,.65,.028,.4,'#b48b58');for(let i=0;i<7;i++)part(board,'box',-.27+i*.09,.015,0,.002,.001,.37,'#936b43');}
     for(let i=0;i<work.foods.length;i++){const food=foodModel(work.foods[i]);food.position.set((i%2-.5)*.22,.018,(Math.floor(i/2)-.5)*.13);food.scale.setScalar(.8);pickable(food,prepStation,'board-food',String(i));board.add(food);}
@@ -215,7 +215,7 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
   if(h.type==='vessel'){v.location='drawer';v.counterId=target.item.id;}session.itemHomes[h.type+':'+h.id]=target.item.id;session.hand=null;status=target.def.name+'に保管しました';
  }
  else if(id==='storage'&&onCounter){session.storageOpen[target.item.id]=!session.storageOpen[target.item.id];status=session.storageOpen[target.item.id]?'収納の道具・調味料・容器をクリックして取れます':'収納を閉めました';}
- else if(id==='show-board'){pinKitchenBoard(session,zone);if(h?.type==='tool'&&h.id==='board')session.hand=null;status='まな板はシンクの上に固定されています';}
+ else if(id==='show-board'){pinKitchenBoard(session,zone);if(h?.type==='tool'&&h.id==='board')session.hand=null;status='まな板はカウンターの上に固定されています';}
  else if(id==='show-plate'&&onCounter){const work=session.worktops[target.item.id];if(work.foods.length||session.dishes.some(d=>d.counterId===target.item.id&&!d.eaten&&!session.takenDishes.includes(d.id))||Object.values(session.vessels).some(v=>v.location==='counter'&&v.counterId===target.item.id)){status='食材や容器のない別のカウンターに皿を出してください';}else {work.boardVisible=false;session.plateStationId=target.item.id;if(h?.type==='tool'&&h.id==='plate')session.hand=null;status='盛り付け皿を出しました。調理した容器を持って皿をクリックしてください';}}
  else if(id==='chop'&&onCounter&&session.board.length&&h?.type==='tool'&&h.id==='knife'){if(performance.now()/1000-lastStroke<.22)return;lastStroke=performance.now()/1000;const f=session.board[session.boardIndex]||session.board[0],strokes=session.cutMode==='mince'?7:session.cutMode==='dice'?5:3;f.cuts=Math.min(3,(f.cuts||0)+3/strokes);if(f.cuts>=2.999)f.cut=session.cutMode;status=f.cut?FOOD_BY_ID.get(f.id).name+'を'+CUTS[f.cut]+'にしました':'包丁で切っています · '+Math.round(f.cuts/3*100)+'%';}
  else if(id==='container-add'&&h?.type==='food'&&active&&active.foods.length<16){active.foods.push(h.food);session.hand=null;status=FOOD_BY_ID.get(h.food.id).name+'を追加しました · '+active.foods.map(f=>FOOD_BY_ID.get(f.id).name).join(' ＋ ');}
@@ -415,7 +415,7 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
    if(h?.type==='food')run('board-place');
    else if(h?.type==='tool'){if(h.id==='knife')run('chop');else if(h.id==='peeler')run('peel');else if(h.id==='grater')run('grate');else return releaseHand(ndc);}
    else if(handVessel()?.kind==='bowl')run('board-collect');
-   else if(h)return releaseHand(ndc);else if(p.type==='board-food')run('board-pick');else status='まな板はシンク上に固定されています。食材を持って置き、包丁で切れます';
+   else if(h)return releaseHand(ndc);else if(p.type==='board-food')run('board-pick');else status='まな板はカウンター上に固定されています。食材を持って置き、包丁で切れます';
   }else if(role==='fridge'){if(h?.type==='food')run('return-food');else run('open-fridge');}
   else if(role==='sink'){if(h?.type==='tool'&&h.id==='sponge'){session.waterOn=true;motion.play('clean',target,handSnapshot());status='シンクをスポンジで洗いました';}else if(h?.type==='food'){session.waterOn=true;run('wash');}else if(handVessel()){session.waterOn=true;run(handVessel().water>0&&handVessel().foods.length?'drain':'fill');}else run('water');}
   else if(role==='counter'||role==='board'){

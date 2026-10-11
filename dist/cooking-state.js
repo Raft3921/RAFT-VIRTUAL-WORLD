@@ -1,4 +1,4 @@
-import {cleanFood,cleanMeal,describeDish,SEASONINGS,FOOD_GROUPS,CUTS,COOK_METHODS} from './cooking-data.js?v=20261011-free-cook79';
+import {cleanFood,cleanMeal,describeDish,SEASONINGS,FOOD_GROUPS,CUTS,COOK_METHODS} from './cooking-data.js?v=20261011-free-cook80';
 export const COOK_TOOLS=['knife','peeler','grater','whisk','spatula','ladle','tongs','colander','rolling-pin','mitt','sponge','board','plate'];
 export const COOK_VESSELS=['pan','pot','bowl','jug'];
 const text=x=>typeof x==='string'?x.slice(0,128):'',num=(x,max)=>Math.max(0,Math.min(max,Number(x)||0));

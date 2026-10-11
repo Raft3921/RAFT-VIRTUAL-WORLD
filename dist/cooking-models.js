@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import {describeDish} from './cooking-data.js?v=20261011-free-cook79';
-import {voxelFood,voxelMound} from './cooking-food.js?v=20261011-free-cook79';
-import {cookingGeometry as geometries} from './cooking-blocks.js?v=20261011-free-cook79';
+import {describeDish} from './cooking-data.js?v=20261011-free-cook80';
+import {voxelFood,voxelMound} from './cooking-food.js?v=20261011-free-cook80';
+import {cookingGeometry as geometries} from './cooking-blocks.js?v=20261011-free-cook80';
 const materials=new Map();
 function material(color){
  if(!materials.has(color)){

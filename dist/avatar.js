@@ -1,9 +1,9 @@
-import {createGunModel,triggerGunFlash,updateGunFlash} from './gun-visual.js?v=20261011-free-cook75';
+import {createGunModel,triggerGunFlash,updateGunFlash} from './gun-visual.js?v=20261011-free-cook76';
 import * as THREE from 'three';
-import {withLocalLighting} from './local-lighting.js?v=20261011-free-cook75';
-import { sampleAttack,sampleCharge } from './combat-motion.js?v=20261011-free-cook75';
-import { sampleHit } from './hit-reaction.js?v=20261011-free-cook75';
-import { jemAvatarDefinition } from './jem-avatar.js?v=20261011-free-cook75';
+import {withLocalLighting} from './local-lighting.js?v=20261011-free-cook76';
+import { sampleAttack,sampleCharge } from './combat-motion.js?v=20261011-free-cook76';
+import { sampleHit } from './hit-reaction.js?v=20261011-free-cook76';
+import { jemAvatarDefinition } from './jem-avatar.js?v=20261011-free-cook76';
 
 const PX = 1 / 16;
 const TAU = Math.PI * 2;

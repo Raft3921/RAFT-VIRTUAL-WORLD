@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook75';
-import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook75';
+import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook76';
+import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook76';
 
 export function createCookingMotion({scene,point}){
  const root=new THREE.Group();root.name='Cooking hand work';scene.add(root);
  const water=new THREE.MeshStandardMaterial({color:'#9ad9e7',transparent:true,opacity:.65,roughness:.15,depthWrite:false});
  let event=null,key='',tool=null,prop=null,stream=null;
- function play(id,station,source=null){if(!['cut','chop','peel','grate','mix','stir','drain','clean','roll','knead','plate','stove-pick','wash','fill','pour-water','stove-pour','bowl-merge','sprinkle'].includes(id))return;event={id,station,source,remaining:.65,duration:.65};key='';}
+ function play(id,station,source=null,duration=.65){if(!['cut','chop','peel','grate','mix','stir','drain','clean','roll','knead','plate','stove-pick','wash','fill','pour-water','stove-pour','bowl-merge','sprinkle'].includes(id))return;event={id,station,source,remaining:duration,duration};key='';}
  function clearModels(){root.traverse(o=>{if(o.isInstancedMesh)o.dispose();});root.clear();}
  function clear(){event=null;key='';clearModels();root.visible=false;}
  function update(session,task,dt){

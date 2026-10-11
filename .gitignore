@@ -11,3 +11,5 @@ artifacts/
 .DS_Store
 
 .room-chat.jsonl
+.room-kitchens.json
+.room-kitchens.json.tmp

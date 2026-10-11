@@ -1,5 +1,19 @@
 # RAFT-VIRTUAL-WORLD
 
+## Shared cooking, table service and usable appliances — 2026-10-11 / cook76
+
+Cooking now uses a server-owned workspace per house/kitchen. Every client receives the same boards, containers, food, doors, stored tools, loose objects and finished dishes. Each player's hand is tracked separately, with other players' held objects rendered beside their avatar. Edits save before acknowledgement/broadcast, and compare independent resource versions: cooks can prepare on separate counters without overwriting each other. Conflicting pickups revert to the server state. Disconnected clients wait for reconnection instead of accumulating private edits. Joining players receive shared kitchen snapshots. Previous house-owner kitchen saves migrate once into shared storage.
+
+The server advances heating, boiling, burning, appliance cycles, timers and gravity/settling of freely placed upright objects. Worker alarms continue active heat and appliance cycles when no player is watching; resumed stove simulation integrates elapsed time in short steps. Hand work sends shared action animations. Counter/island shelves, world furniture and previously placed objects provide support surfaces. Cloudflare stores kitchens under individual storage keys; the LAN server uses `.room-kitchens.json`. A disconnected player's held vessel/tool returns to storage, food returns to a board, and a held plate returns to its serving counter.
+
+Serving still returns to the ordinary camera. Click/tap a finished dish to carry it, then use Q or **皿を置く** to arrange plates anywhere on a dining table. Holding a dish while sitting no longer automatically eats it. Sit facing the table and choose **この料理を食べる** to eat a served plate over four seconds. The server claims each plate so two players cannot pick up/eat the same meal simultaneously; leaving the seat cancels eating. Consumption and the five-star result persist for the shared meal and its cook's history.
+
+Existing microwave, rice cooker, toaster, kettle, blender, mixer and dishwasher become interactive appliances in recognized kitchens. Open the door, insert a container, close it and choose a cycle through E/**設備**; take the container back out after completion. Microwaves reject metal pans/pots, rice cookers require rice and water, kettles require water, mixers/blenders prepare food without heating it, and dishwashers accept empty vessels. Existing placed cutting boards are additional prep stations. Knife stands, placed knives, dish racks and wall pot racks let cooks retrieve and return stored utensils and vessels; **包丁・道具スタンド** is also available as furniture. Separate stove fixtures keep independent burner slots.
+
+The refrigerator opens on **全種類**, showing beef, chicken, salmon, shrimp, rice, pasta, potato and egg first. The physical labels inside the open fridge select meat, fish, vegetables, starches, dairy, fruit and other categories without opening the equipment menu; **次の棚** exposes further ingredients. This replaces the misleading vegetable-only initial shelf.
+
+Per the standing user instruction, no tests, validation commands, validation builds or browser/device/gameplay checks were performed. Commit/push and Worker/Pages publication are separate from gameplay acceptance. The older sections below describe prior releases.
+
 ## Persistent kitchen workspaces, storage and dining — 2026-10-11 / cook75
 
 Kitchen certification now requires at least three counters, one island, a sink, refrigerator and stove/oven in a connected equipment cluster. Islands are counted separately from counters. All connected worktops are interactive, including counters facing one another. Certification samples both sides of worktops and several aisle distances; rotated equipment contributes its actual footprint to the room bounds.

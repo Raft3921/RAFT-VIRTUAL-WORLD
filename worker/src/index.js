@@ -31,9 +31,11 @@ export class Room extends DurableObject {
     super(ctx, env);
     this.roomContext=ctx;
     this.players = new Map();
-    this.scores={};this.ready=ctx.blockConcurrencyWhile(async()=>{this.scores=await ctx.storage.get('scores')||{};const settings=await ctx.storage.get('settings')||{},characters=await ctx.storage.get('characters')||{},houses=await ctx.storage.get('houses')||{};const chat=[];let startAfter;while(true){const batch=await ctx.storage.list({prefix:'chat:',limit:1000,...(startAfter?{startAfter}:{})});chat.push(...batch.values());if(batch.size<1000)break;startAfter=[...batch.keys()].at(-1);}
-this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.storage.put('scores',s),settings,s=>ctx.storage.put('settings',s),characters,s=>ctx.storage.put('characters',s),houses,s=>ctx.storage.put('houses',s),promise=>ctx.waitUntil(promise),chat,(message,removed)=>ctx.storage.transaction(async storage=>{await storage.put('chat:'+message.id,message);if(removed.length)await storage.delete(removed.map(old=>'chat:'+old.id));}));const keep=new Set(this.rules.chat.records.map(message=>message.id));const obsolete=chat.filter(message=>!keep.has(message.id));for(let i=0;i<obsolete.length;i+=100)await ctx.storage.delete(obsolete.slice(i,i+100).map(message=>'chat:'+message.id));});
+    this.scores={};this.ready=ctx.blockConcurrencyWhile(async()=>{this.scores=await ctx.storage.get('scores')||{};const settings=await ctx.storage.get('settings')||{},characters=await ctx.storage.get('characters')||{},houses=await ctx.storage.get('houses')||{},kitchens=Object.fromEntries([...(await ctx.storage.list({prefix:'kitchen:',limit:1000}))].map(([id,record])=>[id.slice(8),record]));let persistedKitchens=kitchens;const chat=[];let startAfter;while(true){const batch=await ctx.storage.list({prefix:'chat:',limit:1000,...(startAfter?{startAfter}:{})});chat.push(...batch.values());if(batch.size<1000)break;startAfter=[...batch.keys()].at(-1);}
+this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.storage.put('scores',s),settings,s=>ctx.storage.put('settings',s),characters,s=>ctx.storage.put('characters',s),houses,s=>ctx.storage.put('houses',s),promise=>ctx.waitUntil(promise),chat,(message,removed)=>ctx.storage.transaction(async storage=>{await storage.put('chat:'+message.id,message);if(removed.length)await storage.delete(removed.map(old=>'chat:'+old.id));}),kitchens,async records=>{await ctx.storage.transaction(async storage=>{for(const [id,record]of Object.entries(records))if(record!==persistedKitchens[id])await storage.put('kitchen:'+id,record);});persistedKitchens=records;const busy=Object.values(records).some(record=>this.rules.cooking.recordBusy(record));if(busy)await ctx.storage.setAlarm(Date.now()+1000).catch(()=>{});else await ctx.storage.deleteAlarm().catch(()=>{});});const keep=new Set(this.rules.chat.records.map(message=>message.id));const obsolete=chat.filter(message=>!keep.has(message.id));for(let i=0;i<obsolete.length;i+=100)await ctx.storage.delete(obsolete.slice(i,i+100).map(message=>'chat:'+message.id));});
   }
+
+  async alarm(){await this.ready;await this.rules.cooking.advanceNow();}
 
   async fetch(request) {
     await this.ready;
@@ -62,7 +64,7 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
     this.players.set(server, { player, lastStateAt: 0 });
 
     this.roomContext.waitUntil(this.rules.characters.pending);
-    server.send(json({ type: 'joined', version:SYNC_VERSION,protocol:SYNC_PROTOCOL, gunShots:this.rules.guns.shots, chat:this.rules.chat.page(), projectiles:this.rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:this.rules.houses.snapshots(), characters:this.rules.characters.snapshots(), self: player, players: [...this.players.values()].map(entry => entry.player).filter(other => other.id !== id) }));
+    server.send(json({ type: 'joined', version:SYNC_VERSION,protocol:SYNC_PROTOCOL, gunShots:this.rules.guns.shots, chat:this.rules.chat.page(), projectiles:this.rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:this.rules.houses.snapshots(), kitchens:this.rules.cooking.snapshots(), characters:this.rules.characters.snapshots(), self: player, players: [...this.players.values()].map(entry => entry.player).filter(other => other.id !== id) }));
     this.broadcast({ type: 'player-joined', player }, server);
     server.send(json(this.rules.snapshot()));
     server.addEventListener('message', event => this.receive(server, event.data));
@@ -77,7 +79,7 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
     if (!entry || typeof raw !== 'string' || raw.length > 131072) return;
     let message;
     try { message = JSON.parse(raw); } catch { return; }
-    if(!message||typeof message!=='object'||Array.isArray(message)||raw.length>8192&&message.type!=='cooking-save')return;
+    if(!message||typeof message!=='object'||Array.isArray(message)||raw.length>8192&&!['cooking-save','kitchen-edit'].includes(message.type))return;
     if(message.type!=='state'){const pending=this.rules.receive(entry,message);if(pending?.then)this.roomContext.waitUntil(pending);return;}
     if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;
 

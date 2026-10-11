@@ -1,4 +1,4 @@
-import {EXPANDED_FURNITURE} from './furniture-catalogue.js?v=20261011-free-cook75';
+import {EXPANDED_FURNITURE} from './furniture-catalogue.js?v=20261011-free-cook76';
 export const GRID=.25,HEIGHT_GRID=.05,MAX_FURNITURE=64,ROOM={x:7.4,z:6.9,height:5.25,floor:.245};
 export const OWNER_SKINS=[3,5,6,2,4,1,0,7];
 export const HOUSE_COLORS=['#d84a42','#52a96d','#48b8d4','#e88a38','#87929a','#9a70c5','#e4c84d','#9a6748'];
@@ -50,6 +50,7 @@ export const FURNITURE=[
   item('hob','2口コンロ','stove',1.2,1,.75),
   item('cutting-board','まな板','cookware',.65,.045,.4,'floor',{allowHeight:true,solid:false,design:'board'}),
   item('cooking-knife','料理包丁','cookware',.4,.04,.08,'floor',{allowHeight:true,solid:false,design:'knife'}),
+  item('knife-block','包丁・道具スタンド','cookware',.55,.5,.35,'floor',{allowHeight:true,solid:false,design:'knife-block'}),
   item('frying-pan','フライパン','cookware',.65,.12,.45,'floor',{allowHeight:true,design:'pan'}),
   item('cooking-pot','調理鍋','cookware',.5,.35,.5,'floor',{allowHeight:true,design:'pot'}),
   item('mixing-bowl','ボウル','cookware',.4,.2,.4,'floor',{allowHeight:true,design:'bowl'}),

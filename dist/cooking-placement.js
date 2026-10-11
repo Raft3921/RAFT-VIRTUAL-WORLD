@@ -39,7 +39,7 @@ export function createCookingPlacement({scene,camera,get,modelFor,bounds}){
  function release(payload,ndc){
   if(bodies.length>=64)return '置ける物は64個までです。食材を回収して容器にまとめてください';
   if(!aim(payload,ndc))return '近くの平らで空いている場所を狙ってください';
-  const item=build(payload),body={id:++serial,payload,...item,p:preview.p.clone(),velocity:new THREE.Vector3(),spin:0};
+  const item=build(payload),body={id:crypto.randomUUID(),payload,...item,p:preview.p.clone(),velocity:new THREE.Vector3(0,-.01,0),spin:0,tableId:''};
   body.model.userData.body=body;body.model.position.copy(body.p);root.add(body.model);bodies.push(body);hide();return null;
  }
  function take(body){const index=bodies.indexOf(body);if(index<0)return null;bodies.splice(index,1);body.model.removeFromParent();dispose(body.model);return body.payload;}
@@ -66,6 +66,7 @@ export function createCookingPlacement({scene,camera,get,modelFor,bounds}){
   }
  }
  function hide(){ghost.visible=false;preview=null;}
- function restore(records){for(const body of [...bodies])take(body);for(const record of records||[]){const item=build(record.payload),body={id:++serial,payload:record.payload,...item,p:new THREE.Vector3(record.position.x,record.position.y,record.position.z),velocity:new THREE.Vector3(),spin:0};body.model.userData.body=body;body.model.position.copy(body.p);root.add(body.model);bodies.push(body);}}
- return {root,bodies,aim,release,take,refresh,update,hide,setSurfaces,restore,clear(){for(const body of [...bodies])take(body);setSurfaces([]);hide();},get valid(){return !!preview?.valid;}};
+ function restore(records){for(const body of [...bodies])take(body);for(const record of records||[]){const item=build(record.payload),body={id:record.id||'restored-'+(++serial),payload:record.payload,...item,p:new THREE.Vector3(record.position.x,record.position.y,record.position.z),velocity:new THREE.Vector3(0,record.velocity||0,0),spin:0,tableId:record.tableId||''};body.model.userData.body=body;body.model.position.copy(body.p);root.add(body.model);bodies.push(body);}}
+ function sync(records){const ids=new Set(records.map(b=>b.id));for(const body of [...bodies])if(!ids.has(body.id))take(body);for(const record of records){let body=bodies.find(b=>b.id===record.id);if(!body){const item=build(record.payload);body={id:record.id,payload:record.payload,...item,p:new THREE.Vector3(),velocity:new THREE.Vector3(),spin:0};body.model.userData.body=body;root.add(body.model);bodies.push(body);}body.payload=record.payload;body.tableId=record.tableId||'';body.p.set(record.position.x,record.position.y,record.position.z);body.velocity.set(0,record.velocity||0,0);body.model.position.copy(body.p);}}
+ return {root,bodies,aim,release,take,refresh,update,hide,setSurfaces,restore,sync,clear(){for(const body of [...bodies])take(body);setSurfaces([]);hide();},get valid(){return !!preview?.valid;}};
 }

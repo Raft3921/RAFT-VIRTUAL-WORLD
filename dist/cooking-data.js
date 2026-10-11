@@ -54,7 +54,8 @@ pineapple|パイナップル|fruit|pineapple|#c7ac59|8|raw
 `;
 export const INGREDIENTS=rows.trim().split('\n').map(row=>{const [id,name,group,shape,color,time,raw]=row.split('|');return {id,name,group,shape,color,time:Number(time),raw:raw==='raw',wash:['vegetable','fruit'].includes(group)};});
 export const FOOD_BY_ID=new Map(INGREDIENTS.map(f=>[f.id,f]));
-export const FOOD_GROUPS={protein:'卵・豆腐',meat:'肉',fish:'魚介',vegetable:'野菜・きのこ',starch:'米・麺・パン・粉',dairy:'乳製品',fruit:'果物'};
+export const FOOD_GROUPS={all:'全種類',protein:'卵・豆腐',meat:'肉',fish:'魚介',vegetable:'野菜・きのこ',starch:'米・麺・パン・粉',dairy:'乳製品',fruit:'果物'};
+export function fridgeFoods(group){if(group!=='all')return INGREDIENTS.filter(f=>f.group===group);const first=['beef','chicken','salmon','shrimp','rice','pasta','potato','egg'];return [...first.map(id=>FOOD_BY_ID.get(id)),...INGREDIENTS.filter(f=>!first.includes(f.id))];}
 export const SEASONINGS={salt:'塩',pepper:'こしょう',soy:'しょうゆ',sugar:'砂糖',miso:'味噌',curry:'カレースパイス',stock:'だし',oil:'油',vinegar:'酢',ketchup:'ケチャップ',herbs:'ハーブ'};
 export const CUTS={dice:'角切り',slice:'薄切り',mince:'みじん切り',grate:'すりおろし'};
 export const COOK_METHODS={raw:'そのまま',mix:'混ぜる',fry:'焼く・炒める',boil:'ゆでる',simmer:'煮込む',steam:'蒸す',bake:'オーブン焼き'};

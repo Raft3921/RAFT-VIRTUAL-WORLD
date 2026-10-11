@@ -1,14 +1,16 @@
 import * as THREE from 'three';
-import {cookingCabinet} from './cooking-storage.js?v=20261011-free-cook75';
-import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261011-free-cook75';
-import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook75';
-import {ROOM} from './housing-data.js?v=20261011-free-cook75';
-import {INGREDIENTS,FOOD_BY_ID,FOOD_GROUPS,SEASONINGS,CUTS,COOK_METHODS,cleanMeal,describeDish} from './cooking-data.js?v=20261011-free-cook75';
-import {createCookingMotion} from './cooking-motion.js?v=20261011-free-cook75';
-import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook75';
-import {fridgeModel} from './cooking-fridge.js?v=20261011-free-cook75';
-import {createCookingPlacement} from './cooking-placement.js?v=20261011-free-cook75';
-import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook75';
+import {copy,same,kitchenIdentity,kitchenResources} from './cooking-shared.js?v=20261011-free-cook76';
+import {cookingAppliance,cookingToolStand} from './cooking-appliances.js?v=20261011-free-cook76';
+import {cookingCabinet} from './cooking-storage.js?v=20261011-free-cook76';
+import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261011-free-cook76';
+import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook76';
+import {ROOM,FURNITURE_BY_ID,furniturePose} from './housing-data.js?v=20261011-free-cook76';
+import {INGREDIENTS,fridgeFoods,FOOD_BY_ID,FOOD_GROUPS,SEASONINGS,CUTS,COOK_METHODS,cleanMeal,describeDish} from './cooking-data.js?v=20261011-free-cook76';
+import {createCookingMotion} from './cooking-motion.js?v=20261011-free-cook76';
+import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook76';
+import {fridgeModel} from './cooking-fridge.js?v=20261011-free-cook76';
+import {createCookingPlacement} from './cooking-placement.js?v=20261011-free-cook76';
+import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook76';
 const toolNames={knife:'包丁',peeler:'ピーラー',grater:'おろし金',whisk:'泡立て器',spatula:'木べら',ladle:'おたま',tongs:'トング',colander:'ざる','rolling-pin':'めん棒',mitt:'ミトン',sponge:'スポンジ'};
 const vesselNames={pan:'フライパン',pot:'鍋',bowl:'ボウル',jug:'水差し'},capacity={pan:.8,pot:3,bowl:1.5,jug:1.5};
 export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onReposition=point=>get().player.position.copy(point),onMenu=()=>{}}){
@@ -18,39 +20,60 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
  const hud=document.createElement('section');hud.id='cookingHUD';hud.hidden=true;hud.dataset.menu='false';hud.innerHTML='<div class="cook-top"><span class="cook-state">家具をクリックして使う</span><span><button data-act="resume">操作へ戻る</button><button data-act="recover">通路へ戻る</button><button data-act="end">終了</button></span></div><span class="cook-dot">＋</span><div class="cook-readout"><p class="cook-carry"></p><p class="cook-prompt"></p><p class="cook-feedback" role="status"></p><p class="cook-food-state"></p><progress class="cook-progress" hidden max="1"></progress><button data-act="put-down" class="cook-place" hidden>置く場所を選ぶ</button><button data-act="cancel-work" hidden>作業を中止</button></div><div class="cook-touch-actions"><button data-act="use">使う</button><button data-act="equipment">設備</button><button data-act="put-down" class="cook-touch-place">置く</button></div><div class="cook-timer" hidden></div><div class="cook-tools"><header><p class="cook-target"></p><button data-act="close">閉じる</button></header><p class="cook-hand"></p><p class="cook-vessels"></p><p class="cook-hint" role="status"></p><div class="cook-actions"></div><p class="cook-log"></p></div>';document.body.append(hud);
  const visuals=new THREE.Group();visuals.name='Free cooking workspace';scene.add(visuals);if(!camera.parent)scene.add(camera);const held=new THREE.Group();held.position.set(.28,-.36,-.8);camera.add(held);held.visible=false;
  let zone=null,session=null,near=null,target=null,menuTarget=null,task=null,lastScan=-Infinity,lastUI=-Infinity,cache=new Map(),status='',lastVisualKey='',targetKey='',knife=null,picked=null,lastStroke=-Infinity,placeMode=false,fridgeAngle=0,fridgeRoot=null,running=false,storageRoots=[],lastSave=0,eating=null,wasConnected=false;
+ const shared=new Map();let authoritative=null,pending=null,transactionDepth=0,transactionCue=null;
+ const remoteMotions=new Map(),eatingPlayers=new Map();const remoteMotion=id=>{if(!remoteMotions.has(id))remoteMotions.set(id,createCookingMotion({scene,point:worldPoint}));return remoteMotions.get(id);};
+ const remoteHeld=new THREE.Group();remoteHeld.name='Shared cooking hands';scene.add(remoteHeld);
  const carryHUD=document.createElement('div');carryHUD.className='cook-carry-world';carryHUD.hidden=true;carryHUD.innerHTML='<span></span><button>皿を置く</button>';document.body.append(carryHUD);carryHUD.querySelector('button').onclick=()=>{placeMode=!placeMode;};
  const ratingHUD=document.createElement('div');ratingHUD.className='cook-rating';ratingHUD.hidden=true;document.body.append(ratingHUD);
- function useCounter(station){if(station?.role==='counter'&&!station.worldPosition&&session.worktops[station.item.id])session.activeCounterId=station.item.id;}
+ function useCounter(station){if(['counter','board'].includes(station?.role)&&!station.worldPosition&&session.worktops[station.item.id])session.activeCounterId=station.item.id;}
  function bindWorktops(){Object.defineProperties(session,{board:{get(){return this.worktops[this.activeCounterId].foods;},set(value){this.worktops[this.activeCounterId].foods=value;}},boardIndex:{get(){return this.worktops[this.activeCounterId].index;},set(value){this.worktops[this.activeCounterId].index=value;}}});}
- function storageItemStation(id){return zone.worktops.find(s=>s.item.id===id)||equipment('counter');}
- function hideAppliances(hidden){for(const station of zone.stations.filter(s=>s.role==='counter'||s===equipment('fridge')))get().housing?.setCookingApplianceHidden(zone.index,station.item.id,hidden);}
- function savedState(){let local=null;try{local=JSON.parse(localStorage.getItem('raft-kitchen-'+get().skin+'-'+zone.index+'-'+zone.id)||'null');}catch{}const remote=get().character.kitchenStates?.find(s=>String(s.index)===String(zone.index)&&s.kitchenId===zone.id);return cleanKitchenState((local?.at||0)>(remote?.at||0)?local:remote);}
- function saveWorkspace(force=false){if(!session||get().skin!==session.ownerSkin)return;const snapshot=cleanKitchenState({...session,index:zone.index,kitchenId:zone.id,key:zone.key,at:Date.now(),loose:placement.bodies.map(b=>({payload:b.payload,position:{x:b.p.x,y:b.p.y,z:b.p.z}}))});try{localStorage.setItem('raft-kitchen-'+get().skin+'-'+zone.index+'-'+zone.id,JSON.stringify(snapshot));}catch{}if(get().connected)send({type:'cooking-save',index:zone.index,kitchenId:zone.id,force,state:snapshot});lastSave=session.elapsed;}
- function createSession(){const saved=savedState(),first=zone.worktops[0].item.id;session={hand:null,worktops:Object.fromEntries(zone.worktops.map((s,i)=>[s.item.id,{foods:[],index:0,boardVisible:i===0}])),activeCounterId:first,cutMode:'dice',selectedBurner:0,foodGroup:'vegetable',vessels:Object.fromEntries(Object.keys(vesselNames).map(id=>[id,makeVessel(id)])),dishes:[],takenDishes:[],elapsed:0,waterOn:false,homeFront:zone.home.front,fridgeOpen:false,foodPage:0,plateStationId:'',storageOpen:{},ownerSkin:get().skin};if(saved){const worktops=session.worktops;Object.assign(session,saved);session.worktops=Object.fromEntries(zone.worktops.map(s=>[s.item.id,saved.worktops[s.item.id]||worktops[s.item.id]]));session.activeCounterId=session.worktops[saved.activeCounterId]?saved.activeCounterId:first;session.homeFront=zone.home.front;session.ownerSkin=get().skin;}bindWorktops();const eaten=new Set((get().character.cookingDishes||[]).filter(d=>d.eatenAt).map(d=>d.id));for(const d of session.dishes)if(eaten.has(d.id))d.eaten=true;if(session.hand?.type==='dish'&&eaten.has(session.hand.dish.id))session.hand=null;placement.restore((saved?.loose||[]).filter(b=>b.payload.type!=='dish'||!eaten.has(b.payload.dish.id)));hideAppliances(true);fridgeAngle=session.fridgeOpen?Math.PI*.61:0;lastVisualKey='';renderModels(true);}
- function disposeWorkspace(){if(zone)hideAppliances(false);placement.clear();clearModels(visuals);clearModels(held);session=null;zone=null;held.visible=false;carryHUD.hidden=true;document.body.dataset.carryingMeal='false';clearModels(diningVisual);}
+ function storageItemStation(id){return zone.stations.find(s=>s.item.id===id)||equipment('counter');}
+ function hideAppliances(hidden){for(const station of zone.stations.filter(s=>['counter','board','appliance','storage'].includes(s.role)||s===equipment('fridge')))get().housing?.setCookingApplianceHidden(zone.index,station.item.id,hidden);}
+ function savedState(){return cleanKitchenState(shared.get(kitchenIdentity(zone.index,zone.id))?.state);}
+ function requestKitchen(){if(get().connected&&zone)send({type:'kitchen-open',index:zone.index,kitchenId:zone.id});}
+ function saveWorkspace(){lastSave=session?.elapsed||0;}
+ function resourceSnapshot(){const state=cleanKitchenState({...session,index:zone.index,kitchenId:zone.id,key:zone.key,loose:placement.bodies.map(b=>({id:b.id,payload:b.payload,position:{x:b.p.x,y:b.p.y,z:b.p.z},shape:b.shape,velocity:b.velocity.y,tableId:b.tableId}))});return kitchenResources(state,{...(authoritative?.hands||{}),[get().selfId]:session.hand});}
+ function transact(work,cue=null){
+  if(transactionDepth){if(cue)transactionCue=cue;return work();}if(!session)return work();
+  if(!get().connected||!authoritative||pending){status=!get().connected?'接続が戻るまで調理操作を待ってください':pending?'操作をサーバーに保存中です':'共有キッチンを読み込んでいます';drawUI();return true;}
+  const before=resourceSnapshot();transactionDepth++;transactionCue=cue;
+  try{return work();}finally{transactionDepth--;const after=resourceSnapshot(),changes=[];for(const key of new Set([...Object.keys(before),...Object.keys(after)]))if(!same(before[key],after[key]))changes.push({key,version:authoritative.versions[key]||0,before:before[key]??null,after:after[key]??null});
+   if(changes.length){const requestId=crypto.randomUUID();pending={requestId,at:performance.now()};send({type:'kitchen-edit',index:zone.index,kitchenId:zone.id,requestId,changes,cue:transactionCue});}transactionCue=null;
+  }
+ }
+ function applyShared(record){
+  if(!session||!record?.state)return;authoritative=copy(record);const state=cleanKitchenState(record.state),first=zone.worktops[0].item.id,local={activeCounterId:session.activeCounterId,cutMode:session.cutMode,selectedBurner:session.selectedBurner,activeStoveId:session.activeStoveId,ownerSkin:get().skin};
+  const oldTask=task&&JSON.stringify(['counter','board'].includes(task.station?.role)?session.worktops[task.station.item.id]?.foods:null);
+  Object.assign(session,state,local);for(const s of zone.worktops)session.worktops[s.item.id]??={foods:[],index:0,boardVisible:false};if(!session.worktops[session.activeCounterId])session.activeCounterId=first;session.homeFront=zone.home.front;session.hands=record.hands||{};session.hand=copy(record.hands?.[get().selfId]||null);
+  if(task&&(task.guards?.some(g=>(record.versions[g.key]||0)!==g.version)||task.source?.type!==session.hand?.type||task.source?.id!==session.hand?.id||oldTask!==JSON.stringify(['counter','board'].includes(task.station?.role)?session.worktops[task.station.item.id]?.foods:null))){task=null;status='作業中の食材をほかの人が使ったため、手作業を中止しました';}
+  if(!session.hand)placeMode=false;placement.sync(state.loose);lastVisualKey='';renderModels(true);drawUI();
+ }
+ function createSession(){const saved=savedState(),first=zone.worktops[0].item.id;session={hand:null,worktops:Object.fromEntries(zone.worktops.map((s,i)=>[s.item.id,{foods:[],index:0,boardVisible:i===0}])),activeCounterId:first,cutMode:'dice',selectedBurner:0,activeStoveId:zone.stations.find(s=>s.role==='stove')?.item.id,foodGroup:'all',vessels:Object.fromEntries(Object.keys(vesselNames).map(id=>[id,makeVessel(id)])),dishes:[],takenDishes:[],elapsed:0,waterOn:false,homeFront:zone.home.front,fridgeOpen:false,foodPage:0,plateStationId:'',storageOpen:{},itemHomes:{},appliances:{},hands:{},ownerSkin:get().skin};if(saved){const worktops=session.worktops;Object.assign(session,saved);session.worktops=Object.fromEntries(zone.worktops.map(s=>[s.item.id,saved.worktops[s.item.id]||worktops[s.item.id]]));session.activeCounterId=session.worktops[saved.activeCounterId]?saved.activeCounterId:first;session.homeFront=zone.home.front;session.ownerSkin=get().skin;}bindWorktops();authoritative=shared.get(kitchenIdentity(zone.index,zone.id))||null;session.hands=authoritative?.hands||{};session.hand=copy(session.hands[get().selfId]||null);placement.restore(saved?.loose||[]);hideAppliances(true);fridgeAngle=session.fridgeOpen?Math.PI*.61:0;lastVisualKey='';renderModels(true);}
+ function disposeWorkspace(){if(zone)hideAppliances(false);placement.clear();clearModels(visuals);clearModels(held);session=null;zone=null;held.visible=false;carryHUD.hidden=true;document.body.dataset.carryingMeal='false';clearModels(diningVisual);clearModels(remoteHeld);for(const motion of remoteMotions.values())motion.clear();remoteMotions.clear();eatingPlayers.clear();authoritative=null;pending=null;}
 
  const placement=createCookingPlacement({scene,camera,get,modelFor:looseModel,bounds:()=>({...(!running?{minX:zone.home.x-ROOM.x+.15,maxX:zone.home.x+ROOM.x-.15,minZ:zone.home.z-ROOM.z+.15,maxZ:zone.home.z+ROOM.z-.15}:zone.bounds),floor:ROOM.floor})});
  const pickMaterial=new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false});
  const pickGeometry=new THREE.BoxGeometry(1,1,1);
  function clearModels(group){group.traverse(o=>{if(o.isInstancedMesh)o.dispose();});group.clear();}
  function looseModel(hand){if(hand.type==='food')return foodModel(hand.food);if(hand.type==='vessel')return vesselModel(session.vessels[hand.id]);if(hand.type==='dish')return vesselModel({...hand.dish.meal,kind:'plate'},{dish:true});if(hand.type==='seasoning')return seasoningModel(hand.id);const tool=toolModel(hand.id);tool.rotation.x=Math.PI/2;return tool;}
- function away(type,id){return session.hand?.type===type&&session.hand.id===id||placement.bodies.some(b=>b.payload.type===type&&b.payload.id===id);}
+ function away(type,id){return Object.values(session.hands||{}).some(h=>h?.type===type&&h.id===id)||session.hand?.type===type&&session.hand.id===id||placement.bodies.some(b=>b.payload.type===type&&b.payload.id===id);}
  function pickArea(model,w,h,d,y=h/2){const mesh=new THREE.Mesh(pickGeometry,pickMaterial);mesh.scale.set(w,h,d);mesh.position.y=y;model.add(mesh);}
  function togglePlacement(){if(!session?.hand||task)return;placeMode=!placeMode;if(!placeMode)placement.hide();closeMenu();status=placeMode?'置きたい平面を狙ってクリック · 緑の枠に置けます':'通常の調理操作に戻りました';drawUI();}
- function releaseHand(ndc){if(!session?.hand||task)return false;const message=placement.release(session.hand,ndc);if(message){status=message;drawUI();return true;}const v=handVessel();if(v){v.location='loose';v.fire=0;v.timer=null;}session.hand=null;placeMode=false;status='手を離しました。置いた物はクリックで再び持てます';renderModels(true);drawUI();return true;}
+ function releaseHand(ndc){return transact(()=>releaseHandLocal(ndc));}
+ function releaseHandLocal(ndc){if(!session?.hand||task)return false;const message=placement.release(session.hand,ndc);if(message){status=message;drawUI();return true;}const body=placement.bodies.at(-1);if(body){const table=tableAt(body.p);body.tableId=table?.item.id||'';}const v=handVessel();if(v){v.location='loose';v.fire=0;v.timer=null;}session.hand=null;placeMode=false;status='手を離しました。置いた物はクリックで再び持てます';renderModels(true);drawUI();return true;}
  function looseStation(body){return {...equipment('counter'),worldPosition:body.p.clone().add(new THREE.Vector3(0,body.shape.height,0))};}
  const diningVisual=new THREE.Group();diningVisual.name='Meal at dining table';scene.add(diningVisual);
  const motion=createCookingMotion({scene,point:worldPoint});
  const raycaster=new THREE.Raycaster(),upAxis=new THREE.Vector3(0,1,0);
  const operationTimes={wash:4,fill:4,drain:2,clean:4,mix:5,stir:2,plate:2,peel:3,grate:4,knead:5,roll:4};
- const equipment=role=>role==='counter'?(zone?.worktops.find(s=>s.item.id===session?.activeCounterId)||zone?.worktops[0]):zone?.stations.find(s=>s.role===role),handVessel=()=>session?.hand?.type==='vessel'?session.vessels[session.hand.id]:null;
+ const equipment=role=>role==='stove'?(zone?.stations.find(s=>s.role==='stove'&&s.item.id===session?.activeStoveId)||zone?.stations.find(s=>s.role==='stove')):role==='counter'?(zone?.worktops.find(s=>s.item.id===session?.activeCounterId)||zone?.worktops[0]):zone?.stations.find(s=>s.role===role),handVessel=()=>session?.hand?.type==='vessel'?session.vessels[session.hand.id]:null;
  function worldPoint(station){if(station.worldPosition)return station.worldPosition.clone();const h=zone.home;return new THREE.Vector3(h.x+station.x*h.front,ROOM.floor+station.y+station.def.h*.88+.025,h.z+station.z*h.front);}
- function burner(){return Object.values(session.vessels).find(v=>v.location==='stove'&&v.slot===session.selectedBurner);}
- function counterBowl(){return session.vessels.bowl.location==='counter'?session.vessels.bowl:null;}
+ function burner(){return Object.values(session.vessels).find(v=>v.location==='stove'&&(!v.counterId||v.counterId===equipment('stove')?.item.id)&&v.slot===session.selectedBurner);}
+ function counterBowl(){return session.vessels.bowl.location==='counter'&&session.vessels.bowl.counterId===session.activeCounterId?session.vessels.bowl:null;}
  function nearbyVessel(){return menuTarget?.role==='stove'?burner():handVessel()||counterBowl();}
  function makeVessel(kind){return {kind,foods:[],seasonings:{},water:0,temperature:20,fire:0,covered:false,mixed:false,mode:kind==='pan'?'fry':'boil',location:'drawer',slot:0,stirs:0,lastStir:0,cookSeconds:0,timer:null,timerDone:false};}
- function begin(){if(!near)return;const candidate=near;if(session&&(String(zone.index)!==String(candidate.index)||zone.id!==candidate.id||session.ownerSkin!==get().skin)){saveWorkspace();disposeWorkspace();}zone=candidate;const entry=safeEntry();if(!entry){notify('通路に体が入る空間がありません。家具の間を広げてください');return;}onReposition(entry);if(!session)createSession();running=true;near=null;menuTarget=null;task=null;target=null;placeMode=false;hud.dataset.menu='false';status='収納の扉から道具を取り出せます。空いているカウンターに盛り付け皿を出しましょう';start.hidden=true;hud.hidden=false;carryHUD.hidden=true;document.body.dataset.cooking='true';onStart(zone);wasConnected=get().connected;send({type:'cooking-start',index:zone.index,kitchenId:zone.id,recipe:'free'});renderModels(true);drawUI();}
- function end(){if(!running)return;saveWorkspace(true);send({type:'cooking-stop'});running=false;target=null;menuTarget=null;task=null;placeMode=false;placement.hide();motion.clear();hud.hidden=true;document.body.dataset.cooking='false';onEnd();start.hidden=true;}
+ function begin(){if(!near)return;const candidate=near;if(session&&(String(zone.index)!==String(candidate.index)||zone.id!==candidate.id||session.ownerSkin!==get().skin)){saveWorkspace();disposeWorkspace();}zone=candidate;const entry=safeEntry();if(!entry){notify('通路に体が入る空間がありません。家具の間を広げてください');return;}onReposition(entry);if(!session)createSession();requestKitchen();running=true;near=null;menuTarget=null;task=null;target=null;placeMode=false;hud.dataset.menu='false';status='収納の扉から道具を取り出せます。空いているカウンターに盛り付け皿を出しましょう';start.hidden=true;hud.hidden=false;carryHUD.hidden=true;document.body.dataset.cooking='true';onStart(zone);wasConnected=get().connected;send({type:'cooking-start',index:zone.index,kitchenId:zone.id,recipe:'free'});renderModels(true);drawUI();}
+ function end(){if(!running)return;send({type:'kitchen-work',index:zone.index,kitchenId:zone.id,cancel:true});saveWorkspace(true);send({type:'cooking-stop'});running=false;target=null;menuTarget=null;task=null;placeMode=false;placement.hide();motion.clear();hud.hidden=true;document.body.dataset.cooking='false';onEnd();start.hidden=true;}
  function placeModel(model,station,dx=0,dz=0){const h=zone.home,yaw=station.yaw+(h.front<0?Math.PI:0);model.position.copy(worldPoint(station));model.position.x+=Math.cos(yaw)*dx+Math.sin(yaw)*dz;model.position.z+=-Math.sin(yaw)*dx+Math.cos(yaw)*dz;model.rotation.y=yaw;visuals.add(model);}
  function pickable(model,station,type,id){model.userData.pick={station,type,id};return model;}
  function safeEntry(){
@@ -59,16 +82,16 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
  }
  function renderModels(force=false){
   if(!session)return;
-  const key=JSON.stringify([session.hand,session.worktops,session.storageOpen,session.plateStationId,session.dishes,session.takenDishes,session.waterOn,session.fridgeOpen,session.foodGroup,session.foodPage,placement.bodies.map(b=>b.id),Object.values(session.vessels).map(v=>({...v,cookSeconds:0,timer:null,temperature:Math.floor(v.temperature/5)*5,water:Math.round(v.water*20)/20,foods:v.foods.map(f=>({...f,progress:Math.floor(f.progress/5)*5,burn:Math.floor(f.burn/10)*10}))}))]);
-  if(!force&&key===lastVisualKey)return;lastVisualKey=key;clearModels(visuals);clearModels(held);placement.refresh();held.visible=!!session.hand;
+  const key=JSON.stringify([session.hand,session.worktops,session.storageOpen,session.plateStationId,session.dishes,session.takenDishes,session.hands,session.itemHomes,session.appliances,session.waterOn,session.fridgeOpen,session.foodGroup,session.foodPage,placement.bodies.map(b=>b.id),Object.values(session.vessels).map(v=>({...v,cookSeconds:0,timer:null,temperature:Math.floor(v.temperature/5)*5,water:Math.round(v.water*20)/20,foods:v.foods.map(f=>({...f,progress:Math.floor(f.progress/5)*5,burn:Math.floor(f.burn/10)*10}))}))]);
+  if(!force&&key===lastVisualKey)return;lastVisualKey=key;clearModels(visuals);clearModels(held);placement.refresh();clearModels(remoteHeld);held.visible=!!session.hand;
   const counter=equipment('counter'),stove=equipment('stove'),sink=equipment('sink'),fridge=equipment('fridge'),supportMeshes=[];storageRoots=[];
-  const tools=Object.keys(toolNames),spices=Object.keys(SEASONINGS),drawerFor=(type,id)=>{const list=type==='tool'?tools:type==='seasoning'?spices:Object.keys(vesselNames);return zone.worktops[list.indexOf(id)%zone.worktops.length];};
+  const tools=Object.keys(toolNames),spices=Object.keys(SEASONINGS),drawerFor=(type,id)=>{const list=type==='tool'?tools:type==='seasoning'?spices:Object.keys(vesselNames);return zone.stations.find(s=>s.item.id===session.itemHomes[type+':'+id])||(type==='tool'&&id==='knife'?zone.stations.find(s=>['knife-block','cooking-knife'].includes(s.def.id)):type==='vessel'&&['pan','pot'].includes(id)?zone.stations.find(s=>s.def.id==='pot-rack-wall'):null)||zone.stations.filter(s=>s.role==='counter')[list.indexOf(id)%zone.stations.filter(s=>s.role==='counter').length];};
   for(const [n,station] of zone.worktops.entries()){
-   const cabinet=cookingCabinet(station,!!session.storageOpen[station.item.id],pickable);placeModel(cabinet.root,station);cabinet.root.position.y=ROOM.floor+station.y;storageRoots.push(cabinet.root);supportMeshes.push(cabinet.top);pickable(cabinet.top,station,'worktop');
+   const cabinet=cookingCabinet(station,!!session.storageOpen[station.item.id],pickable);if(station.role==='board'){cabinet.root.visible=false;}placeModel(cabinet.root,station);cabinet.root.position.y=ROOM.floor+station.y;storageRoots.push(cabinet.root);if(station.role==='counter')supportMeshes.push(cabinet.top);pickable(cabinet.top,station,'worktop');
    for(const [i,id]of tools.filter(id=>drawerFor('tool',id)===station).entries()){if(away('tool',id))continue;const tool=toolModel(id);tool.scale.setScalar(.65);if(id!=='colander')tool.rotation.x=Math.PI/2;tool.position.set((i-1)*Math.min(.42,cabinet.w/4),cabinet.h*.75,.03);pickArea(tool,.25,.2,.3);pickable(tool,station,'tool',id);cabinet.contents.add(tool);}
    for(const [i,id]of spices.filter(id=>drawerFor('seasoning',id)===station).entries()){if(away('seasoning',id))continue;const jar=seasoningModel(id);jar.position.set((i-1)*Math.min(.3,cabinet.w/4),cabinet.h*.5,cabinet.d*.16);pickArea(jar,.12,.16,.12);pickable(jar,station,'spice',id);cabinet.contents.add(jar);}
    const work=session.worktops[station.item.id];
-   if(work.boardVisible){
+   if(work.boardVisible||station.role==='board'){
     const board=new THREE.Group();part(board,'box',0,0,0,.65,.028,.4,'#b48b58');for(let i=0;i<7;i++)part(board,'box',-.27+i*.09,.015,0,.002,.001,.37,'#936b43');
     for(let i=0;i<work.foods.length;i++){const food=foodModel(work.foods[i]);food.position.set((i%2-.5)*.22,.018,(Math.floor(i/2)-.5)*.13);food.scale.setScalar(.8);pickable(food,station,'board-food',String(i));board.add(food);}
     pickable(board,station,'board');placeModel(board,station);supportMeshes.push(board.children[0]);
@@ -78,13 +101,23 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
    for(const [i,dish]of dishes.entries()){const model=vesselModel({...dish.meal,kind:'plate'},{dish:true});model.scale.setScalar(.9);pickable(model,station,'dish',dish.id);placeModel(model,station,dishes.length===1?0:(i%3-1)*.58,Math.floor(i/3)*.45);}
   }
   for(const [id,v]of Object.entries(session.vessels)){
-   if(v.location==='loose')continue;const model=vesselModel(v);
-   if(v.location==='hand'){held.add(model);model.scale.setScalar(.75);continue;}
-   if(v.location==='drawer'){const station=drawerFor('vessel',id),cabinet=storageRoots.find(root=>root.userData.storage.station===station);model.position.set(0,station.h*.88*.18,0);pickable(model,station,'vessel',id);cabinet.userData.storage.contents.add(model);continue;}
-   const station=v.location==='stove'?stove:storageItemStation(v.counterId);pickable(model,station,'vessel',id);placeModel(model,station,v.location==='stove'?(v.slot===0?-.28:.28):0,0);
-   if(v.location==='stove'&&v.kind==='pot'){const knob=new THREE.Group();part(knob,'round',0,0,0,.095,.06,.095,'#35434b');pickable(knob,stove,'lid',id);placeModel(knob,stove,v.slot===0?-.28:.28,0);knob.position.y+=.38;}
+   if(v.location==='loose'||v.location==='appliance')continue;const model=vesselModel(v);
+   if(v.location==='hand'){if(session.hand?.type==='vessel'&&session.hand.id===id){held.add(model);model.scale.setScalar(.75);}continue;}
+   if(v.location==='drawer'){const station=drawerFor('vessel',id),cabinet=storageRoots.find(root=>root.userData.storage.station===station);pickable(model,station,'vessel',id);if(cabinet){model.position.set(0,station.h*.88*.18,0);cabinet.userData.storage.contents.add(model);}else placeModel(model,station,0,0);continue;}
+   const station=v.location==='stove'?(zone.stations.find(s=>s.item.id===v.counterId)||stove):storageItemStation(v.counterId);pickable(model,station,'vessel',id);placeModel(model,station,v.location==='stove'?(v.slot===0?-.28:.28):0,0);
+   if(v.location==='stove'&&v.kind==='pot'){const knob=new THREE.Group();part(knob,'round',0,0,0,.095,.06,.095,'#35434b');pickable(knob,station,'lid',id);placeModel(knob,station,v.slot===0?-.28:.28,0);knob.position.y+=.38;}
   }
-  for(let i=0;i<2;i++){const knob=new THREE.Group();part(knob,'disc',0,0,0,.085,.04,.085,'#35434b');part(knob,'box',0,.024,.025,.012,.008,.026,'#f2de9d');pickable(knob,stove,'fire',String(i));placeModel(knob,stove,i===0?-.24:.24,.3);}
+  for(const station of zone.stations.filter(s=>s.role==='storage')){
+   const stand=cookingToolStand(station,pickable);placeModel(stand,station);stand.position.y=ROOM.floor+station.y;
+   for(const [i,id]of tools.filter(id=>drawerFor('tool',id)===station).entries()){if(away('tool',id))continue;const model=toolModel(id);model.scale.setScalar(.7);model.position.set((i%3-1)*.16,.11,0);pickable(model,station,'tool',id);stand.add(model);}
+   for(const [i,id]of spices.filter(id=>drawerFor('seasoning',id)===station).entries()){if(away('seasoning',id))continue;const model=seasoningModel(id);model.position.set((i%3-1)*.15,.09,0);pickable(model,station,'spice',id);stand.add(model);}
+  }
+  for(const station of zone.stations.filter(s=>s.role==='appliance')){
+   const a=session.appliances[station.item.id]||{},appliance=cookingAppliance(station,a,pickable);placeModel(appliance.root,station);appliance.root.position.y=ROOM.floor+station.y;supportMeshes.push(appliance.tray);
+   if(a.vesselId){const v=session.vessels[a.vesselId];if(v?.location==='appliance'){const model=vesselModel(v);model.scale.setScalar(Math.min(.65,appliance.w/.65));model.position.y=.08;pickable(model,station,'vessel',v.kind);appliance.inside.add(model);}}
+  }
+  for(const [id,hand]of Object.entries(session.hands||{})){if(id===get().selfId||!hand)continue;const model=looseModel(hand);model.scale.setScalar(.65);model.userData.playerId=id;remoteHeld.add(model);}
+  for(const stove of zone.stations.filter(s=>s.role==='stove'))for(let i=0;i<2;i++){const knob=new THREE.Group();part(knob,'disc',0,0,0,.085,.04,.085,'#35434b');part(knob,'box',0,.024,.025,.012,.008,.026,'#f2de9d');pickable(knob,stove,'fire',String(i));placeModel(knob,stove,i===0?-.24:.24,.3);}
   const faucet=new THREE.Group();part(faucet,'disc',0,.22,0,.055,.035,.055,'#b9c8cf');pickable(faucet,sink,'faucet');placeModel(faucet,sink,.18,-.12);
   if(session.hand?.type==='food')held.add(foodModel(session.hand.food));
   if(session.hand?.type==='dish')held.add(looseModel(session.hand));
@@ -120,15 +153,16 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
  function closeMenu(resume=true){const wasOpen=!!menuTarget;menuTarget=null;hud.dataset.menu='false';if(wasOpen)onMenu(false,resume);if(session)drawUI();}
 
  function merge(source,destination){if(!destination||source===destination||destination.foods.length+source.foods.length>16||destination.water+source.water>capacity[destination.kind]){status='食材または水の量が容器の容量を超えます。先に盛り付けるか湯切りしてください';return false;}destination.foods.push(...source.foods);source.foods=[];for(const [id,n]of Object.entries(source.seasonings)){destination.seasonings[id]=Math.min(8,(destination.seasonings[id]||0)+n);}source.seasonings={};destination.mixed||=source.mixed;destination.kneaded||=source.kneaded;destination.rolled||=source.rolled;source.kneaded=source.rolled=false;const liquid=source.water+destination.water;if(liquid>0)destination.temperature=(source.temperature*source.water+destination.temperature*destination.water)/liquid;destination.water=liquid;source.water=0;return true;}
- function plate(v,station){if(!v||!v.foods.length||!station||session.plateStationId!==station.item.id)return;const meal=cleanMeal(v),dish=describeDish(meal),id=crypto.randomUUID();session.dishes.push({id,meal,...dish,counterId:station.item.id});if(session.dishes.length>24)session.dishes.shift();session.plateStationId='';if(session.hand?.type==='vessel'&&session.vessels[session.hand.id]===v){session.hand=null;v.location='drawer';}v.foods=[];v.seasonings={};v.water=0;v.fire=0;v.covered=false;v.mixed=false;v.kneaded=false;v.rolled=false;v.cookSeconds=0;v.timer=null;v.timerDone=false;status='完成：'+dish.name+' · '+dish.quality+'（'+dish.subtitle+'）';send({type:'cooking-finish',index:zone.index,kitchenId:zone.id,recipe:'free',dishId:id,meal});renderModels(true);end();notify('盛り付けました。皿をクリックして持ち、食卓の椅子に座ると食べられます',5000);}
- function action(id,completed=false,station=menuTarget,vesselId=null){
+ function plate(v,station){if(!v||!v.foods.length||!station||session.plateStationId!==station.item.id)return;if(session.dishes.filter(d=>!d.eaten).length>=24){status='料理の皿が24枚あります。食卓の料理を食べてから次を盛り付けてください';return;}session.dishes=session.dishes.filter(d=>!d.eaten);const meal=cleanMeal(v),dish=describeDish(meal),id=crypto.randomUUID();session.dishes.push({id,meal,...dish,counterId:station.item.id});session.plateStationId='';if(session.hand?.type==='vessel'&&session.vessels[session.hand.id]===v){session.hand=null;v.location='drawer';}v.foods=[];v.seasonings={};v.water=0;v.fire=0;v.covered=false;v.mixed=false;v.kneaded=false;v.rolled=false;v.cookSeconds=0;v.timer=null;v.timerDone=false;status='完成：'+dish.name+' · '+dish.quality+'（'+dish.subtitle+'）';renderModels(true);end();notify('盛り付けました。皿をクリックして持ち、机に並べてから、椅子に座って食べられます',5000);}
+ function action(id,completed=false,station=menuTarget,vesselId=null){if(['end','recover','close','resume','use','equipment','put-down','cancel-work'].includes(id))return actionLocal(id,completed,station,vesselId);return transact(()=>actionLocal(id,completed,station,vesselId),{id,stationId:station?.item.id,source:handSnapshot()});}
+ function actionLocal(id,completed=false,station=menuTarget,vesselId=null){
   if(id==='end'){end();return;}if(id==='recover'){const entry=safeEntry();if(entry){task=null;onReposition(entry);closeMenu();status='通路の空いている位置へ戻りました';}else notify('家具の間に通路を空けてください');return;}if(id==='close'||id==='resume'){closeMenu();if(id==='resume')onMenu(false,true);return;}
   if(id==='use'){interact();return;}if(id==='equipment'){if(menuTarget)closeMenu();else interact(undefined,true);return;}
   if(id==='put-down'&&session){togglePlacement();return;}
   if(id==='release'&&session){releaseHand();return;}
-  if(id==='cancel-work'){task=null;status='作業を中止しました';drawUI();return;}
-  if(!session||task&&!completed)return;useCounter(station);target=station;if(!inReach(target)){closeMenu(false);status='家具の近くへ移動してください';return;}
-  const role=target.role,h=session.hand,v=handVessel(),onStove=role==='stove',onCounter=role==='counter',onSink=role==='sink',active=vesselId?session.vessels[vesselId]:onStove?burner():v||counterBowl();
+  if(id==='cancel-work'){send({type:'kitchen-work',index:zone.index,kitchenId:zone.id,cancel:true});task=null;status='作業を中止しました';drawUI();return;}
+  if(!session||task&&!completed)return;useCounter(station);if(station?.role==='stove')session.activeStoveId=station.item.id;target=station;if(!inReach(target)){closeMenu(false);status='家具の近くへ移動してください';return;}
+  const role=target.role,h=session.hand,v=handVessel(),onStove=role==='stove',onCounter=role==='counter'||role==='board',onSink=role==='sink',active=vesselId?session.vessels[vesselId]:onStove?burner():v||counterBowl();
   if(active?.covered&&['sprinkle','container-add','stove-add','stove-pour','pour-water','stir'].includes(id)){status='先に鍋のふたをクリックして開けてください';drawUI();return;}
   if(!completed&&(id==='cut'||Object.hasOwn(operationTimes,id))){
    const food=session.board[session.boardIndex];
@@ -136,27 +170,40 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
    if(!valid)return;
    const duration=id==='cut'?(food.id==='egg'?1.2:session.cutMode==='mince'?7:session.cutMode==='dice'?5:3):id==='fill'?Math.max(.5,(capacity[v.kind]-v.water)*2):operationTimes[id];
    const names={cut:food?.id==='egg'?'卵を割る':CUTS[session.cutMode],wash:'食材を洗う',fill:'水をくむ',drain:'湯切り',clean:'容器を洗う',mix:'混ぜる',stir:'混ぜる／裏返す',plate:'盛り付け',peel:'皮をむく',grate:'すりおろす',knead:'生地をこねる',roll:'生地を伸ばす'};
-   task={id,station,vesselId,source:handSnapshot(),duration,remaining:duration,origin:get().player.position.clone(),label:names[id],foodIndex:session.boardIndex,cutMode:session.cutMode};
-   status=names[id]+'を開始しました';closeMenu();drawUI();return;
+   task={id,station,vesselId,source:handSnapshot(),duration,remaining:duration,origin:get().player.position.clone(),label:names[id],foodIndex:session.boardIndex,cutMode:session.cutMode,guards:[...new Set([onCounter?'board:'+target.item.id:null,active?'vessel:'+active.kind:null,h?'hand:'+get().selfId:null].filter(Boolean))].map(key=>({key,version:authoritative?.versions[key]||0}))};
+   send({type:'kitchen-work',index:zone.index,kitchenId:zone.id,id,stationId:station.item.id,duration,source:handSnapshot()});status=names[id]+'を開始しました';closeMenu();drawUI();return;
   }
 
  if(!completed)motion.play(id,target,handSnapshot());
- if(id==='storage'&&onCounter){session.storageOpen[target.item.id]=!session.storageOpen[target.item.id];status=session.storageOpen[target.item.id]?'収納の道具・調味料・容器をクリックして取れます':'収納を閉めました';}
+ if(role==='appliance'&&id.startsWith('appliance-')){
+  const a=session.appliances[target.item.id]??={open:false,remaining:0,duration:0,vesselId:'',done:false},kind=target.def.id;
+  if(id==='appliance-open'&&!a.remaining)a.open=!a.open;
+  else if(id==='appliance-load'&&v&&a.open&&!a.vesselId){if(kind==='microwave'&&['pan','pot'].includes(v.kind)){status='レンジには金属の鍋を入れられません。ボウルに移してください';}else {a.vesselId=v.kind;v.location='appliance';v.counterId=target.item.id;v.fire=0;v.timer=null;session.hand=null;status='容器を中に入れました';}}
+  else if(id==='appliance-take'&&!h&&a.vesselId&&a.open&&!a.remaining){const item=session.vessels[a.vesselId];session.hand={type:'vessel',id:a.vesselId};item.location='hand';a.vesselId='';status='容器を取り出しました';}
+  else if(id==='appliance-stop'){a.remaining=0;a.done=false;status='運転を止めました';}
+  else if(id.startsWith('appliance-run-')&&a.vesselId&&!a.open){const item=session.vessels[a.vesselId],seconds=Number(id.slice(14));if(![30,60,120,300].includes(seconds))return;
+   if(kind==='rice-cooker'&&(!item.foods.some(f=>f.id==='rice')||item.water<.2))status='炊飯には米と水を入れた容器を使ってください';else if(kind==='dishwasher'&&item.foods.length)status='食材を取り出してから容器を洗ってください';else if(kind==='kettle'&&!item.water)status='水を入れた水差しを使ってください';else {a.remaining=a.duration=seconds;a.done=false;item.mode=['blender','stand-mixer'].includes(kind)?'mix':kind==='toaster'?'bake':'steam';status=target.def.name+'を開始 · '+timeLabel(seconds);}
+  }else status='扉を開けて容器を入れ、閉めてから開始してください';
+ }
+ else if(id==='storage-return'&&role==='storage'&&h&&['tool','seasoning','vessel'].includes(h.type)){
+  if(h.type==='vessel'){v.location='drawer';v.counterId=target.item.id;}session.itemHomes[h.type+':'+h.id]=target.item.id;session.hand=null;status=target.def.name+'に保管しました';
+ }
+ else if(id==='storage'&&onCounter){session.storageOpen[target.item.id]=!session.storageOpen[target.item.id];status=session.storageOpen[target.item.id]?'収納の道具・調味料・容器をクリックして取れます':'収納を閉めました';}
  else if(id==='show-board'&&onCounter){const work=session.worktops[target.item.id];if(session.plateStationId===target.item.id||session.dishes.some(d=>d.counterId===target.item.id&&!d.eaten&&!session.takenDishes.includes(d.id))){status='盛り付け台にはまな板を出せません。別のカウンターを使いましょう';}else work.boardVisible=!work.boardVisible;}
  else if(id==='show-plate'&&onCounter){const work=session.worktops[target.item.id];if(work.foods.length||session.dishes.some(d=>d.counterId===target.item.id&&!d.eaten&&!session.takenDishes.includes(d.id))||Object.values(session.vessels).some(v=>v.location==='counter'&&v.counterId===target.item.id)){status='食材や容器のない別のカウンターに皿を出してください';}else {work.boardVisible=false;session.plateStationId=target.item.id;status='盛り付け皿を出しました。調理した容器を持って皿をクリックしてください';}}
- else if(id==='chop'&&onCounter&&session.board.length&&h?.type==='tool'&&h.id==='knife'){if(session.elapsed-lastStroke<.22)return;lastStroke=session.elapsed;const f=session.board[session.boardIndex]||session.board[0],strokes=session.cutMode==='mince'?7:session.cutMode==='dice'?5:3;f.cuts=Math.min(3,(f.cuts||0)+3/strokes);if(f.cuts>=2.999)f.cut=session.cutMode;status=f.cut?FOOD_BY_ID.get(f.id).name+'を'+CUTS[f.cut]+'にしました':'包丁で切っています · '+Math.round(f.cuts/3*100)+'%';}
+ else if(id==='chop'&&onCounter&&session.board.length&&h?.type==='tool'&&h.id==='knife'){if(performance.now()/1000-lastStroke<.22)return;lastStroke=performance.now()/1000;const f=session.board[session.boardIndex]||session.board[0],strokes=session.cutMode==='mince'?7:session.cutMode==='dice'?5:3;f.cuts=Math.min(3,(f.cuts||0)+3/strokes);if(f.cuts>=2.999)f.cut=session.cutMode;status=f.cut?FOOD_BY_ID.get(f.id).name+'を'+CUTS[f.cut]+'にしました':'包丁で切っています · '+Math.round(f.cuts/3*100)+'%';}
  else if(id==='container-add'&&h?.type==='food'&&active&&active.foods.length<16){active.foods.push(h.food);session.hand=null;status=FOOD_BY_ID.get(h.food.id).name+'を追加しました · '+active.foods.map(f=>FOOD_BY_ID.get(f.id).name).join(' ＋ ');}
- else if(id==='sprinkle'&&h?.type==='seasoning'&&active){if(session.elapsed-lastStroke<.25)return;lastStroke=session.elapsed;active.seasonings[h.id]=Math.min(8,(active.seasonings[h.id]||0)+1);status=SEASONINGS[h.id]+'を振りかけました · '+active.seasonings[h.id]+'杯';}
+ else if(id==='sprinkle'&&h?.type==='seasoning'&&active){if(performance.now()/1000-lastStroke<.25)return;lastStroke=performance.now()/1000;active.seasonings[h.id]=Math.min(8,(active.seasonings[h.id]||0)+1);status=SEASONINGS[h.id]+'を振りかけました · '+active.seasonings[h.id]+'杯';}
  else if(id==='peel'&&onCounter&&session.board.length){session.board[session.boardIndex].peeled=true;status='皮をむきました';}
  else if(id==='grate'&&onCounter&&session.board.length){session.board[session.boardIndex].cut='grate';session.board[session.boardIndex].cuts=3;status='すりおろしました';}
  else if(id==='knead'&&onCounter&&active){active.mixed=true;active.kneaded=true;status='生地をこねました';}
  else if(id==='roll'&&onCounter&&active){active.rolled=true;status='生地を薄く伸ばしました';}
  else if(id==='open-fridge'&&role==='fridge'){session.fridgeOpen=!session.fridgeOpen;status='冷蔵庫の食材をクリックして取り出せます。Eで食材の種類を変更';}
  else if(id.startsWith('group-')&&role==='fridge'){session.foodGroup=id.slice(6);session.foodPage=0;session.fridgeOpen=true;closeMenu();}
- else if(id==='fridge-next'&&role==='fridge'){session.foodPage=(session.foodPage+1)%Math.max(1,Math.ceil(INGREDIENTS.filter(f=>f.group===session.foodGroup).length/8));session.fridgeOpen=true;closeMenu();}
+ else if(id==='fridge-next'&&role==='fridge'){session.foodPage=(session.foodPage+1)%Math.max(1,Math.ceil(fridgeFoods(session.foodGroup).length/8));session.fridgeOpen=true;closeMenu();}
  else if(id.startsWith('take-food-')&&role==='fridge'&&session.fridgeOpen&&fridgeAngle>.6&&!h){const f=FOOD_BY_ID.get(id.slice(10));if(!f)return;session.hand={type:'food',food:{id:f.id,washed:!f.wash,cut:null,cuts:0,progress:0,burn:0,method:'raw'}};status=f.name+'を手に持ちました。好きな作業台へ運んでください';}
  else if(id==='return-food'&&role==='fridge'&&h?.type==='food'){session.hand=null;status='食材を冷蔵庫へ戻しました';}
- else if(id.startsWith('take-vessel-')&&onCounter&&!h){const kind=id.slice(12),item=session.vessels[kind];if(item&&['drawer','counter','loose'].includes(item.location)){const body=placement.bodies.find(b=>b.payload.type==='vessel'&&b.payload.id===kind);if(body)placement.take(body);item.location='hand';session.hand={type:'vessel',id:kind};status=vesselNames[kind]+'を手に持ちました';}}
+ else if(id.startsWith('take-vessel-')&&(onCounter||role==='storage'||role==='appliance')&&!h){const kind=id.slice(12),item=session.vessels[kind];if(item&&['drawer','counter','loose'].includes(item.location)){const body=placement.bodies.find(b=>b.payload.type==='vessel'&&b.payload.id===kind);if(body)placement.take(body);item.location='hand';session.hand={type:'vessel',id:kind};status=vesselNames[kind]+'を手に持ちました';}}
  else if(id==='board-place'&&onCounter&&h?.type==='food'&&session.board.length<4){session.board.push(h.food);session.boardIndex=session.board.length-1;session.hand=null;status='食材をまな板に置きました';}
  else if(id.startsWith('board-select-')&&onCounter){session.boardIndex=Math.min(session.board.length-1,Number(id.slice(13)));}
  else if(id.startsWith('cut-mode-')&&onCounter){const mode=id.slice(9);if(Object.hasOwn(CUTS,mode))session.cutMode=mode;}
@@ -174,7 +221,7 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
  else if(id==='clean'&&onSink&&session.waterOn&&v&&!v.foods.length){v.seasonings={};v.water=0;v.temperature=20;status='容器を洗いました';}
  else if(id.startsWith('timer-')&&onStove&&burner()){const seconds=Number(id.slice(6));if([0,30,60,120,300].includes(seconds)){const item=burner();item.timer=seconds?{remaining:seconds,duration:seconds}:null;item.timerDone=false;if(seconds)item.fire||=2;status=seconds?timeLabel(seconds)+'の加熱タイマーを開始しました。終了時に消火します':'タイマーを解除しました';}}
  else if(id.startsWith('burner-')&&onStove){session.selectedBurner=Number(id.slice(7));}
- else if(id==='stove-place'&&onStove&&v&&['pan','pot'].includes(v.kind)&&!burner()){v.location='stove';v.slot=session.selectedBurner;session.hand=null;status=vesselNames[v.kind]+'をコンロ'+(v.slot+1)+'に置きました';}
+ else if(id==='stove-place'&&onStove&&v&&['pan','pot'].includes(v.kind)&&!burner()){v.location='stove';v.counterId=target.item.id;v.slot=session.selectedBurner;session.hand=null;status=vesselNames[v.kind]+'をコンロ'+(v.slot+1)+'に置きました';}
  else if(id==='stove-pick'&&onStove&&!h&&burner()){const item=burner();item.fire=0;item.timer=null;item.location='hand';session.hand={type:'vessel',id:item.kind};status=vesselNames[item.kind]+'を持ち上げました。作業台へ運べます';}
  else if(id==='stove-add'&&onStove&&h?.type==='food'&&burner()?.foods.length<16){burner().foods.push(h.food);session.hand=null;status='食材を調理器具へ入れました';}
  else if(id==='stove-pour'&&onStove&&v&&burner()&&v!==burner()){if(merge(v,burner()))status='ボウルの食材を調理器具へ移しました';}
@@ -204,9 +251,13 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
   if(station?.role==='fridge'){
    section('庫内の食材');for(const [id,name]of Object.entries(FOOD_GROUPS))add('group-'+id,name,true,id===session.foodGroup);
    add('open-fridge',session.fridgeOpen?'扉を閉じる':'扉を開ける');
-   const pages=Math.ceil(INGREDIENTS.filter(f=>f.group===session.foodGroup).length/8);add('fridge-next','次の棚の食材 · '+(session.foodPage+1)+' / '+pages,pages>1);
+   const pages=Math.ceil(fridgeFoods(session.foodGroup).length/8);add('fridge-next','次の棚の食材 · '+(session.foodPage+1)+' / '+pages,pages>1);
    section('扉を開け、庫内の3D食材をクリックして取り出す');if(h?.type==='food')add('return-food','食材を戻す');
-  }else if(station?.role==='counter'){
+  }else if(station?.role==='appliance'){
+   const a=session.appliances[station.item.id]||{};section(a.remaining?'運転中 · 残り '+timeLabel(a.remaining):a.done?'完了：扉を開けて取り出せます':'容器を入れて使う');add('appliance-open',a.open?'扉を閉める':'扉を開ける',!a.remaining);add('appliance-load','持っている容器を入れる',a.open&&!!v&&!a.vesselId);add('appliance-take','容器を取り出す',a.open&&!h&&!!a.vesselId&&!a.remaining);for(const n of [30,60,120,300])add('appliance-run-'+n,timeLabel(n)+'運転する',!!a.vesselId&&!a.open&&!a.remaining);add('appliance-stop','運転を止める',!!a.remaining);
+  }else if(station?.role==='storage'){
+   section('道具をクリックして取る／持っている道具を戻す');add('storage-return','ここに保管する',!!h&&['tool','seasoning','vessel'].includes(h.type));
+  }else if(station?.role==='counter'||station?.role==='board'){
    add('storage',session.storageOpen[station.item.id]?'収納を閉じる':'収納を開ける');add('show-board',session.worktops[station.item.id]?.boardVisible?'まな板をしまう':'まな板を出す',!session.board.length);add('show-plate','このカウンターに皿を出す',!session.worktops[station.item.id]?.foods.length);section('包丁の切り方');for(const [id,name]of Object.entries(CUTS))if(id!=='grate')add('cut-mode-'+id,name,true,id===session.cutMode);
    section('収納の扉を開く → 道具を持つ → 作業台で使う');
    add('put-down','持っているものを置く',!!h);
@@ -252,76 +303,57 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
   const point=worldPoint(equipment('stove'));point.y+=1.15;point.project(camera);tag.hidden=!vessels.length||point.z>1||point.z< -1||Math.abs(point.x)>1||Math.abs(point.y)>1;
   if(!tag.hidden){tag.style.left=(point.x*.5+.5)*100+'%';tag.style.top=(.5-point.y*.5)*100+'%';tag.textContent=vessels.map(vesselStatus).join('\n');}
  }
- function heat(dt){
-  for(const v of Object.values(session.vessels)){
-   if(v.location!=='stove'||!v.fire){v.temperature=Math.max(20,v.temperature-dt*1.4);continue;}
-   const wet=v.water>.01,max=wet?100:v.mode==='bake'?190:70+v.fire*55;
-   v.temperature+=Math.sign(max-v.temperature)*Math.min(Math.abs(max-v.temperature),dt*v.fire*(v.covered?1.35:1)*5/(.5+v.water));
-   if(wet&&v.temperature>=99&&!v.covered)v.water=Math.max(0,v.water-dt*.002*v.fire);
-   let method=v.mode;if(wet&&method==='fry')method=v.fire===1?'simmer':'boil';
-   const enabled=(method==='boil'||method==='simmer')?wet&&v.temperature>=99:method==='steam'?wet&&v.covered&&v.temperature>=99:v.temperature>=75;
-   const step=enabled?Math.min(dt,v.timer?.remaining??dt):0;
-   if(enabled&&v.foods.length)v.cookSeconds+=step;
-   for(const f of v.foods){
-    if(!step)continue;f.method=method;
-    const cutRate=f.cut==='mince'?1.25:f.cut?1.12:1;
-    f.progress=Math.min(180,f.progress+step*cutRate*(method==='simmer'?.35:method==='steam'?.65:method==='bake'?.6:method==='boil'?.6:1));
-    if(!wet&&f.progress>FOOD_BY_ID.get(f.id).time*1.6&&v.temperature>135)f.burn=Math.min(100,f.burn+step*(v.temperature-130)*.08*(session.elapsed-v.lastStir<5?.3:1)*(v.seasonings.oil?.65:1));
-   }
-   if(v.timer&&enabled){v.timer.remaining=Math.max(0,v.timer.remaining-step);if(v.timer.remaining===0){v.fire=0;v.timer=null;v.timerDone=true;status=vesselNames[v.kind]+'のタイマー終了。火を止めました';notify(status);}}
-  }
- }
  function advanceWork(dt){
-  if(!task)return;if(!inReach(task.station)||get().player.position.distanceTo(task.origin)>.9){task=null;status='作業台から離れたため手作業を中止しました';return;}
+  if(!task)return;if(!inReach(task.station)||get().player.position.distanceTo(task.origin)>.9){task=null;send({type:'kitchen-work',index:zone.index,kitchenId:zone.id,cancel:true});status='作業台から離れたため手作業を中止しました';return;}
   task.remaining=Math.max(0,task.remaining-dt);
   if(task.id==='cut'&&knife){knife.position.y=.04+Math.abs(Math.sin(session.elapsed*12))*.12;knife.rotation.z=Math.sin(session.elapsed*12)*.2;}
-  if(task.id==='fill'&&handVessel()){const v=handVessel();v.water=Math.min(capacity[v.kind],v.water+dt*.5);v.temperature=20;}
-  if(task.remaining===0){const finished=task;task=null;useCounter(finished.station);session.boardIndex=finished.foodIndex;session.cutMode=finished.cutMode;action(finished.id,true,finished.station,finished.vesselId);if(knife){knife.position.y=.03;knife.rotation.z=0;}}
+  if(task.remaining===0&&!pending&&get().connected){const finished=task;task=null;send({type:'kitchen-work',index:zone.index,kitchenId:zone.id,cancel:true});useCounter(finished.station);session.boardIndex=finished.foodIndex;session.cutMode=finished.cutMode;action(finished.id,true,finished.station,finished.vesselId);if(knife){knife.position.y=.03;knife.rotation.z=0;}}
  }
- function worldInteraction(ndc){
+ function worldInteraction(ndc){if(!session||running||get().paused||!get().inStudio||get().ragdoll)return false;if(!placeMode){selectTarget(ndc);if(!['dish','loose'].includes(picked?.type)||picked.type==='loose'&&picked.body.payload.type!=='dish')return false;}return transact(()=>worldInteractionLocal(ndc));}
+ function worldInteractionLocal(ndc){
   const state=get();if(running||!session||state.paused||!state.inStudio||state.ragdoll)return false;
   if(placeMode&&session.hand?.type==='dish'){releaseHand(ndc);saveWorkspace();return true;}
   selectTarget(ndc);
   const dish=picked?.type==='dish'?session.dishes.find(d=>d.id===picked.id&&!d.eaten):picked?.type==='loose'&&picked.body.payload.type==='dish'?picked.body.payload.dish:null;
-  if(!dish||session.hand)return false;
+  if(!dish||session.hand)return false;if(eating?.id===dish.id||eatingPlayers.has(dish.id)){notify('食事中の皿です');return true;}
   if(picked.body)placement.take(picked.body);if(!session.takenDishes.includes(dish.id))session.takenDishes.push(dish.id);
-  session.hand={type:'dish',dish};notify('料理を持ちました。食卓と向き合う椅子に座ると食べられます',4000);renderModels(true);saveWorkspace();return true;
+  session.hand={type:'dish',dish};notify('料理を持ちました。Q／「皿を置く」で机の好きな場所に並べられます',4000);renderModels(true);saveWorkspace();return true;
  }
  function showRating(rating){ratingHUD.textContent=rating.name+'\n'+'★'.repeat(rating.stars)+'☆'.repeat(5-rating.stars)+'\n'+rating.label;ratingHUD.hidden=false;setTimeout(()=>{ratingHUD.hidden=true;},8000);}
- function eatAtTable(dt){
-  const state=get(),h=session.hand,table=!running&&state.seated&&h?.type==='dish'?state.housing.diningTableForSeat(state.seat):null;
-  if(!table){eating=null;clearModels(diningVisual);return;}
-  if(!eating||eating.id!==h.dish.id){eating={id:h.dish.id,elapsed:0,sent:false};clearModels(diningVisual);const model=vesselModel({...h.dish.meal,kind:'plate'},{dish:true});model.scale.setScalar(.9);diningVisual.add(model);}
-  diningVisual.position.copy(table.point);eating.elapsed+=dt;
-  if(eating.sent&&!state.connected)eating.sent=false;diningVisual.children[0]?.traverse(o=>{if(o.isInstancedMesh)o.visible=eating.elapsed<3.5;});
-  if(eating.elapsed>=4&&!eating.sent&&state.connected){eating.sent=true;send({type:'cooking-eat',dishId:h.dish.id,index:table.index,tableId:table.itemId});}
- }
+ function tableAt(point){const room=get().housing.rooms[zone.index];return room?.layout.items.map(item=>({item,def:FURNITURE_BY_ID.get(item.t),...furniturePose(item)})).filter(s=>['table','desk'].includes(s.def.family)).find(s=>{const dx=(point.x-zone.home.x)*zone.home.front-s.x,dz=(point.z-zone.home.z)*zone.home.front-s.z,c=Math.cos(s.yaw),n=Math.sin(s.yaw);return Math.abs(c*dx-n*dz)<s.w*.44&&Math.abs(n*dx+c*dz)<s.d*.44&&Math.abs(point.y-(ROOM.floor+s.y+s.h*.88))<.22;});}
+ function tableMeal(){const state=get(),table=!running&&state.seated?state.housing.diningTableForSeat(state.seat):null;if(!table||session.hand)return null;const body=placement.bodies.filter(b=>b.tableId===table.itemId&&b.payload.type==='dish'&&!session.dishes.find(d=>d.id===b.payload.dish.id)?.eaten&&!eatingPlayers.has(b.payload.dish.id)).sort((a,b)=>a.p.distanceToSquared(state.player.position)-b.p.distanceToSquared(state.player.position))[0];return body?{table,body}:null;}
+ function eatAtTable(dt){if(!eating)return;const meal=tableMeal();if(!meal||meal.body.payload.dish.id!==eating.id){if(get().connected)send({type:'cooking-eat-cancel'});eating=null;return;}eating.elapsed+=dt;}
+ carryHUD.querySelector('button').onclick=()=>{if(session?.hand?.type==='dish'){placeMode=!placeMode;return;}const meal=tableMeal();if(!meal||pending||eating||!get().connected)return;send({type:'cooking-eat',index:zone.index,kitchenId:zone.id,dishId:meal.body.payload.dish.id,tableId:meal.table.itemId});eating={id:meal.body.payload.dish.id,elapsed:0,sent:true};};
  function update(dt,now){
   const state=get();
   if(session&&session.ownerSkin!==state.skin){if(running)end();disposeWorkspace();}
-  if(!running&&now-lastScan>500){lastScan=now;scan();if(!session&&near){zone=near;const saved=savedState();if(saved)createSession();}}
+  if(!running&&now-lastScan>500){lastScan=now;scan();const display=near||[...shared.values()].map(r=>recognizeKitchens(r.state.index,state.housing.rooms[r.state.index]?.layout).zones.find(z=>z.id===r.state.kitchenId)).find(z=>z&&Math.abs(state.player.position.x-z.home.x)<ROOM.x&&Math.abs(state.player.position.z-z.home.z)<ROOM.z&&state.housing.rooms[z.index]?.group.visible);if(display&&(!session||String(zone.index)!==String(display.index)||zone.id!==display.id)&&!session?.hand){if(session)disposeWorkspace();zone=display;createSession();requestKitchen();}}
   if(!session)return;
   const room=state.housing?.rooms[zone.index];
   if(room&&room.layout.rev!==zone.rev){const next=recognizeKitchens(zone.index,room.layout).zones.find(z=>z.id===zone.id);if(next?.key===zone.key)zone=next;else {if(running){notify('キッチン設備の配置が変わりました。調理の途中状態を保存して戻ります');end();}if(next){hideAppliances(false);zone=next;for(const station of zone.worktops)session.worktops[station.item.id]||={foods:[],index:0,boardVisible:false};if(!zone.worktops.some(s=>s.item.id===session.activeCounterId))session.activeCounterId=zone.worktops[0].item.id;hideAppliances(true);lastVisualKey='';}else {saveWorkspace(true);disposeWorkspace();return;}}}
   if(running&&(!state.inStudio||state.ragdoll||state.inBattle)){end();}
-  if(running&&state.connected&&!wasConnected)send({type:'cooking-start',index:zone.index,kitchenId:zone.id,recipe:'free'});
+  if(!state.connected){if(task)task=null;pending=null;authoritative=null;}
+  if(state.connected&&!wasConnected){pending=null;authoritative=null;requestKitchen();if(running)send({type:'cooking-start',index:zone.index,kitchenId:zone.id,recipe:'free'});}
+  if(pending&&now-pending.at>8000){pending=null;authoritative=null;task=null;requestKitchen();status='操作の返事を待っています。共有状態を読み直します';}
   wasConnected=state.connected;
-  session.elapsed+=dt;placement.update(dt);fridgeAngle=THREE.MathUtils.damp(fridgeAngle,session.fridgeOpen?Math.PI*.61:0,8,dt);
+  session.elapsed+=dt;fridgeAngle=THREE.MathUtils.damp(fridgeAngle,session.fridgeOpen?Math.PI*.61:0,8,dt);
   if(fridgeRoot){fridgeRoot.userData.door.rotation.y=-fridgeAngle;fridgeRoot.userData.contents.visible=fridgeAngle>.6;}
   for(const root of storageRoots){const storage=root.userData.storage;storage.angle=THREE.MathUtils.damp(storage.angle,session.storageOpen[storage.station.item.id]?Math.PI*.48:0,9,dt);for(const door of storage.doors)door.rotation.y=door.userData.sign*storage.angle;storage.contents.visible=storage.angle>.65;}
   if(placeMode&&session.hand&&!menuTarget)placement.aim(session.hand);else placement.hide();
-  heat(dt);if(running)advanceWork(dt);animateCookingModel(visuals,session.elapsed);animateCookingModel(held,session.elapsed);animateCookingModel(placement.root,session.elapsed);motion.update(session,task,dt);eatAtTable(dt);
+  if(running)advanceWork(dt);animateCookingModel(visuals,session.elapsed);animateCookingModel(held,session.elapsed);animateCookingModel(placement.root,session.elapsed);motion.update(session,task,dt);for(const remote of remoteMotions.values())remote.update(session,null,dt);eatAtTable(dt);
+  for(const model of remoteHeld.children){const peer=get().peers?.find(p=>p.id===model.userData.playerId);model.visible=!!peer;if(peer){model.position.copy(peer.root.position).add(new THREE.Vector3(Math.sin(peer.root.rotation.y)*.65,1.05,Math.cos(peer.root.rotation.y)*.65));model.rotation.y=peer.root.rotation.y;}}animateCookingModel(remoteHeld,session.elapsed);remoteHeld.visible=state.inStudio&&!!room?.group.visible;
   held.visible=!!session.hand&&!task&&!motion.busyHand&&!eating&&(running||session.hand.type==='dish');
   visuals.visible=placement.root.visible=state.inStudio&&!!room?.group.visible;
-  document.body.dataset.carryingMeal=String(!running&&session.hand?.type==='dish');carryHUD.hidden=running||!state.inStudio||session.hand?.type!=='dish';
-  if(!carryHUD.hidden)carryHUD.querySelector('span').textContent=eating?'食事中… '+Math.min(4,Math.floor(eating.elapsed))+'/4秒':placeMode?'平面を狙ってクリックで皿を置く':session.hand.dish.name+' · 食卓の椅子に座って食べる';
-  if(session.elapsed-lastSave>=8)saveWorkspace();
+  document.body.dataset.carryingMeal=String(!running&&session.hand?.type==='dish');carryHUD.hidden=running||!state.inStudio||!(session.hand?.type==='dish'||tableMeal());
+  if(!carryHUD.hidden)carryHUD.querySelector('span').textContent=eating?'食事中… '+Math.min(4,Math.floor(eating.elapsed))+'/4秒':placeMode?'平面を狙ってクリックで皿を置く':session.hand?.type==='dish'?session.hand.dish.name+' · Q／皿を置く → 机に並べる':tableMeal()?.body.payload.dish.name+' · 食卓に並んだ料理';
+  if(!carryHUD.hidden){const button=carryHUD.querySelector('button');button.textContent=session.hand?.type==='dish'?(placeMode?'置くのをやめる':'皿を置く'):eating?'食事中…':'この料理を食べる';button.disabled=!!pending||!!eating||!state.connected;}
   if(running&&menuTarget&&!inReach(menuTarget))closeMenu(false);
   if(now-lastUI<100)return;lastUI=now;renderModels();if(running){selectTarget();drawUI();}
  }
  addEventListener('pagehide',()=>saveWorkspace(true));
  function handSnapshot(){const h=session?.hand;if(!h)return null;return h.type==='vessel'?{...h,vessel:JSON.parse(JSON.stringify(session.vessels[h.id]))}:JSON.parse(JSON.stringify(h));}
  function directHint(){
+  if(picked?.type==='fridge-group')return FOOD_GROUPS[picked.id]+'の棚を開く';if(picked?.type==='fridge-next')return '次の棚の食材を見る';if(target?.role==='fridge'&&session.fridgeOpen)return '庫内の食材を取る · 上の札で肉・魚・米などの棚を選ぶ';
   if(placeMode)return placement.valid?'クリックでこの場所に置く · Q／右クリックで取消':'近くの空いている平面を狙ってください';
   const h=session.hand,p=picked;
   if(p?.type==='vessel'){const v=session.vessels[p.id];if(h?.type==='food')return v.covered?'ふたを開けてから食材を追加':FOOD_BY_ID.get(h.food.id).name+'を追加 · '+v.foods.length+'/16品';if(h?.type==='vessel')return '容器の食材・水・調味料を移して混ぜる';if(!h)return vesselNames[p.id]+'を持つ · 別の食材を持ってここへ追加できます';}
@@ -332,10 +364,15 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
   return pickLabel()+' · クリックで使う／Eで設定';
  }
  function pickLabel(){if(picked?.type==='loose'){const h=picked.body.payload;return h.type==='food'?FOOD_BY_ID.get(h.food.id).name:h.type==='tool'?toolNames[h.id]:h.type==='seasoning'?SEASONINGS[h.id]:'料理の皿';}if(!picked)return target?.def.name||'';return picked.type==='tool'?toolNames[picked.id]:picked.type==='spice'?SEASONINGS[picked.id]:picked.type==='vessel'?vesselNames[picked.id]:picked.type==='ingredient'?FOOD_BY_ID.get(picked.id).name:picked.type==='board'||picked.type==='board-food'?'まな板':picked.type==='fire'?'火力つまみ':picked.type==='lid'?'鍋のふた':picked.type==='faucet'?'蛇口':picked.type==='rest'?'道具置き':picked.type==='serve'?'盛り付け皿':target.def.name;}
- function directUse(ndc){
+ function directUse(ndc){return transact(()=>directUseLocal(ndc),{id:picked?.type==='board'?'chop':picked?.type,stationId:target?.item.id,source:handSnapshot()});}
+ function directUseLocal(ndc){
   const p=picked,h=session.hand,role=target.role,run=id=>action(id,false,target,p?.type==='vessel'?p.id:null);
   if(task)return true;
-  if(p?.type==='storage-door'||p?.type==='cabinet-body'){if(h?.type==='tool'||h?.type==='seasoning'){session.hand=null;status='収納へ戻しました';}else run('storage');}
+  if(p?.type==='fridge-group')run('group-'+p.id);
+  else if(p?.type==='fridge-next')run('fridge-next');
+  else if(role==='appliance'){if(p?.type==='vessel'&&!h)run('appliance-take');else if(p?.type==='appliance-button')return false;else if(handVessel())run('appliance-load');else run('appliance-open');}
+  else if(p?.type==='tool-store'){if(h)run('storage-return');else return false;}
+  else if(p?.type==='storage-door'||p?.type==='cabinet-body'){if(h?.type==='tool'||h?.type==='seasoning'){session.itemHomes[h.type+':'+h.id]=target.item.id;session.hand=null;status='収納へ戻しました';}else run('storage');}
   else if(p?.type==='loose'){if(!h){session.hand=placement.take(p.body);status='置いた物を手に持ちました';}else status='先に持っているものを置いてください';}
   else if(p?.type==='tool'||p?.type==='spice'){
    const type=p.type==='tool'?'tool':'seasoning';
@@ -352,7 +389,7 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
    const v=session.vessels[p.id];if(v.location==='stove')session.selectedBurner=v.slot;
    if(h?.type==='seasoning'){const previous=menuTarget;menuTarget=target;run('sprinkle');menuTarget=previous;}
    else if(h?.type==='tool'){
-    if(session.elapsed-lastStroke<.25)return true;lastStroke=session.elapsed;
+    if(performance.now()/1000-lastStroke<.25)return true;lastStroke=performance.now()/1000;
     if(['whisk','spatula','ladle','tongs'].includes(h.id)){if(v.covered){status='先にふたを開けてください';drawUI();return true;}motion.play(v.location==='stove'?'stir':'mix',target,handSnapshot());v.stirs++;v.lastStir=session.elapsed;v.mixStrokes=(v.mixStrokes||0)+1;if(v.mixStrokes>=3){v.mixed=true;for(const f of v.foods)if(f.method==='raw')f.method='mix';}status='混ぜています · '+Math.min(3,v.mixStrokes)+'/3';}
     else if(h.id==='mitt'){session.hand=null;run(v.location==='stove'?'stove-pick':'take-vessel-'+p.id);}
     else if(h.id==='colander'){status='鍋を持ってシンクへ運ぶと、ざるで湯切りできます';}
@@ -369,14 +406,14 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
    else if(h){run('put-down');}else if(p.type==='board-food')run('board-pick');
   }else if(role==='fridge')run('open-fridge');
   else if(role==='sink'){if(h?.type==='tool'&&h.id==='sponge'){session.waterOn=true;motion.play('clean',target,handSnapshot());status='シンクをスポンジで洗いました';}else if(h?.type==='food'){session.waterOn=true;run('wash');}else if(handVessel()){session.waterOn=true;run(handVessel().water>0&&handVessel().foods.length?'drain':'fill');}else run('water');}
-  else if(role==='counter'){
+  else if(role==='counter'||role==='board'){
    if(h)return releaseHand(ndc);else return false;
   }else if(role==='stove'&&handVessel())run('stove-place');
   else return false;
   renderModels(true);drawUI();return true;
  }
  function interact(ndc,settings=false){
-  if(!session||!running||menuTarget)return false;selectTarget(ndc);useCounter(target);
+  if(!session||!running||menuTarget)return false;selectTarget(ndc);useCounter(target);if(target?.role==='stove')session.activeStoveId=target.item.id;
   if(placeMode&&!settings)return releaseHand(ndc);
   if(!target&&session.hand&&!settings)return releaseHand(ndc);
   if(!target){status='使いたい食材・道具・家具に照準を合わせてください';return false;}
@@ -384,5 +421,17 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
   menuTarget=target;onMenu(true,false);drawUI();return true;
  }
 
- return {get active(){return running;},get carryingMeal(){return !running&&session?.hand?.type==='dish';},get choosing(){return !!menuTarget;},update,end,interact,worldInteraction,closeMenu,alternate(){if(session?.hand)togglePlacement();else interact(undefined,true);},constrain(position,previous){if(!running)return;const b=zone.bounds;for(const [axis,min,max]of [['x',b.minX,b.maxX],['z',b.minZ,b.maxZ]]){const before=Math.max(min-previous[axis],0,previous[axis]-max),after=Math.max(min-position[axis],0,position[axis]-max);if(after>before+.001)position[axis]=previous[axis];}},receive(message){if(message.playerId!==get().selfId)return false;if(message.type==='cooking-eaten'){if(session&&session.hand?.type==='dish'&&session.hand.dish.id===message.dishId){if(message.error){notify(message.error);eating=null;}else {for(const d of session.dishes)if(d.id===message.dishId)d.eaten=true;session.hand=null;eating=null;clearModels(diningVisual);showRating(message.rating);renderModels(true);saveWorkspace();}}return true;}if(message.type==='cooking-result'){status=message.error||'完成した料理「'+message.name+'」をサーバーに保存しました';if(running&&message.error&&message.fatal){notify(message.error);end();}else if(session)drawUI();return true;}return false;},key(event){if(!running){if(session?.hand?.type==='dish'&&event.code==='KeyQ'&&!event.repeat){event.preventDefault();placeMode=!placeMode;return true;}return false;}if(event.code==='Escape'){event.preventDefault();placeMode=false;placement.hide();closeMenu(false);return true;}if(event.code==='KeyE'&&!event.repeat&&!/INPUT|SELECT|TEXTAREA/.test(event.target.tagName)){event.preventDefault();if(menuTarget)closeMenu();else interact(undefined,true);return true;}if(event.code==='KeyQ'&&!event.repeat&&!/INPUT|SELECT|TEXTAREA/.test(event.target.tagName)){event.preventDefault();togglePlacement();return true;}return false;}};
+ return {hydrate(records){shared.clear();for(const record of records||[])if(record.state)shared.set(kitchenIdentity(record.state.index,record.state.kitchenId),record);if(session){const record=shared.get(kitchenIdentity(zone.index,zone.id));pending=null;if(record)applyShared(record);else {authoritative=null;requestKitchen();}}},playerBusy(id){return [...shared.values()].some(r=>!!r.hands?.[id]);},get active(){return running;},get carryingMeal(){return !running&&session?.hand?.type==='dish';},get choosing(){return !!menuTarget;},update,end,interact,worldInteraction,closeMenu,alternate(){if(session?.hand)togglePlacement();else interact(undefined,true);},constrain(position,previous){if(!running)return;const b=zone.bounds;for(const [axis,min,max]of [['x',b.minX,b.maxX],['z',b.minZ,b.maxZ]]){const before=Math.max(min-previous[axis],0,previous[axis]-max),after=Math.max(min-position[axis],0,position[axis]-max);if(after>before+.001)position[axis]=previous[axis];}},receive(message){
+  if(message.type==='kitchen-state'){const id=message.state?kitchenIdentity(message.state.index,message.state.kitchenId):kitchenIdentity(message.index,message.kitchenId),old=shared.get(id);if(message.state&&(!old||message.rev>=old.rev))shared.set(id,copy(message));
+   if(session&&id===kitchenIdentity(zone.index,zone.id)){const own=message.playerId===get().selfId,ack=own&&pending?.requestId===message.requestId;if(ack||own&&message.error)pending=null;if(!pending&&message.state)applyShared(shared.get(id));if(own&&message.error){notify(message.error);status=message.error;task=null;}
+    if(!own&&message.cue?.stationId){const station=zone.stations.find(s=>s.item.id===message.cue.stationId);if(station)remoteMotion(message.playerId).play(message.cue.id,station,message.cue.source);}
+   }return true;
+  }
+  if(message.type==='kitchen-work'){if(message.playerId!==get().selfId&&session&&String(message.index)===String(zone.index)&&message.kitchenId===zone.id){const station=zone.stations.find(s=>s.item.id===message.stationId);if(message.cancel)remoteMotions.get(message.playerId)?.clear();else if(station)remoteMotion(message.playerId).play(message.id,station,message.source,message.duration);}return true;}
+  if(message.type==='cooking-eating'){if(message.playerId!==get().selfId)eatingPlayers.set(message.dishId,message.playerId);if(message.playerId===get().selfId)eating={id:message.dishId,elapsed:0,sent:true};return true;}
+  if(message.type==='cooking-eaten')eatingPlayers.delete(message.dishId);if(message.type==='player-left'){for(const [id,player]of eatingPlayers)if(player===message.id)eatingPlayers.delete(id);remoteMotions.get(message.id)?.clear();remoteMotions.delete(message.id);return false;}
+  if(message.playerId!==get().selfId)return false;
+  if(message.type==='cooking-eaten'){eating=null;if(message.error)notify(message.error);else showRating(message.rating);return true;}
+  if(message.type==='cooking-result'){status=message.error||'料理をサーバーに保存しました';if(running&&message.error&&message.fatal){notify(message.error);end();}else if(session)drawUI();return true;}return false;
+ },key(event){if(!running){if(session?.hand?.type==='dish'&&event.code==='KeyQ'&&!event.repeat){event.preventDefault();placeMode=!placeMode;return true;}return false;}if(event.code==='Escape'){event.preventDefault();placeMode=false;placement.hide();closeMenu(false);return true;}if(event.code==='KeyE'&&!event.repeat&&!/INPUT|SELECT|TEXTAREA/.test(event.target.tagName)){event.preventDefault();if(menuTarget)closeMenu();else interact(undefined,true);return true;}if(event.code==='KeyQ'&&!event.repeat&&!/INPUT|SELECT|TEXTAREA/.test(event.target.tagName)){event.preventDefault();togglePlacement();return true;}return false;}};
 }

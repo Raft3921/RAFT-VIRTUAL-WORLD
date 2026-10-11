@@ -1,25 +1,26 @@
-import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261011-free-cook75';
-import {cleanMeal,describeDish} from './cooking-data.js?v=20261011-free-cook75';
-import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook75';
-import {buildDistrict} from './district.js?v=20261011-free-cook75';
-import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261011-free-cook75';
-import {GunRules} from './gun-rules.js?v=20261011-free-cook75';
-import {weaponById} from './gun-layout.js?v=20261011-free-cook75';
-import {WorldChatStore} from './world-chat-store.js?v=20261011-free-cook75';
-import { ARENA,insideArena } from './world-layout.js?v=20261011-free-cook75';
-import { ATTACKS } from './combat-motion.js?v=20261011-free-cook75';
-import { CharacterStore,cleanCharacter } from './character-store.js?v=20261011-free-cook75';
-import { GYOZA_SKIN,GUEST_SKIN,playableSkin } from './player-types.js?v=20261011-free-cook75';
-import { HousingStore } from './housing-store.js?v=20261011-free-cook75';
-import {BROWN_PROJECTILE,projectileAt,segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261011-free-cook75';
-import {hitShape} from './hit-reaction.js?v=20261011-free-cook75';
-import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js?v=20261011-free-cook75';
-import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261011-free-cook75';
-import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js?v=20261011-free-cook75';
-import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook75';
+import {CookingStore} from './cooking-store.js?v=20261011-free-cook76';
+import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261011-free-cook76';
+import {cleanMeal,describeDish} from './cooking-data.js?v=20261011-free-cook76';
+import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook76';
+import {buildDistrict} from './district.js?v=20261011-free-cook76';
+import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261011-free-cook76';
+import {GunRules} from './gun-rules.js?v=20261011-free-cook76';
+import {weaponById} from './gun-layout.js?v=20261011-free-cook76';
+import {WorldChatStore} from './world-chat-store.js?v=20261011-free-cook76';
+import { ARENA,insideArena } from './world-layout.js?v=20261011-free-cook76';
+import { ATTACKS } from './combat-motion.js?v=20261011-free-cook76';
+import { CharacterStore,cleanCharacter } from './character-store.js?v=20261011-free-cook76';
+import { GYOZA_SKIN,GUEST_SKIN,playableSkin } from './player-types.js?v=20261011-free-cook76';
+import { HousingStore } from './housing-store.js?v=20261011-free-cook76';
+import {BROWN_PROJECTILE,projectileAt,segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261011-free-cook76';
+import {hitShape} from './hit-reaction.js?v=20261011-free-cook76';
+import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js?v=20261011-free-cook76';
+import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261011-free-cook76';
+import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js?v=20261011-free-cook76';
+import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook76';
 const menuBoards=[{x:6,z:11},{x:ARENA.x+3,z:ARENA.z+20},GUN_ENTRY,...GUN_EXIT_BOARDS,...HOUSES.slice(0,8).map(h=>({x:h.x-6,z:h.z+h.front*9}))];
 buildDistrict({box:()=>{},sign:()=>{},board:(x,y,z)=>menuBoards.push({x,y,z}),seats:[],clockHands:[]});
-export const SYNC_VERSION='2026-10-11-vrs-free-cook-75';
+export const SYNC_VERSION='2026-10-11-vrs-free-cook-76';
 // Release labels identify updates; the protocol identifies connection compatibility.
 export const SYNC_PROTOCOL=1;
 export function compatibleSync(message){if(message?.protocol!==undefined)return message.protocol===SYNC_PROTOCOL;return message?.version===SYNC_VERSION||/^2026-10-10-vrs-(entry-37|countdown-38|victory-40|feedback-41|roster-46)$/.test(message?.version||'');}
@@ -59,13 +60,13 @@ export function applyPlayerState(player,state){
   state.equippedWeapon=player.equippedWeapon;state.hitSerial=serial;state.crownEnabled=player.crownEnabled;Object.assign(player,state);
 }
 export class GameRules{
-  constructor(players,broadcast,scores={},save=()=>{},settings={},saveSettings=()=>{},characters={},saveCharacters=()=>{},houses={},saveHouses=()=>{},onAsyncWork=()=>{},chat=[],saveChat=()=>{}){
+  constructor(players,broadcast,scores={},save=()=>{},settings={},saveSettings=()=>{},characters={},saveCharacters=()=>{},houses={},saveHouses=()=>{},onAsyncWork=()=>{},chat=[],saveChat=()=>{},kitchens={},saveKitchens=()=>{}){
     this.players=players;this.broadcast=broadcast;this.scores=scores;this.save=save;this.ready=new Map();this.duel=null;this.cooldowns=new Map();this.backdrop='GB';
     settings=settings&&typeof settings==='object'?settings:{};
     const goal=Number(settings.goalDamage);this.settings={...settings,goalDamage:Number.isInteger(goal)&&goal>=1&&goal<=100?goal:11};this.saveSettings=saveSettings;this.settingsQueue=Promise.resolve();
     this.characters=new CharacterStore(characters,scores,saveCharacters,(skin,record)=>this.broadcastCharacter(skin,record),()=>this.broadcast({type:'character-save-error',message:'キャラクターの状態をサーバーに保存できませんでした。'}));
     this.houses=new HousingStore(houses,saveHouses,broadcast);this.chat=new WorldChatStore(chat,saveChat);
-    this.projectiles=[];this.projectileTimer=null;this.projectileSequence=0;this.onAsyncWork=onAsyncWork;this.projectileFlight=null;this.finishFlight=null;
+    this.projectiles=[];this.projectileTimer=null;this.projectileSequence=0;this.onAsyncWork=onAsyncWork;this.projectileFlight=null;this.finishFlight=null;this.cooking=new CookingStore(this,kitchens,saveKitchens);
     this.settings.cycle=cleanCycle(settings.cycle);this.pianoSteps=new Map();this.records=new Map();this.furnitureStates=new Map();this.furnitureSequence=0;this.guns=new GunRules(this);
   }
   savedPosition(profile){let p=this.settings.positions?.[profile];if(p?.mirrorRealm&&p.mirrorRealm!=='m|0|shared')p={...p,mirrorRealm:'m|0|shared',x:2000-39,y:.265,z:2000-45-8,yaw:Math.PI};return p&&[p.x,p.y,p.z,p.yaw].every(Number.isFinite)?{...p}:null;}
@@ -103,7 +104,7 @@ export class GameRules{
     return this.settingsQueue;
   }
   cancel(){if(this.duel){this.duel=null;this.ready.clear();this.broadcast({type:'duel-cancel',reason:'プレイヤーが闘技場から離れたため終了しました'});}}
-  removed(id){this.guns.remove(id);this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
+  removed(id){this.cooking.remove(id);this.guns.remove(id);this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
   state(entry){
     const p=entry.player;this.guns.state(p);this.savePosition(p);
     // One server-owned window per knockdown, never reset by repeat packets.
@@ -173,20 +174,8 @@ export class GameRules{
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
-    if(m.type==='cooking-save'){
-      const home=houseDescriptor(m.index,this.houses.realms),layout=home&&this.houses.snapshots()[home.index],zone=layout&&recognizeKitchens(home.index,layout).zones.find(z=>z.id===m.kitchenId),record=this.characters.get(p.skin),state=cleanKitchenState(m.state);
-      if(!zone||!state||state.key!==zone.key||String(state.index)!==String(home.index)||state.kitchenId!==zone.id)return;
-      const within=Math.abs(p.x-home.x)<ROOM.x+1&&Math.abs(p.z-home.z)<ROOM.z+1,previous=record.kitchenStates.find(s=>String(s.index)===String(home.index)&&s.kitchenId===zone.id);
-      if(!within&&!previous)return;if(now-(entry.lastKitchenSave||0)<1000&&!m.force)return;entry.lastKitchenSave=now;
-      state.loose=state.loose.filter(b=>Math.abs(b.position.x-home.x)<ROOM.x&&Math.abs(b.position.z-home.z)<ROOM.z&&b.position.y>=ROOM.floor-.1&&b.position.y<ROOM.floor+ROOM.height);
-      const consumed=new Set(record.cookingDishes.filter(d=>d.eatenAt).map(d=>d.id));for(const d of state.dishes)if(consumed.has(d.id))d.eaten=true;if(state.hand?.type==='dish'&&consumed.has(state.hand.dish.id))state.hand=null;state.loose=state.loose.filter(b=>b.payload.type!=='dish'||!consumed.has(b.payload.dish.id));const added=within?state.dishes.filter(d=>!d.eaten&&!record.cookingDishes.some(old=>old.id===d.id)&&zone.worktops.some(s=>s.item.id===d.counterId)).map(d=>({id:d.id,index:home.index,kitchenId:zone.id,at:now,meal:d.meal,name:d.name,quality:d.quality})):[];state.at=now;return this.characters.change(p.skin,{cookingDishes:[...record.cookingDishes,...added].slice(-24),cookingStats:{...record.cookingStats,free:record.cookingStats.free+added.length},kitchenStates:[...record.kitchenStates.filter(s=>String(s.index)!==String(home.index)||s.kitchenId!==zone.id),state].slice(-8)});
-    }
-    if(m.type==='cooking-eat'){
-      const record=this.characters.get(p.skin),dish=record.cookingDishes.find(d=>d.id===m.dishId),home=houseDescriptor(m.index,this.houses.realms),layout=home&&this.houses.snapshots()[home.index],table=layout?.items.find(i=>i.id===m.tableId),definition=table&&FURNITURE_BY_ID.get(table.t),pose=table&&furniturePose(table);
-      const fail=error=>this.broadcast({type:'cooking-eaten',playerId:p.id,dishId:m.dishId,error});
-      if(!dish||dish.eatenAt||!p.seated||!['table','desk'].includes(definition?.family)||Math.hypot(p.x-(home.x+pose.x*home.front),p.z-(home.z+pose.z*home.front))>Math.hypot(pose.w,pose.d)*.44+1)return fail('料理を持って、食卓と向き合う椅子に座ってください');
-      const rating=dishRating(dish.meal);return this.characters.change(p.skin,{cookingDishes:record.cookingDishes.map(d=>d.id===dish.id?{...d,eatenAt:now,rating:rating.stars}:d)}).then(()=>this.broadcast({type:'cooking-eaten',playerId:p.id,dishId:dish.id,rating}));
-    }
+    if(['kitchen-open','kitchen-edit','kitchen-work','cooking-eat','cooking-eat-cancel'].includes(m.type))return this.cooking.receive(entry,m);
+    if(m.type==='cooking-save'||m.type==='cooking-finish')return; // Shared transactions supersede per-character snapshots.
     if(m.type==='cooking-stop'){entry.cooking=null;return;}
     if(m.type==='cooking-start'){
       entry.cooking=null;const home=houseDescriptor(m.index,this.houses.realms),layout=this.houses.snapshots()[m.index],zone=home&&recognizeKitchens(home.index,layout).zones.find(z=>z.id===m.kitchenId);

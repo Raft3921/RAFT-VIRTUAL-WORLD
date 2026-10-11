@@ -1,6 +1,6 @@
-import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261011-free-cook75';
-import {expandedParts} from './furniture-shapes.js?v=20261011-free-cook75';
-import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook75';
+import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261011-free-cook76';
+import {expandedParts} from './furniture-shapes.js?v=20261011-free-cook76';
+import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook76';
 const WOOD='#bd9166',DARK='#354353',METAL='#87929a',WHITE='#f4eee2',LEAF='#52a96d';
 const partsCache=new Map();
 export function furnitureParts(item){
@@ -46,7 +46,7 @@ export function furnitureParts(item){
     case 'lamp':box(0,.04,0,.55,.08,.55,DARK);box(0,.43,0,.045,.8,.045,METAL);box(0,.88,0,1,.24,1,paint);box(0,.82,.505,.65,.1,.015,WHITE,true);break;
     case 'coat':box(0,.04,0,.8,.08,.8,WOOD);box(0,.49,0,.07,.9,.07,WOOD);box(0,.83,0,1,.055,.08,WOOD);box(.25,.68,0,.32,.4,.1,paint);break;
     case 'stove':box(0,.46,0,1,.92,1,WHITE);box(0,.96,0,1,.08,1,DARK);for(const x of [-.25,.25]){box(x,1.01,0,.3,.025,.5,METAL);box(x,.76,.51,.1,.12,.04,paint);}break;
-    case 'cookware':if(f.design==='board')box(0,.5,0,1,1,1,WOOD);else if(f.design==='knife'){box(-.2,.5,0,.5,1,1,METAL);box(.3,.5,0,.4,1,.8,DARK);}else{box(0,.1,0,.85,.2,.85,METAL);if(f.design!=='plate')for(const sign of [-1,1]){box(sign*.43,.5,0,.08,.8,.9,paint);box(0,.5,sign*.43,.9,.8,.08,paint);}if(f.design==='pan')box(.7,.6,0,.5,.14,.14,DARK);}break;
+    case 'cookware':if(f.design==='knife-block'){box(0,.25,0,1,.5,1,WOOD);for(const x of [-.3,0,.3]){box(x,.61,0,.06,.24,.24,METAL);box(x,.83,0,.1,.22,.18,DARK);}}else if(f.design==='board')box(0,.5,0,1,1,1,WOOD);else if(f.design==='knife'){box(-.2,.5,0,.5,1,1,METAL);box(.3,.5,0,.4,1,.8,DARK);}else{box(0,.1,0,.85,.2,.85,METAL);if(f.design!=='plate')for(const sign of [-1,1]){box(sign*.43,.5,0,.08,.8,.9,paint);box(0,.5,sign*.43,.9,.8,.08,paint);}if(f.design==='pan')box(.7,.6,0,.5,.14,.14,DARK);}break;
     case 'mirror':box(0,.05,0,1,.1,1,WOOD);box(0,.53,-.18,1,.93,.18,paint);box(0,.53,-.065,.83,.82,.045,'#8fbac9');parts[parts.length-1].mirror=true;break;
     case 'pet':box(0,.25,0,1,.5,1,paint);for(const x of [-.44,.44])box(x,.7,0,.12,.6,1);box(0,.7,-.43,1,.6,.14);box(0,.43,0,.7,.08,.65,WHITE);break;
     case 'rug':box(0,.5,0,1,1,1,paint);for(const z of [-.4,.4])box(0,1.01,z,.94,.02,.035,WHITE,true);for(const x of [-.42,.42])box(x,1.01,0,.025,.02,.85,WHITE,true);break;

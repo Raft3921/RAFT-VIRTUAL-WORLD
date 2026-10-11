@@ -1,5 +1,5 @@
-import {compatibleSync} from './game-rules.js?v=20261011-free-cook77';
-import {BUILD_ID,RELEASE_ID} from './build-info.js?v=20261011-free-cook77';
+import {compatibleSync} from './game-rules.js?v=20261011-free-cook78';
+import {BUILD_ID,RELEASE_ID} from './build-info.js?v=20261011-free-cook78';
 export function startUpdateNotice({endpoint,version}){
  const notice=document.getElementById('updateNotice');let busy=false,clientUpdate=false,incompatible=false,explicit=false;
  const draw=()=>{notice.hidden=!(explicit||clientUpdate||incompatible);};

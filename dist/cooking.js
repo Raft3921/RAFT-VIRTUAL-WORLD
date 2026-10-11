@@ -1,17 +1,18 @@
 import * as THREE from 'three';
-import {copy,same,kitchenIdentity,kitchenResources} from './cooking-shared.js?v=20261011-free-cook77';
-import {cookingAppliance,cookingToolStand} from './cooking-appliances.js?v=20261011-free-cook77';
-import {cookingLabel} from './cooking-labels.js?v=20261011-free-cook77';
-import {cookingCabinet} from './cooking-storage.js?v=20261011-free-cook77';
-import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261011-free-cook77';
-import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook77';
-import {ROOM,FURNITURE_BY_ID,furniturePose} from './housing-data.js?v=20261011-free-cook77';
-import {INGREDIENTS,fridgeFoods,FOOD_BY_ID,FOOD_GROUPS,SEASONINGS,CUTS,COOK_METHODS,cleanMeal,describeDish} from './cooking-data.js?v=20261011-free-cook77';
-import {createCookingMotion} from './cooking-motion.js?v=20261011-free-cook77';
-import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook77';
-import {fridgeModel} from './cooking-fridge.js?v=20261011-free-cook77';
-import {createCookingPlacement} from './cooking-placement.js?v=20261011-free-cook77';
-import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook77';
+import {copy,same,kitchenIdentity,kitchenResources} from './cooking-shared.js?v=20261011-free-cook78';
+import {cookingAppliance,cookingToolStand} from './cooking-appliances.js?v=20261011-free-cook78';
+import {tableForObject} from './dining.js?v=20261011-free-cook78';
+import {cookingLabel} from './cooking-labels.js?v=20261011-free-cook78';
+import {cookingCabinet} from './cooking-storage.js?v=20261011-free-cook78';
+import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261011-free-cook78';
+import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook78';
+import {ROOM,FURNITURE_BY_ID,furniturePose} from './housing-data.js?v=20261011-free-cook78';
+import {INGREDIENTS,fridgeFoods,FOOD_BY_ID,FOOD_GROUPS,SEASONINGS,CUTS,COOK_METHODS,cleanMeal,describeDish} from './cooking-data.js?v=20261011-free-cook78';
+import {createCookingMotion} from './cooking-motion.js?v=20261011-free-cook78';
+import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook78';
+import {fridgeModel} from './cooking-fridge.js?v=20261011-free-cook78';
+import {createCookingPlacement} from './cooking-placement.js?v=20261011-free-cook78';
+import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook78';
 const toolNames={knife:'包丁',peeler:'ピーラー',grater:'おろし金',whisk:'泡立て器',spatula:'木べら',ladle:'おたま',tongs:'トング',colander:'ざる','rolling-pin':'めん棒',mitt:'ミトン',sponge:'スポンジ',board:'まな板',plate:'空のお皿'};
 const vesselNames={pan:'フライパン',pot:'鍋',bowl:'ボウル',jug:'水差し'},capacity={pan:.8,pot:3,bowl:1.5,jug:1.5};
 export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onReposition=point=>get().player.position.copy(point),onMenu=()=>{},onPrecisionChange=()=>{}}){
@@ -31,7 +32,7 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
  const hud=document.createElement('section');hud.id='cookingHUD';hud.hidden=true;hud.dataset.menu='false';hud.innerHTML='<div class="cook-top"><span class="cook-state"></span><button data-act="resume">操作へ戻る</button><button data-act="recover">通路へ戻る</button><button data-act="end">調理終了</button></div><span class="cook-dot"></span><div class="cook-readout"><p class="cook-carry"></p><p class="cook-prompt"></p><p class="cook-feedback" role="status"></p><p class="cook-food-state"></p><progress class="cook-progress" hidden max="1"></progress><button data-act="cancel-work" hidden>作業を中止</button></div><div class="cook-touch-actions"><button data-act="use">使う</button><button data-act="put-down" class="cook-touch-place">置く</button></div><div class="cook-timer" hidden></div>';document.body.append(hud);
  const visuals=new THREE.Group();visuals.name='Free cooking workspace';scene.add(visuals);if(!camera.parent)scene.add(camera);const held=new THREE.Group();held.position.set(.28,-.36,-.8);camera.add(held);held.visible=false;
  let zone=null,session=null,near=null,target=null,menuTarget=null,task=null,lastScan=-Infinity,lastUI=-Infinity,cache=new Map(),status='',lastVisualKey='',targetKey='',knife=null,picked=null,lastStroke=-Infinity,placeMode=false,fridgeAngle=0,fridgeRoot=null,running=false,storageRoots=[],lastSave=0,eating=null,wasConnected=false;
- let servingPhase=false,precisionWas=false;
+ let servingPhase=false,precisionWas=false,mealSeatKey='',mealSeatAt=0,autoMealKey='';
  const precisionMode=()=>!!(!running&&session&&(servingPhase||session.hand));
  function syncPrecision(){const current=precisionMode();if(current!==precisionWas){precisionWas=current;onPrecisionChange(current);}hud.hidden=!(running||current);document.body.dataset.handsOn=String(running||current);}
  const shared=new Map();let authoritative=null,pending=null,transactionDepth=0,transactionCue=null;
@@ -63,7 +64,7 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
   if(!session.hand)placeMode=false;placement.sync(state.loose);lastVisualKey='';renderModels(true);drawUI();syncPrecision();
  }
  function createSession(){const saved=savedState(),first=zone.worktops[0].item.id;session={hand:null,worktops:Object.fromEntries(zone.worktops.map((s,i)=>[s.item.id,{foods:[],index:0,boardVisible:i===0}])),activeCounterId:first,cutMode:'dice',selectedBurner:0,activeStoveId:zone.stations.find(s=>s.role==='stove')?.item.id,foodGroup:'all',vessels:Object.fromEntries(Object.keys(vesselNames).map(id=>[id,makeVessel(id)])),dishes:[],takenDishes:[],elapsed:0,waterOn:false,homeFront:zone.home.front,fridgeOpen:false,foodPage:0,plateStationId:'',storageOpen:{},itemHomes:{},appliances:{},hands:{},ownerSkin:get().skin};if(saved){const worktops=session.worktops;Object.assign(session,saved);session.worktops=Object.fromEntries(zone.worktops.map(s=>[s.item.id,saved.worktops[s.item.id]||worktops[s.item.id]]));session.activeCounterId=session.worktops[saved.activeCounterId]?saved.activeCounterId:first;session.homeFront=zone.home.front;session.ownerSkin=get().skin;}bindWorktops();authoritative=shared.get(kitchenIdentity(zone.index,zone.id))||null;session.hands=authoritative?.hands||{};session.hand=copy(session.hands[get().selfId]||null);placement.restore(saved?.loose||[]);hideAppliances(true);fridgeAngle=session.fridgeOpen?Math.PI*.61:0;lastVisualKey='';renderModels(true);}
- function disposeWorkspace(){if(zone)hideAppliances(false);placement.clear();clearModels(visuals);clearModels(held);session=null;zone=null;servingPhase=false;syncPrecision();held.visible=false;carryHUD.hidden=true;document.body.dataset.carryingMeal='false';clearModels(diningVisual);clearModels(remoteHeld);for(const motion of remoteMotions.values())motion.clear();remoteMotions.clear();eatingPlayers.clear();authoritative=null;pending=null;}
+ function disposeWorkspace(){if(zone)hideAppliances(false);placement.clear();clearModels(visuals);clearModels(held);session=null;zone=null;servingPhase=false;eating=null;mealSeatKey=autoMealKey='';syncPrecision();held.visible=false;carryHUD.hidden=true;document.body.dataset.carryingMeal='false';clearModels(diningVisual);clearModels(remoteHeld);for(const motion of remoteMotions.values())motion.clear();remoteMotions.clear();eatingPlayers.clear();authoritative=null;pending=null;}
 
  const placement=createCookingPlacement({scene,camera,get,modelFor:looseModel,bounds:()=>({...(!running?{minX:zone.home.x-ROOM.x+.15,maxX:zone.home.x+ROOM.x-.15,minZ:zone.home.z-ROOM.z+.15,maxZ:zone.home.z+ROOM.z-.15}:zone.bounds),floor:ROOM.floor})});
  const pickMaterial=new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false});
@@ -296,12 +297,34 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
   if(task.id==='cut'&&knife){knife.position.y=.04+Math.abs(Math.sin(session.elapsed*12))*.12;knife.rotation.z=Math.sin(session.elapsed*12)*.2;}
   if(task.remaining===0&&!pending&&get().connected){const finished=task;task=null;send({type:'kitchen-work',index:zone.index,kitchenId:zone.id,cancel:true});useCounter(finished.station);session.boardIndex=finished.foodIndex;session.cutMode=finished.cutMode;action(finished.id,true,finished.station,finished.vesselId);if(knife){knife.position.y=.03;knife.rotation.z=0;}}
  }
- function worldInteraction(ndc){const state=get();if(!session||running||state.paused||!state.inStudio||state.ragdoll||state.inBattle)return false;if(session.hand?.type==='dish')return releaseHand(ndc);selectTarget(ndc);if(!target){if(session.hand)return releaseHand(ndc);return false;}if(!picked&&!session.hand)return false;useCounter(target);if(target.role==='stove')session.activeStoveId=target.item.id;return directUse(ndc);}
+ function worldInteraction(ndc){const state=get();if(!session||running||state.paused||!state.inStudio||state.ragdoll||state.inBattle)return false;if(session.hand?.type==='dish')return releaseHand(ndc);selectTarget(ndc);if(state.seated&&!session.hand&&picked?.type==='loose'&&picked.body.payload.type==='dish'){const meal=tableMeal(picked.body.payload.dish.id);if(meal){startEating(meal);return true;}}if(!target){if(session.hand)return releaseHand(ndc);return false;}if(!picked&&!session.hand)return false;useCounter(target);if(target.role==='stove')session.activeStoveId=target.item.id;return directUse(ndc);}
  function showRating(rating){ratingHUD.textContent=rating.name+'\n'+'★'.repeat(rating.stars)+'☆'.repeat(5-rating.stars)+'\n'+rating.label;ratingHUD.hidden=false;setTimeout(()=>{ratingHUD.hidden=true;},8000);}
- function tableAt(point){const room=get().housing.rooms[zone.index];return room?.layout.items.map(item=>({item,def:FURNITURE_BY_ID.get(item.t),...furniturePose(item)})).filter(s=>['table','desk'].includes(s.def.family)).find(s=>{const dx=(point.x-zone.home.x)*zone.home.front-s.x,dz=(point.z-zone.home.z)*zone.home.front-s.z,c=Math.cos(s.yaw),n=Math.sin(s.yaw);return Math.abs(c*dx-n*dz)<s.w*.44&&Math.abs(n*dx+c*dz)<s.d*.44&&Math.abs(point.y-(ROOM.floor+s.y+s.h*.88))<.22;});}
- function tableMeal(){const state=get(),table=!running&&state.seated?state.housing.diningTableForSeat(state.seat):null;if(!table||session.hand)return null;const body=placement.bodies.filter(b=>b.tableId===table.itemId&&b.payload.type==='dish'&&!session.dishes.find(d=>d.id===b.payload.dish.id)?.eaten&&!eatingPlayers.has(b.payload.dish.id)).sort((a,b)=>a.p.distanceToSquared(state.player.position)-b.p.distanceToSquared(state.player.position))[0];return body?{table,body}:null;}
- function eatAtTable(dt){if(!eating)return;const meal=tableMeal();if(!meal||meal.body.payload.dish.id!==eating.id){if(get().connected)send({type:'cooking-eat-cancel'});eating=null;return;}eating.elapsed+=dt;}
- carryHUD.querySelector('button').onclick=()=>{if(session?.hand){releaseHand();return;}const meal=tableMeal();if(!meal||pending||eating||!get().connected)return;send({type:'cooking-eat',index:zone.index,kitchenId:zone.id,dishId:meal.body.payload.dish.id,tableId:meal.table.itemId});eating={id:meal.body.payload.dish.id,elapsed:0,sent:true};};
+ function tableAt(point,preferredId=''){return tableForObject(get().housing.rooms[zone.index]?.layout,zone.home,point,preferredId);}
+ function tableMeal(preferredId=eating?.id){
+  const state=get(),table=!running&&state.seated?state.housing.diningTableForSeat(state.seat):null;
+  if(!table||!session||session.hand||String(table.index)!==String(zone.index))return null;
+  const candidates=placement.bodies.filter(b=>b.payload.type==='dish'&&!session.dishes.find(d=>d.id===b.payload.dish.id)?.eaten&&!eatingPlayers.has(b.payload.dish.id)&&tableAt(b.p,b.tableId)?.itemId===table.itemId).sort((a,b)=>a.p.distanceToSquared(state.player.position)-b.p.distanceToSquared(state.player.position));
+  const body=preferredId?candidates.find(b=>b.payload.dish.id===preferredId):candidates[0];return body?{table,body}:null;
+ }
+ function startEating(meal=tableMeal()){
+  const state=get();if(!meal||pending||eating||!state.connected||state.paused)return false;
+  servingPhase=false;syncPrecision();eating={id:meal.body.payload.dish.id,elapsed:0,sent:true,requestedAt:performance.now(),acknowledged:false};
+  send({type:'cooking-eat',index:zone.index,kitchenId:zone.id,dishId:eating.id,tableId:meal.table.itemId});return true;
+ }
+ function eatAtTable(dt,now){
+  const state=get(),seat=state.seat,key=!running&&state.seated&&seat?String(seat.houseIndex)+':'+(seat.itemId||seat.x+':'+seat.z):'';
+  if(key!==mealSeatKey){mealSeatKey=key;mealSeatAt=now;autoMealKey='';}
+  if(eating){
+   const meal=tableMeal(eating.id);
+   if(!state.inStudio||state.ragdoll||!meal){if(state.connected)send({type:'cooking-eat-cancel'});eating=null;return;}
+   if(!state.connected){eating=null;return;}
+   if(!eating.acknowledged&&now-eating.requestedAt>8000){eating=null;notify('食事を開始できませんでした。Eキー／食べるで再度お試しください');return;}
+   if(eating.acknowledged)eating.elapsed+=dt;return;
+  }
+  const meal=tableMeal(),automatic=meal&&key+':'+meal.body.payload.dish.id;
+  if(key&&meal&&!autoMealKey&&now-mealSeatAt>400&&startEating(meal))autoMealKey=automatic;
+ }
+ carryHUD.querySelector('button').onclick=()=>{startEating();};
  function update(dt,now){
   const state=get();
   if(session&&session.ownerSkin!==state.skin){if(running)end();disposeWorkspace();}
@@ -318,13 +341,13 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
   if(fridgeRoot){fridgeRoot.userData.door.rotation.y=-fridgeAngle;fridgeRoot.userData.contents.visible=fridgeAngle>.6;}
   for(const root of storageRoots){const storage=root.userData.storage;storage.angle=THREE.MathUtils.damp(storage.angle,session.storageOpen[storage.station.item.id]?Math.PI*.48:0,9,dt);for(const door of storage.doors)door.rotation.y=door.userData.sign*storage.angle;storage.contents.visible=storage.angle>.65;}
   if(session.hand&&!task&&(placeMode||placementIntent()))placement.aim(session.hand);else placement.hide();
-  if(running||precisionMode())advanceWork(dt);animateCookingModel(visuals,session.elapsed);animateCookingModel(held,session.elapsed);animateCookingModel(placement.root,session.elapsed);motion.update(session,task,dt);for(const remote of remoteMotions.values())remote.update(session,null,dt);eatAtTable(dt);
+  if(running||precisionMode())advanceWork(dt);animateCookingModel(visuals,session.elapsed);animateCookingModel(held,session.elapsed);animateCookingModel(placement.root,session.elapsed);motion.update(session,task,dt);for(const remote of remoteMotions.values())remote.update(session,null,dt);eatAtTable(dt,now);
   for(const model of remoteHeld.children){const peer=get().peers?.find(p=>p.id===model.userData.playerId);model.visible=!!peer;if(peer){model.position.copy(peer.root.position).add(new THREE.Vector3(Math.sin(peer.root.rotation.y)*.65,1.05,Math.cos(peer.root.rotation.y)*.65));model.rotation.y=peer.root.rotation.y;}}animateCookingModel(remoteHeld,session.elapsed);remoteHeld.visible=state.inStudio&&!!room?.group.visible;
   held.visible=!!session.hand&&!task&&!motion.busyHand&&!eating&&(running||precisionMode());
   visuals.visible=placement.root.visible=state.inStudio&&!!room?.group.visible;
-  syncPrecision();document.body.dataset.carryingMeal=String(!running&&session.hand?.type==='dish');carryHUD.hidden=running||precisionMode()||!state.inStudio||!tableMeal();
-  if(!carryHUD.hidden)carryHUD.querySelector('span').textContent=eating?'食事中… '+Math.min(4,Math.floor(eating.elapsed))+'/4秒':placeMode?'平面を狙ってクリックで皿を置く':session.hand?.type==='dish'?session.hand.dish.name+' · Q／皿を置く → 机に並べる':tableMeal()?.body.payload.dish.name+' · 食卓に並んだ料理';
-  if(!carryHUD.hidden){const button=carryHUD.querySelector('button');button.textContent=session.hand?.type==='dish'?(placeMode?'置くのをやめる':'皿を置く'):eating?'食事中…':'この料理を食べる';button.disabled=!!pending||!!eating||!state.connected;}
+  syncPrecision();document.body.dataset.carryingMeal=String(!running&&session.hand?.type==='dish');carryHUD.hidden=running||precisionMode()||!state.inStudio||!eating&&!tableMeal();
+  if(!carryHUD.hidden)carryHUD.querySelector('span').textContent=eating?(eating.acknowledged?'食事中… '+Math.min(4,Math.floor(eating.elapsed))+'/4秒':'食事の開始をサーバーに確認中…'):placeMode?'平面を狙ってクリックで皿を置く':session.hand?.type==='dish'?session.hand.dish.name+' · Q／皿を置く → 机に並べる':tableMeal()?.body.payload.dish.name+' · E／クリック／タップで食べる';
+  if(!carryHUD.hidden){const button=carryHUD.querySelector('button');button.textContent=session.hand?.type==='dish'?(placeMode?'置くのをやめる':'皿を置く'):eating?'食事中…':'食べる（E）';button.disabled=!!pending||!!eating||!state.connected;}
   if(running&&menuTarget&&!inReach(menuTarget))closeMenu(false);
   if(now-lastUI<100)return;lastUI=now;renderModels();if(running||precisionMode()){selectTarget();drawUI();}
  }
@@ -415,11 +438,11 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
    }return true;
   }
   if(message.type==='kitchen-work'){if(message.playerId!==get().selfId&&session&&String(message.index)===String(zone.index)&&message.kitchenId===zone.id){const station=zone.stations.find(s=>s.item.id===message.stationId);if(message.cancel)remoteMotions.get(message.playerId)?.clear();else if(station)remoteMotion(message.playerId).play(message.id,station,message.source,message.duration);}return true;}
-  if(message.type==='cooking-eating'){if(message.playerId!==get().selfId)eatingPlayers.set(message.dishId,message.playerId);if(message.playerId===get().selfId)eating={id:message.dishId,elapsed:0,sent:true};return true;}
+  if(message.type==='cooking-eating'){if(message.playerId!==get().selfId)eatingPlayers.set(message.dishId,message.playerId);if(message.playerId===get().selfId)eating={id:message.dishId,elapsed:Math.max(0,Math.min(4,(Date.now()-message.at)/1000)),sent:true,acknowledged:true};return true;}
   if(message.type==='cooking-eaten')eatingPlayers.delete(message.dishId);if(message.type==='player-left'){for(const [id,player]of eatingPlayers)if(player===message.id)eatingPlayers.delete(id);remoteMotions.get(message.id)?.clear();remoteMotions.delete(message.id);return false;}
   if(message.playerId!==get().selfId)return false;
   if(message.type==='cooking-eaten'){eating=null;if(message.error)notify(message.error);else showRating(message.rating);return true;}
   if(message.type==='cooking-result'){status=message.error||'料理をサーバーに保存しました';if(running&&message.error&&message.fatal){notify(message.error);end();}else if(session)drawUI();return true;}return false;
- },key(event){if(/INPUT|SELECT|TEXTAREA/.test(event.target.tagName)||!(running||precisionMode()))return false;if(event.code==='Escape'){if(task)action('cancel-work');placeMode=false;placement.hide();return false;}if(event.code==='KeyE'&&!event.repeat){event.preventDefault();interact();return true;}if(event.code==='KeyQ'&&!event.repeat&&session?.hand){event.preventDefault();releaseHand();return true;}return false;}};
+ },key(event){if(/INPUT|SELECT|TEXTAREA/.test(event.target.tagName))return false;if(!running&&!precisionMode()&&event.code==='KeyE'&&!event.repeat&&!get().paused&&tableMeal()){event.preventDefault();startEating();return true;}if(!(running||precisionMode()))return false;if(event.code==='Escape'){if(task)action('cancel-work');placeMode=false;placement.hide();return false;}if(event.code==='KeyE'&&!event.repeat){event.preventDefault();interact();return true;}if(event.code==='KeyQ'&&!event.repeat&&session?.hand){event.preventDefault();releaseHand();return true;}return false;}};
 
 }

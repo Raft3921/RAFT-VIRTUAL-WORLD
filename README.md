@@ -1,5 +1,13 @@
 # RAFT-VIRTUAL-WORLD
 
+## Furniture dining and automatic eating — 2026-10-11 / cook78
+
+Ordinary furniture tables and desks use the same dining geometry on client and server. Seats retain the saved furniture pairing, with nearby table edges used as a fallback instead of a restrictive table-centre distance or a ray through furniture. Previously placed plates with missing table IDs are recognized from their actual tabletop positions and rebound on server load, edits and settling.
+
+Place a prepared dish on a furniture table, then sit in its paired or nearby facing chair with empty hands. Eating starts automatically after the seated state reaches the server. E, clicking/tapping the plate or the direct **食べる** button can also start a meal. Carrying a dish does not consume it. The same claimed plate remains selected during eating; acknowledgement and progress are visible, and leaving the seat cancels. Four seconds of server-owned eating consumes the meal and displays its five-star result. Multiple diners finishing together each receive their own result. A diner in another kitchen no longer blocks unrelated kitchen edits.
+
+Per the user's continuing instruction, no tests, validation commands, validation builds or browser/device/gameplay checks were performed. Git and Worker/Pages publication are separate from gameplay acceptance.
+
 ## Direct handling, first-person serving and Shift crouch — 2026-10-11 / cook77
 
 Hold either Shift key to crouch on the ground, including in the kitchen. Releasing Shift attempts to stand and waits if there is insufficient headroom. C and the mobile crouch button retain their toggle behavior. Shift still descends while flying; desktop sprinting now uses a double press of W followed by holding it, and the touch stick keeps its existing full-deflection sprint.

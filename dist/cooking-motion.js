@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook77';
-import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook77';
+import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook78';
+import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook78';
 
 export function createCookingMotion({scene,point}){
  const root=new THREE.Group();root.name='Cooking hand work';scene.add(root);

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {FOOD_BY_ID} from './cooking-data.js?v=20261011-free-cook77';
+import {FOOD_BY_ID} from './cooking-data.js?v=20261011-free-cook78';
 
 const cube=new THREE.BoxGeometry(1,1,1),material=new THREE.MeshStandardMaterial({roughness:.76,metalness:0}),pose=new THREE.Object3D();
 const palette={tomato:'#f34f35',carrot:'#ff9235',pepper:'#69bd42',broccoli:'#42a65b',spinach:'#4fba57',cabbage:'#9ed650',lettuce:'#b5df5e',pumpkin:'#eea23b',corn:'#ffd153',apple:'#ee574b',strawberry:'#f25058',orange:'#ffa531',lemon:'#ffe05a',banana:'#ffd65b',grape:'#ad69c8',peach:'#ffad7d',pineapple:'#efb43f',salmon:'#ff976d',tuna:'#e85b70',beef:'#df6558',pork:'#ffb49a',shrimp:'#ffad80',egg:'#fff1be',rice:'#fff5d9',pasta:'#ffd77c',noodles:'#ffc960',udon:'#fff0cb',bread:'#dba253',potato:'#d5a65f',onion:'#efd096',tofu:'#fff5da',cheese:'#ffcf58',butter:'#ffe08b'};

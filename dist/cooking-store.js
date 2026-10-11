@@ -1,9 +1,10 @@
-import {cleanKitchenState,COOK_VESSELS,dishRating} from './cooking-state.js?v=20261011-free-cook77';
-import {advanceCookingHeat} from './cooking-simulation.js?v=20261011-free-cook77';
-import {cleanMeal} from './cooking-data.js?v=20261011-free-cook77';
-import {copy,same,kitchenIdentity,kitchenResources,resourcesToKitchen,mergeKitchenEdit} from './cooking-shared.js?v=20261011-free-cook77';
-import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook77';
-import {houseDescriptor,FURNITURE_BY_ID,furniturePose,ROOM} from './housing-data.js?v=20261011-free-cook77';
+import {cleanKitchenState,COOK_VESSELS,dishRating} from './cooking-state.js?v=20261011-free-cook78';
+import {advanceCookingHeat} from './cooking-simulation.js?v=20261011-free-cook78';
+import {tableForObject,tableForSeat,diningSeatAt} from './dining.js?v=20261011-free-cook78';
+import {cleanMeal} from './cooking-data.js?v=20261011-free-cook78';
+import {copy,same,kitchenIdentity,kitchenResources,resourcesToKitchen,mergeKitchenEdit} from './cooking-shared.js?v=20261011-free-cook78';
+import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook78';
+import {houseDescriptor,FURNITURE_BY_ID,furniturePose,ROOM} from './housing-data.js?v=20261011-free-cook78';
 
 export class CookingStore{
  constructor(rules,data={},save=()=>{}){
@@ -24,8 +25,10 @@ export class CookingStore{
   for(const [otherId,old]of Object.entries(this.data)){if(otherId===id||!old.hands[entry.player.id])continue;const next=copy(old);this.returnHand(next.state,next.hands[entry.player.id]);delete next.hands[entry.player.id];const before=kitchenResources(old.state,old.hands),after=kitchenResources(next.state,next.hands);for(const key of new Set([...Object.keys(before),...Object.keys(after)]))if(!same(before[key],after[key]))next.versions[key]=(next.versions[key]||0)+1;next.rev++;await this.publish(otherId,next);}
   if(!record){const legacy=this.rules.characters.get(zone.home.owner).kitchenStates?.find(s=>String(s.index)===String(zone.index)&&s.kitchenId===zone.id),state=legacy?cleanKitchenState(legacy):this.fresh(zone);if(state.hand)this.returnHand(state,state.hand);state.hand=null;for(const b of state.loose)b.velocity=-.01;state.key=zone.key;state.foodGroup='all';state.foodPage=0;record={state,hands:{},versions:{},rev:1};await this.publish(id,record);}
   else if(record.state.key!==zone.key){record=copy(record);record.state.key=zone.key;for(const s of zone.worktops)record.state.worktops[s.item.id]??={foods:[],index:0,boardVisible:false};record.rev++;await this.publish(id,record);}
+  const repaired=copy(record);if(this.bindTables(repaired.state,zone.home,this.rules.houses.snapshots()[zone.index])){repaired.rev++;record=repaired;await this.publish(id,record);}
   this.rules.broadcast({type:'kitchen-state',...copy(record),playerId:entry.player.id,requestId:m.requestId});
  }).catch(()=>this.failure(entry,m,'キッチンをサーバーから読み込めませんでした。再接続してください'));}
+ bindTables(state,home,layout){let changed=false;for(const body of state.loose){const id=tableForObject(layout,home,body.position,body.tableId)?.itemId||'';if(id!==body.tableId){body.tableId=id;changed=true;}}return changed;}
  allowedKey(key,zone,p){if(key==='fridge'||key==='water'||key==='plate')return true;const at=key.indexOf(':'),kind=key.slice(0,at),id=key.slice(at+1);return kind==='hand'?id===p.id:kind==='vessel'?COOK_VESSELS.includes(id):kind==='board'?zone.worktops.some(s=>s.item.id===id):kind==='door'||kind==='appliance'?zone.stations.some(s=>s.item.id===id):kind==='home'?/^(tool|seasoning|vessel):/.test(id):['dish','loose'].includes(kind)&&/^[-a-zA-Z0-9]{1,128}$/.test(id);}
  consistent(state,hands,zone){
   const holders=new Set(),claim=h=>{if(!h||h.type==='food')return true;const key=h.type+':'+(h.type==='dish'?h.dish.id:h.id);if(holders.has(key))return false;holders.add(key);return true;};
@@ -34,7 +37,7 @@ export class CookingStore{
   for(const b of state.loose)if(!this.within(b.position,zone.home)||b.position.y<ROOM.floor||b.position.y>ROOM.floor+ROOM.height)return false;
   for(const [id,home]of Object.entries(state.itemHomes))if(!/^(tool|seasoning|vessel):/.test(id)||!zone.stations.some(s=>s.item.id===home))return false;
   const loaded=new Set();for(const [id,a]of Object.entries(state.appliances)){if(a.vesselId&&(!COOK_VESSELS.includes(a.vesselId)||loaded.has(a.vesselId)||state.vessels[a.vesselId].location!=='appliance'||state.vessels[a.vesselId].counterId!==id))return false;if(a.vesselId)loaded.add(a.vesselId);if(a.open&&a.remaining)return false;}
-  for(const [dishId]of this.eaters||[])if(Object.values(hands).some(h=>h?.type==='dish'&&h.dish.id===dishId)||!state.loose.some(b=>b.payload.type==='dish'&&b.payload.dish.id===dishId))return false;
+  for(const [dishId,e]of this.eaters||[]){if(String(e.index)!==String(zone.index)||e.kitchenId!==zone.id)continue;if(Object.values(hands).some(h=>h?.type==='dish'&&h.dish.id===dishId)||!state.loose.some(b=>b.payload.type==='dish'&&b.payload.dish.id===dishId))return false;}
   return state.dishes.length<=24&&state.loose.length<=64;
  }
  edit(entry,m){return this.enqueue(async()=>{
@@ -48,8 +51,8 @@ export class CookingStore{
   const movedFoods=[];for(const c of m.changes){const live=resources[c.key];if(c.key.startsWith('vessel:')&&c.before?.foods?.length){for(const [i,f]of c.before.foods.entries())if(!c.after?.foods?.some(n=>same(n,f)))movedFoods.push({before:f,live:live?.foods?.[i]});}}
   const refreshFood=f=>{const original=movedFoods.find(m=>m.live&&same(m.before,f));return original?copy(original.live):f;};for(const c of m.changes){const value=nextResources[c.key];if(value?.foods)value.foods=value.foods.map(refreshFood);if(value?.type==='food')value.food=refreshFood(value.food);if(value?.payload?.type==='food')value.payload.food=refreshFood(value.payload.food);if(value?.meal)value.meal.foods=value.meal.foods.map(refreshFood);}
   const {state,hands}=resourcesToKitchen(nextResources,record.state);state.key=zone.key;state.at=Date.now();for(const c of m.changes.filter(c=>c.key.startsWith('vessel:'))){const v=state.vessels[c.key.slice(7)];if(v&&c.after?.stirs!==c.before?.stirs)v.lastStir=state.elapsed;}
-  // Check table membership against the actual saved furniture surface.
-  const layout=this.rules.houses.snapshots()[zone.index];for(const b of state.loose){const table=layout.items.find(i=>i.id===b.tableId),def=table&&FURNITURE_BY_ID.get(table.t),p=table&&furniturePose(table);if(!p||!['table','desk'].includes(def.family)){b.tableId='';continue;}const dx=(b.position.x-zone.home.x)*zone.home.front-p.x,dz=(b.position.z-zone.home.z)*zone.home.front-p.z,c=Math.cos(p.yaw),n=Math.sin(p.yaw);if(Math.abs(c*dx-n*dz)>p.w*.44||Math.abs(n*dx+c*dz)>p.d*.44||Math.abs(b.position.y-ROOM.floor-p.y-p.h*.88)>.25)b.tableId='';}
+  // Derive membership from the saved furniture surface, including older unbound plates.
+  this.bindTables(state,zone.home,this.rules.houses.snapshots()[zone.index]);
   if(!this.consistent(state,hands,zone))return this.failure(entry,m,'同じ道具や皿を同時に持てません。置き場所を確認してください',record);
   // A completed meal belongs to the shared kitchen, regardless of its cook.
   for(const d of record.state.dishes.filter(d=>d.eaten))if(state.dishes.find(n=>n.id===d.id)?.eaten===false)return this.failure(entry,m,'食べ終えた料理は戻せません',record);
@@ -62,10 +65,12 @@ export class CookingStore{
  remove(playerId){return this.enqueue(async()=>{for(const [id,old]of Object.entries(this.data)){if(!old.hands[playerId])continue;const next=copy(old);this.returnHand(next.state,next.hands[playerId]);delete next.hands[playerId];const before=kitchenResources(old.state,old.hands),after=kitchenResources(next.state,next.hands);for(const key of new Set([...Object.keys(before),...Object.keys(after)]))if(!same(before[key],after[key]))next.versions[key]=(next.versions[key]||0)+1;next.rev++;await this.publish(id,next);}});}
  eat(entry,m){return this.enqueue(async()=>{
   const id=kitchenIdentity(m.index,m.kitchenId),old=this.data[id],fail=error=>this.rules.broadcast({type:'cooking-eaten',playerId:entry.player.id,dishId:m.dishId,error});
-  if(!old)return fail('料理が見つかりません');const p=entry.player,home=houseDescriptor(m.index,this.rules.houses.realms),layout=this.rules.houses.snapshots()[m.index],item=layout?.items.find(i=>i.id===m.tableId),def=item&&FURNITURE_BY_ID.get(item.t),pose=item&&furniturePose(item),body=old.state.loose.find(b=>b.tableId===m.tableId&&b.payload.type==='dish'&&b.payload.dish.id===m.dishId),dish=old.state.dishes.find(d=>d.id===m.dishId&&!d.eaten);
-  if(!home||!body||!dish||!p.seated||!['table','desk'].includes(def?.family)||Math.hypot(p.x-home.x-pose.x*home.front,p.z-home.z-pose.z*home.front)>Math.hypot(pose.w,pose.d)*.44+1.1)return fail('机に料理を並べて、向かい合う椅子に座ってください');
-  // Claim the physical plate on the server before starting the eating timer.
-  if(this.eaters?.has(dish.id))return fail('ほかの人が食べている料理です');this.eaters??=new Map();this.eaters.set(dish.id,{playerId:p.id,at:Date.now(),index:m.index,kitchenId:m.kitchenId,tableId:m.tableId});this.rules.broadcast({type:'cooking-eating',playerId:p.id,dishId:dish.id,index:m.index,kitchenId:m.kitchenId,at:Date.now()});this.ensureTimer();
+  if(!old)return fail('料理が見つかりません');const p=entry.player,home=houseDescriptor(m.index,this.rules.houses.realms),layout=this.rules.houses.snapshots()[m.index],seat=diningSeatAt(layout,home,p),table=tableForSeat(layout,home,seat),body=old.state.loose.find(b=>b.payload.type==='dish'&&b.payload.dish.id===m.dishId),dish=old.state.dishes.find(d=>d.id===m.dishId&&!d.eaten);
+  if(!table||table.itemId!==m.tableId||!body||!dish||tableForObject(layout,home,body.position,body.tableId)?.itemId!==table.itemId||old.hands[p.id])return fail('家具のテーブルに料理を置き、近くの椅子に座ってください');
+  // Repeated requests from the same diner acknowledge the existing claim.
+  const claim=this.eaters?.get(dish.id);if(claim){if(claim.playerId!==p.id)return fail('ほかの人が食べている料理です');this.rules.broadcast({type:'cooking-eating',playerId:p.id,dishId:dish.id,index:m.index,kitchenId:m.kitchenId,at:claim.at});return;}
+  if([...(this.eaters?.values()||[])].some(e=>e.playerId===p.id))return fail('いまの料理を食べ終えてから次の皿を食べてください');
+  this.eaters??=new Map();const at=Date.now();this.eaters.set(dish.id,{playerId:p.id,at,index:m.index,kitchenId:m.kitchenId,tableId:table.itemId});this.rules.broadcast({type:'cooking-eating',playerId:p.id,dishId:dish.id,index:m.index,kitchenId:m.kitchenId,at});this.ensureTimer();
  });}
  recordBusy(record){return Object.values(record.state.vessels).some(v=>v.fire||v.temperature>20.01)||record.state.loose.some(b=>b.velocity<0)||Object.values(record.state.appliances).some(a=>a.remaining>0);}
  get busy(){return Object.values(this.data).some(r=>this.recordBusy(r))||!!this.eaters?.size;}
@@ -73,7 +78,7 @@ export class CookingStore{
  ensureTimer(){if(!this.busy||this.timer)return;if(!this.recovering)this.lastTick=Date.now();this.timer=setInterval(()=>{this.advanceNow().catch(()=>{});},500);this.timer.unref?.();}
  async tick(dt){
   let busy=false;for(const [id,old]of Object.entries(this.data)){
-   const zone=this.zone(old.state.index,old.state.kitchenId);if(!zone)continue;const next=copy(old),s=next.state,dt=Math.min(3600,Math.max(0,(Date.now()-(old.heatAt||old.state.at||Date.now()))/1000));let changed=false;s.elapsed+=dt;
+   const zone=this.zone(old.state.index,old.state.kitchenId);if(!zone)continue;const next=copy(old),s=next.state,dt=Math.min(3600,Math.max(0,(Date.now()-(old.heatAt||old.state.at||Date.now()))/1000));let changed=false;const finishedMeals=[];s.elapsed+=dt;
    for(const [stationId,a]of Object.entries(s.appliances)){if(!a.remaining||!a.vesselId)continue;busy=true;changed=true;const used=Math.min(dt,a.remaining);a.remaining=Math.max(0,a.remaining-dt);const v=s.vessels[a.vesselId],kind=zone.stations.find(st=>st.item.id===stationId)?.def.id;if(v){if(['blender','stand-mixer'].includes(kind)){v.mixed=true;v.mixStrokes=(v.mixStrokes||0)+used;for(const f of v.foods){f.method='mix';if(kind==='blender'){f.cut='mince';f.cuts=3;}}}else if(kind==='dishwasher'){if(!a.remaining){v.seasonings={};v.water=0;v.temperature=20;}}else {v.temperature=Math.min(kind==='toaster'?180:100,v.temperature+used*8);for(const f of v.foods){f.method=v.mode;f.progress=Math.min(180,f.progress+used*.7);}v.cookSeconds+=used;}}if(!a.remaining)a.done=true;}
    for(const v of Object.values(s.vessels)){if(v.fire||v.temperature>20){advanceCookingHeat(v,s.elapsed-dt,dt);changed=true;if(v.fire||v.temperature>20)busy=true;}}
    const layout=this.rules.houses.snapshots()[zone.index],surfaces=layout.items.map(item=>({item,...furniturePose(item),def:FURNITURE_BY_ID.get(item.t)})).filter(p=>(p.def.solid!==false||p.def.id==='cutting-board')&&!['mirror','wall-mirror'].includes(p.def.family));
@@ -82,10 +87,13 @@ export class CookingStore{
     for(const other of s.loose)if(other!==b&&Math.abs(b.position.x-other.position.x)<shape.width+other.shape.width&&Math.abs(b.position.z-other.position.z)<shape.depth+other.shape.depth&&other.position.y+other.shape.height<=oldY+.03)top=Math.max(top,other.position.y+other.shape.height);
     b.velocity=Math.max(-15,b.velocity-9.81*dt);b.position.y=Math.max(top,oldY+b.velocity*dt);if(b.position.y<=top+.001)b.velocity=0;if(Math.abs(oldY-b.position.y)>.0001){changed=true;busy=true;}
    }
-   for(const [dishId,e]of this.eaters||[]){if(String(e.index)!==String(s.index)||e.kitchenId!==s.kitchenId)continue;busy=true;const player=this.rules.entries().find(entry=>entry.player.id===e.playerId)?.player,table=layout.items.find(i=>i.id===e.tableId),pose=table&&furniturePose(table);if(!player?.seated||!pose||Math.hypot(player.x-zone.home.x-pose.x*zone.home.front,player.z-zone.home.z-pose.z*zone.home.front)>Math.hypot(pose.w,pose.d)*.44+1.1){this.eaters.delete(dishId);this.rules.broadcast({type:'cooking-eaten',playerId:e.playerId,dishId,error:'席を離れたため食事を中止しました'});continue;}
-    if(Date.now()-e.at<4000)continue;this.eaters.delete(dishId);const dish=s.dishes.find(d=>d.id===dishId&&!d.eaten);if(!dish)continue;dish.eaten=true;dish.eatenAt=Date.now();dish.rating=dishRating(dish.meal).stars;s.loose=s.loose.filter(b=>b.payload.type!=='dish'||b.payload.dish.id!==dishId);next.versions['dish:'+dishId]=(next.versions['dish:'+dishId]||0)+1;for(const b of old.state.loose.filter(b=>b.payload.type==='dish'&&b.payload.dish.id===dishId))next.versions['loose:'+b.id]=(next.versions['loose:'+b.id]||0)+1;changed=true;next.finishedMeal={playerId:e.playerId,dishId,rating:dishRating(dish.meal)};
+   if(this.bindTables(s,zone.home,layout))changed=true;
+   for(const [dishId,e]of this.eaters||[]){if(String(e.index)!==String(s.index)||e.kitchenId!==s.kitchenId)continue;busy=true;const player=this.rules.entries().find(entry=>entry.player.id===e.playerId)?.player,table=tableForSeat(layout,zone.home,diningSeatAt(layout,zone.home,player));if(table?.itemId!==e.tableId){this.eaters.delete(dishId);this.rules.broadcast({type:'cooking-eaten',playerId:e.playerId,dishId,error:'席を離れたため食事を中止しました'});continue;}
+    if(Date.now()-e.at<4000)continue;this.eaters.delete(dishId);const dish=s.dishes.find(d=>d.id===dishId&&!d.eaten);if(!dish)continue;dish.eaten=true;dish.eatenAt=Date.now();dish.rating=dishRating(dish.meal).stars;s.loose=s.loose.filter(b=>b.payload.type!=='dish'||b.payload.dish.id!==dishId);next.versions['dish:'+dishId]=(next.versions['dish:'+dishId]||0)+1;for(const b of old.state.loose.filter(b=>b.payload.type==='dish'&&b.payload.dish.id===dishId))next.versions['loose:'+b.id]=(next.versions['loose:'+b.id]||0)+1;changed=true;finishedMeals.push({playerId:e.playerId,dishId,rating:dishRating(dish.meal)});
    }
-   if(changed){s.at=Date.now();next.heatAt=s.at;next.rev++;const finished=next.finishedMeal;delete next.finishedMeal;try{await this.publish(id,next);if(finished){this.rules.broadcast({type:'cooking-eaten',...finished});for(let skin=0;skin<9;skin++){const c=this.rules.characters.get(skin);if(c.cookingDishes.some(d=>d.id===finished.dishId))await this.rules.characters.change(skin,{cookingDishes:c.cookingDishes.map(d=>d.id===finished.dishId?{...d,eatenAt:Date.now(),rating:finished.rating.stars}:d)});}}}catch(error){if(finished)this.rules.broadcast({type:'cooking-eaten',playerId:finished.playerId,dishId:finished.dishId,error:'食事の結果を保存できませんでした。料理は消費していません'});throw error;}}
+   if(changed){s.at=Date.now();next.heatAt=s.at;next.rev++;try{await this.publish(id,next);}catch(error){for(const finished of finishedMeals)this.rules.broadcast({type:'cooking-eaten',playerId:finished.playerId,dishId:finished.dishId,error:'食事の結果を保存できませんでした。料理は消費していません'});throw error;}
+    for(const finished of finishedMeals){this.rules.broadcast({type:'cooking-eaten',...finished});for(let skin=0;skin<9;skin++){const c=this.rules.characters.get(skin);if(c.cookingDishes.some(d=>d.id===finished.dishId))await this.rules.characters.change(skin,{cookingDishes:c.cookingDishes.map(d=>d.id===finished.dishId?{...d,eatenAt:s.at,rating:finished.rating.stars}:d)});}}
+   }
   }
   if(!busy&&this.timer){clearInterval(this.timer);this.timer=null;}
  }

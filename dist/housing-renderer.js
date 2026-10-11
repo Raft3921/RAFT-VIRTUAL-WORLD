@@ -1,13 +1,13 @@
 import * as THREE from 'three';
-import {HOUSES,houseDescriptor,ROOM,FURNITURE_BY_ID,furnitureDefinition,FINISHES,emptyHouse,furniturePose} from './housing-data.js?v=20261011-free-cook74';
-import {furnitureParts} from './furniture-models.js?v=20261011-free-cook74';
-import {createHousingMirrors} from './housing-mirror.js?v=20261011-free-cook74';
-import {createFurnitureEffects} from './furniture-effects.js?v=20261011-free-cook74';
-import {createRecordAudio} from './record-audio.js?v=20261011-free-cook74';
-import {withLocalLighting,setHouseLighting,updateFurnitureLighting,setFurnitureEnabled} from './local-lighting.js?v=20261011-free-cook74';
-import {furnitureGeometry} from './furniture-geometry.js?v=20261011-free-cook74';
-import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook74';
-import {PIANO_MELODY} from './world-clock.js?v=20261011-free-cook74';
+import {HOUSES,houseDescriptor,ROOM,FURNITURE_BY_ID,furnitureDefinition,FINISHES,emptyHouse,furniturePose} from './housing-data.js?v=20261011-free-cook75';
+import {furnitureParts} from './furniture-models.js?v=20261011-free-cook75';
+import {createHousingMirrors} from './housing-mirror.js?v=20261011-free-cook75';
+import {createFurnitureEffects} from './furniture-effects.js?v=20261011-free-cook75';
+import {createRecordAudio} from './record-audio.js?v=20261011-free-cook75';
+import {withLocalLighting,setHouseLighting,updateFurnitureLighting,setFurnitureEnabled} from './local-lighting.js?v=20261011-free-cook75';
+import {furnitureGeometry} from './furniture-geometry.js?v=20261011-free-cook75';
+import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook75';
+import {PIANO_MELODY} from './world-clock.js?v=20261011-free-cook75';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1),materials=new Map();
 function material(color,detail=false,glow=false){const key=color+':'+detail+':'+glow;if(!materials.has(key)){const mat=withLocalLighting(new THREE.MeshStandardMaterial({color,roughness:.84,polygonOffset:detail,polygonOffsetFactor:-1,polygonOffsetUnits:-1,emissive:glow?color:'#000000',emissiveIntensity:glow?.65:0}));if(glow){const compile=mat.onBeforeCompile,cache=mat.customProgramCacheKey();mat.onBeforeCompile=function(shader,renderer){compile.call(this,shader,renderer);shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n#ifdef USE_COLOR\n totalEmissiveRadiance*=vColor.rgb;\n#endif');};mat.customProgramCacheKey=()=>cache+'|fixture-power-1';}materials.set(key,mat);}return materials.get(key);}
@@ -100,7 +100,8 @@ export function createHousingRenderer(scene,world,{environment=null}={}){
   }
   mirrors.configure({copyMirrorAppearance,cull,prepareView:position=>updateFurnitureLighting(position,animationTime,true),ensure:index=>{const room=ensureRoom(index);if(room&&!room.meshes.length)apply(index,room.layout);},layout:index=>rooms[index]?.layout});
   function watchableTV(seat){if(!seat||!['chair','sofa'].includes(seat.family))return null;const room=rooms[seat.houseIndex],h=houseDescriptor(seat.houseIndex);if(!room||!h)return null;for(const item of room.layout.items){const def=FURNITURE_BY_ID.get(item.t);if(!(def.family==='tv'||def.family==='electronics'&&(def.design?.startsWith('tv-')||def.design==='crt')))continue;const enabled=furnitureStates.get(h.index+':'+item.id)?.enabled??furnitureAction(def).defaultEnabled;if(!enabled)continue;const pose=furniturePose(item),x=h.x+pose.x*h.front,z=h.z+pose.z*h.front,dx=x-seat.x,dz=z-seat.z,d=Math.hypot(dx,dz);if(d<.6||d>9||(dx*Math.sin(seat.yaw)+dz*Math.cos(seat.yaw))/d<.55)continue;const from=new THREE.Vector3(seat.x,seat.y+.7,seat.z),to=new THREE.Vector3(x,ROOM.floor+pose.centerY,z);if(world.cameraPosition(from,to,.025,'furniture:'+h.index+':'+item.id).distanceTo(to)>.12)continue;return {index:h.index,itemId:item.id};}return null;}
+  function diningTableForSeat(seat){if(!seat||!['chair','armchair','sofa'].includes(seat.family))return null;const room=rooms[seat.houseIndex],home=houseDescriptor(seat.houseIndex);if(!room||!home)return null;let best=null,distance=Infinity;for(const item of room.layout.items){const def=FURNITURE_BY_ID.get(item.t);if(!['table','desk'].includes(def?.family))continue;const p=furniturePose(item),yaw=p.yaw+(home.front<0?Math.PI:0),x=home.x+p.x*home.front,z=home.z+p.z*home.front,dx=x-seat.x,dz=z-seat.z,d=Math.hypot(dx,dz);if(d>.6+Math.hypot(p.w,p.d)*.44||d>=distance||(dx*Math.sin(seat.yaw)+dz*Math.cos(seat.yaw))<.1)continue;const from=new THREE.Vector3(seat.x,seat.y+.6,seat.z),point=new THREE.Vector3(x,ROOM.floor+p.y+p.h*.88+.015,z);if(world.cameraPosition(from,point,.015,'furniture:'+seat.houseIndex+':'+item.id).distanceTo(point)>.12)continue;distance=d;best={index:seat.houseIndex,itemId:item.id,point};}return best;}
   function resetMirrorRooms(){mirrors.clearSpaces();for(const [index,room]of Object.entries(rooms))if(index.startsWith('m|')){for(const e of room.mirrors)mirrors.remove(e);for(const mesh of room.meshes)mesh.dispose?.();room.group.removeFromParent();world.setHouseBodies(index,[]);setHouseLighting(index,{items:[]});delete rooms[index];}}
   function setCookingApplianceHidden(index,itemId,hidden){const key=index+':'+itemId;if(hidden)cookingHidden.add(key);else cookingHidden.delete(key);const room=rooms[index],item=room?.layout.items.find(item=>item.id===itemId);if(item)for(const ref of room.references.get(itemId)||[])syncReference(ref,item);for(const mesh of room?.meshes||[]){mesh.computeBoundingSphere();mesh.boundingSphere.radius+=2;}}
-  return {setCookingApplianceHidden,watchableTV,recordAudio,resetMirrorRooms,ensureRoom,portals:mirrors,rooms,apply,preview,pick,setEditing,cull,update,instrumentHit,playPiano:playInstrument,playInstrument,receiveFurnitureEvent,hydrateFurnitureStates,interactOffline};
+  return {diningTableForSeat,setCookingApplianceHidden,watchableTV,recordAudio,resetMirrorRooms,ensureRoom,portals:mirrors,rooms,apply,preview,pick,setEditing,cull,update,instrumentHit,playPiano:playInstrument,playInstrument,receiveFurnitureEvent,hydrateFurnitureStates,interactOffline};
 }

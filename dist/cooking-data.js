@@ -6,10 +6,15 @@ beef|牛肉|meat|meat|#b76456|24
 pork|豚肉|meat|meat|#e69b94|28
 bacon|ベーコン|meat|strip|#ce7970|16
 sausage|ソーセージ|meat|sausage|#af6350|18
+duck|鴨肉|meat|meat|#df8973|30
+lamb|ラム肉|meat|meat|#d97866|26
 salmon|サーモン|fish|fish|#ed9670|20|raw
 tuna|マグロ|fish|fish|#b85967|20|raw
 shrimp|えび|fish|shrimp|#edb39a|18
 squid|いか|fish|strip|#efe5df|18
+cod|たら|fish|fish|#ffe3c7|20
+mackerel|さば|fish|fish|#8ab0b8|22
+scallop|ほたて|fish|block|#ffe6bc|18
 tofu|豆腐|protein|block|#f3edda|12|raw
 cabbage|キャベツ|vegetable|leaf|#8cb768|12|raw
 lettuce|レタス|vegetable|leaf|#a5c96c|8|raw

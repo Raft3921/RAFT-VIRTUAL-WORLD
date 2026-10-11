@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook74';
-import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook74';
+import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook75';
+import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook75';
 
 export function createCookingMotion({scene,point}){
  const root=new THREE.Group();root.name='Cooking hand work';scene.add(root);
@@ -34,7 +34,7 @@ export function createCookingMotion({scene,point}){
   root.position.copy(anchor);root.rotation.y=work.station.yaw+(session.homeFront<0?Math.PI:0);
   const counter=work.station.role==='counter'&&!work.station.worldPosition,stove=work.station.role==='stove';
   if(tool){
-   tool.position.set(counter?(['mix','sprinkle','roll','knead','plate'].includes(id)?.45:-.27):stove?(session.selectedBurner===0?-.28:.28):0,.08,0);tool.rotation.set(0,0,0);
+   tool.position.set(stove?(session.selectedBurner===0?-.28:.28):0,.08,0);tool.rotation.set(0,0,0);
    if(id==='cut'||id==='chop'){tool.position.y=.055+Math.abs(Math.sin(p*Math.PI*2))*.16;tool.rotation.z=-.12+Math.sin(p*Math.PI*2)*.2;}
    else if(id==='sprinkle'){tool.position.y=.36;tool.position.x+=Math.sin(time*20)*.03;tool.rotation.z=2.3;}
    else if(id==='roll'||id==='knead'){tool.position.y=.1;tool.position.z=Math.sin(time*5)*.12;tool.rotation.x=time*3;}
@@ -42,7 +42,7 @@ export function createCookingMotion({scene,point}){
    else {tool.position.x+=Math.cos(time*9)*.075;tool.position.z=Math.sin(time*9)*.075;tool.position.y=.06;tool.rotation.z=.3;}
   }
   if(prop){prop.position.set(0,.12,0);prop.rotation.set(0,time*.3,0);if(['drain','pour-water','stove-pour','bowl-merge'].includes(id)){prop.position.set(.14,.38,0);prop.rotation.set(0,0,-.8);}animateCookingModel(prop,time);}
-  if(stream)stream.children.forEach((drop,i)=>{const phase=(time*2+i/12)%1;drop.position.set((id==='sprinkle'?(counter?.45:stove?(session.selectedBurner===0?-.28:.28):0):0)+Math.sin(i*2.4)*.025,.4-phase*.38,Math.cos(i*2.4)*.025);});
+  if(stream)stream.children.forEach((drop,i)=>{const phase=(time*2+i/12)%1;drop.position.set((id==='sprinkle'&&stove?(session.selectedBurner===0?-.28:.28):0)+Math.sin(i*2.4)*.025,.4-phase*.38,Math.cos(i*2.4)*.025);});
  }
  return {play,update,clear,get busyHand(){return !!event&&['pour-water','stove-pour','bowl-merge','sprinkle','chop','mix','stir','roll','clean','plate'].includes(event.id);}};
 }

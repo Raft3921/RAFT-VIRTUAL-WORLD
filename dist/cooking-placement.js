@@ -66,5 +66,6 @@ export function createCookingPlacement({scene,camera,get,modelFor,bounds}){
   }
  }
  function hide(){ghost.visible=false;preview=null;}
- return {root,bodies,aim,release,take,refresh,update,hide,setSurfaces,clear(){for(const body of [...bodies])take(body);setSurfaces([]);hide();},get valid(){return !!preview?.valid;}};
+ function restore(records){for(const body of [...bodies])take(body);for(const record of records||[]){const item=build(record.payload),body={id:++serial,payload:record.payload,...item,p:new THREE.Vector3(record.position.x,record.position.y,record.position.z),velocity:new THREE.Vector3(),spin:0};body.model.userData.body=body;body.model.position.copy(body.p);root.add(body.model);bodies.push(body);}}
+ return {root,bodies,aim,release,take,refresh,update,hide,setSurfaces,restore,clear(){for(const body of [...bodies])take(body);setSurfaces([]);hide();},get valid(){return !!preview?.valid;}};
 }

@@ -138,6 +138,13 @@ body[data-touch=true] #stickKnob{width:48px;height:48px;left:calc(50% - 24px);to
 
 /* Safari: scroll the whole library instead of shrinking a nested flex grid to zero. */
 /* Keep descending, crouching and kitchen actions reachable without a keyboard. */
+.cook-carry-world{position:fixed;z-index:40;left:50%;bottom:calc(25px + env(safe-area-inset-bottom));transform:translateX(-50%);max-width:calc(100vw - 250px);padding:10px 14px;background:#1d302be8;border:2px solid #afc39a;font-size:12px;text-align:center;pointer-events:auto}
+.cook-carry-world span{display:block}.cook-carry-world button{min-height:44px;margin-top:5px;background:#354d40}
+.cook-rating{position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:65;white-space:pre-line;text-align:center;line-height:1.9;font-size:22px;padding:20px 32px;color:#ffe39a;background:#1d302bf5;border:3px solid #e9d299;pointer-events:none}
+.cook-carry-world[hidden],.cook-rating[hidden]{display:none!important}
+body[data-carrying-meal=true] :is(#punchBtn,#chargeHud,#gunCrosshair){display:none!important}
+#cookingStart{max-width:calc(100vw - 36px);font-size:13px}
+body[data-touch=true] .cook-carry-world{bottom:calc(216px + env(safe-area-inset-bottom));max-width:calc(100vw - 28px);width:calc(100vw - 28px)}
 #flightControls{display:flex;flex-direction:column;gap:8px;right:calc(110px + env(safe-area-inset-right));bottom:calc(96px + env(safe-area-inset-bottom));z-index:7}
 #flightControls button{width:90px;height:52px;min-height:52px;font-size:15px;touch-action:none}
 #crouchBtn{position:fixed;right:calc(110px + env(safe-area-inset-right));bottom:calc(26px + env(safe-area-inset-bottom));width:90px;min-height:52px;z-index:7;background:#203d4ae8;border:3px solid #aacdc6;font-size:13px;touch-action:none}

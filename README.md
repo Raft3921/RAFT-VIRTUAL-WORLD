@@ -1,5 +1,19 @@
 # RAFT-VIRTUAL-WORLD
 
+## Persistent kitchen workspaces, storage and dining — 2026-10-11 / cook75
+
+Kitchen certification now requires at least three counters, one island, a sink, refrigerator and stove/oven in a connected equipment cluster. Islands are counted separately from counters. All connected worktops are interactive, including counters facing one another. Certification samples both sides of worktops and several aisle distances; rotated equipment contributes its actual footprint to the room bounds.
+
+Each counter has its own board contents. Counter/island doors contain tools, seasonings and spare vessels distributed across separate interior shelves, replacing the external racks. Island storage opens from both sides. Worktops can display a board or an empty serving plate; a plate must be put on a clear counter. Serving into that plate ends cooking and returns the player's previous camera while retaining the workspace visuals.
+
+Boards, vessels, ingredients, loose object positions, completed dishes and open doors persist locally and in the character's server data. Entering the kitchen restores the workspace; returning to cooking resumes it. Periodic house revision changes no longer discard cooking: client and server compare the actual kitchen equipment fingerprint. A temporary connection loss retains the session and re-registers it on reconnect. Genuine equipment edits preserve the unfinished state when returning to ordinary play.
+
+In ordinary play, click/tap a plated dish to carry it. Sitting on a chair facing a nearby table automatically puts the dish on the table and takes four seconds to eat. Standing interrupts eating without consuming the dish. The server records consumption once and returns one to five stars from heating, burning, washing, seasoning and ingredient preparation. The rating remains in the completed dish record. Additional duck, lamb, cod, mackerel and scallop ingredients accompany the existing meat, fish and rice categories.
+
+Update notices now compare the client release identifier against the published release metadata. GitHub Pages stamps both the commit and the same release label into the JS/JSON artifacts. Compatible Worker deployments alone no longer create a persistent reload banner, and the notice can clear after metadata agrees.
+
+No tests, validation builds or browser/gameplay checks were run, following the standing user instruction. Git/Worker/Pages publication status is separate from gameplay acceptance.
+
 ## Cooking touch controls, block cookware and crouching — 2026-10-11 / cook74
 
 Potatoes now turn golden when fried/baked and creamy when boiled; leaf vegetables, roots and meat use separate cooking colours. The cooking readout lists the actual ingredients in a vessel, individual heating progress, cooked state and burning, with persistent action feedback. Aim at a vessel with another ingredient to add it, or pour from another vessel to combine food, water and seasonings. The touch action label changes for adding food, sprinkling, cutting and placing.

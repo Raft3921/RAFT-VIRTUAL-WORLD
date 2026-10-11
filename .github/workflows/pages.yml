@@ -30,8 +30,9 @@ jobs:
           import json, re
           from pathlib import Path
           build_id = '${{ github.sha }}'
-          Path('dist/build-info.js').write_text('export const BUILD_ID='+json.dumps(build_id)+';\n')
-          Path('dist/release.json').write_text(json.dumps({'buildId':build_id}))
+          release_id = json.loads(Path('dist/release.json').read_text())['releaseId']
+          Path('dist/build-info.js').write_text('export const BUILD_ID='+json.dumps(build_id)+';\nexport const RELEASE_ID='+json.dumps(release_id)+';\n')
+          Path('dist/release.json').write_text(json.dumps({'buildId':build_id,'releaseId':release_id}))
           page = Path('dist/index.html')
           page.write_text(re.sub(r'name="vrs-build" content="[^"]*"', 'name="vrs-build" content="'+build_id+'"', page.read_text()))
           PYBUILD

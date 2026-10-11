@@ -74,10 +74,10 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
 
   receive(socket, raw) {
     const entry = this.players.get(socket);
-    if (!entry || typeof raw !== 'string' || raw.length > 8192) return;
+    if (!entry || typeof raw !== 'string' || raw.length > 131072) return;
     let message;
     try { message = JSON.parse(raw); } catch { return; }
-    if(!message||typeof message!=='object'||Array.isArray(message))return;
+    if(!message||typeof message!=='object'||Array.isArray(message)||raw.length>8192&&message.type!=='cooking-save')return;
     if(message.type!=='state'){const pending=this.rules.receive(entry,message);if(pending?.then)this.roomContext.waitUntil(pending);return;}
     if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;
 

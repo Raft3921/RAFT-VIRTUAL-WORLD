@@ -1,0 +1,18 @@
+import {cleanFood,cleanMeal,describeDish,SEASONINGS,FOOD_GROUPS,CUTS,COOK_METHODS} from './cooking-data.js?v=20261011-free-cook75';
+export const COOK_TOOLS=['knife','peeler','grater','whisk','spatula','ladle','tongs','colander','rolling-pin','mitt','sponge'];
+export const COOK_VESSELS=['pan','pot','bowl','jug'];
+const text=x=>typeof x==='string'?x.slice(0,128):'',num=(x,max)=>Math.max(0,Math.min(max,Number(x)||0));
+export function cleanDish(d){if(!d?.meal?.foods?.length||!text(d.id))return null;const meal=cleanMeal(d.meal);if(!meal.foods.length)return null;return {id:text(d.id),meal,...describeDish(meal),counterId:text(d.counterId),eaten:d.eaten===true};}
+export function cleanCarry(h){
+ if(h?.type==='food'){const food=cleanFood(h.food);return food?{type:'food',food}:null;}
+ if(h?.type==='tool'&&COOK_TOOLS.includes(h.id)||h?.type==='seasoning'&&Object.hasOwn(SEASONINGS,h.id)||h?.type==='vessel'&&COOK_VESSELS.includes(h.id))return {type:h.type,id:h.id};
+ if(h?.type==='dish'){const dish=cleanDish(h.dish);return dish?{type:'dish',dish}:null;}return null;
+}
+export function cleanKitchenState(input){
+ if(!input||typeof input!=='object')return null;
+ const worktops=Object.fromEntries(Object.entries(input.worktops||{}).slice(0,32).map(([id,b])=>[text(id),{foods:(Array.isArray(b?.foods)?b.foods:[]).slice(0,4).map(cleanFood).filter(Boolean),index:Math.floor(num(b?.index,3)),boardVisible:b?.boardVisible===true}]));
+ const vessels=Object.fromEntries(COOK_VESSELS.map(kind=>{const v=input.vessels?.[kind]||{},meal=cleanMeal(v);return [kind,{...meal,kind,location:['drawer','counter','hand','stove','loose'].includes(v.location)?v.location:'drawer',counterId:text(v.counterId),slot:Math.floor(num(v.slot,1)),fire:Math.floor(num(v.fire,3)),temperature:Math.max(20,num(v.temperature,250)),covered:v.covered===true,mode:Object.hasOwn(COOK_METHODS,v.mode)?v.mode:kind==='pan'?'fry':'boil',stirs:num(v.stirs,10000),lastStir:num(v.lastStir,1000000),mixStrokes:num(v.mixStrokes,10000),cookSeconds:num(v.cookSeconds,1000000),timer:v.timer?.remaining>0?{remaining:num(v.timer.remaining,300),duration:num(v.timer.duration,300)}:null,timerDone:v.timerDone===true}];}));
+ const loose=(Array.isArray(input.loose)?input.loose:[]).slice(0,64).map(b=>({payload:cleanCarry(b.payload),position:{x:Number(b.position?.x),y:Number(b.position?.y),z:Number(b.position?.z)}})).filter(b=>b.payload&&Object.values(b.position).every(Number.isFinite));
+ return {index:input.index,kitchenId:text(input.kitchenId),key:typeof input.key==='string'?input.key.slice(0,16000):'',at:num(input.at,1e14),worktops,vessels,loose,hand:cleanCarry(input.hand),dishes:(Array.isArray(input.dishes)?input.dishes:[]).slice(-24).map(cleanDish).filter(Boolean),takenDishes:(Array.isArray(input.takenDishes)?input.takenDishes:[]).slice(-24).map(text),plateStationId:text(input.plateStationId),activeCounterId:text(input.activeCounterId),elapsed:num(input.elapsed,1e6),cutMode:Object.hasOwn(CUTS,input.cutMode)?input.cutMode:'dice',selectedBurner:Math.floor(num(input.selectedBurner,1)),foodGroup:Object.hasOwn(FOOD_GROUPS,input.foodGroup)?input.foodGroup:'vegetable',foodPage:Math.floor(num(input.foodPage,20)),fridgeOpen:input.fridgeOpen===true,waterOn:input.waterOn===true,storageOpen:Object.fromEntries(Object.entries(input.storageOpen||{}).slice(0,32).map(([id,open])=>[text(id),open===true]))};
+}
+export function dishRating(meal){const info=describeDish(meal),stars=info.quality==='加熱不足'?1:info.quality==='焦げ気味'?2:info.quality==='味付け濃いめ'||info.quality==='洗浄不足'?3:meal.foods.length>1&&(meal.mixed||Object.keys(meal.seasonings||{}).length)?5:4;return {stars,label:stars>=4?'おいしかった！':stars===3?'まずまずの味':stars===2?'少し焦げていた…':'火の通りが足りなかった…',name:info.name};}

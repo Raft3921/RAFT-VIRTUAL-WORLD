@@ -37,8 +37,9 @@ let settings={};try{settings=JSON.parse(readFileSync('.room-settings.json','utf8
 let characters={};try{characters=JSON.parse(readFileSync('.room-characters.json','utf8'));}catch{}
 let houses={};try{houses=JSON.parse(readFileSync('.room-houses.json','utf8'));}catch{}
 let kitchens={};try{kitchens=JSON.parse(readFileSync('.room-kitchens.json','utf8'));}catch{}
+let living={};try{living=JSON.parse(readFileSync('.room-living.json','utf8'));}catch{}
 let chat=[];try{chat=readFileSync('.room-chat.jsonl','utf8').split('\n').filter(Boolean).flatMap(line=>{try{return [JSON.parse(line)];}catch{return [];}});}catch{}
-const rules=new GameRules(players,broadcast,scores,s=>writeFileSync('.room-scores.json',JSON.stringify(s)),settings,s=>{writeFileSync('.room-settings.json.tmp',JSON.stringify(s));renameSync('.room-settings.json.tmp','.room-settings.json');},characters,s=>{writeFileSync('.room-characters.json.tmp',JSON.stringify(s));renameSync('.room-characters.json.tmp','.room-characters.json');},houses,s=>{writeFileSync('.room-houses.json.tmp',JSON.stringify(s));renameSync('.room-houses.json.tmp','.room-houses.json');},()=>{},chat,(message,removed,records)=>{writeFileSync('.room-chat.jsonl.tmp',records.map(record=>JSON.stringify(record)).join('\n')+'\n');renameSync('.room-chat.jsonl.tmp','.room-chat.jsonl');},kitchens,s=>{writeFileSync('.room-kitchens.json.tmp',JSON.stringify(s));renameSync('.room-kitchens.json.tmp','.room-kitchens.json');});
+const rules=new GameRules(players,broadcast,scores,s=>writeFileSync('.room-scores.json',JSON.stringify(s)),settings,s=>{writeFileSync('.room-settings.json.tmp',JSON.stringify(s));renameSync('.room-settings.json.tmp','.room-settings.json');},characters,s=>{writeFileSync('.room-characters.json.tmp',JSON.stringify(s));renameSync('.room-characters.json.tmp','.room-characters.json');},houses,s=>{writeFileSync('.room-houses.json.tmp',JSON.stringify(s));renameSync('.room-houses.json.tmp','.room-houses.json');},()=>{},chat,(message,removed,records)=>{writeFileSync('.room-chat.jsonl.tmp',records.map(record=>JSON.stringify(record)).join('\n')+'\n');renameSync('.room-chat.jsonl.tmp','.room-chat.jsonl');},kitchens,s=>{writeFileSync('.room-kitchens.json.tmp',JSON.stringify(s));renameSync('.room-kitchens.json.tmp','.room-kitchens.json');},living,async(key,record)=>{living={...living,[key]:record};writeFileSync('.room-living.json.tmp',JSON.stringify(living));renameSync('.room-living.json.tmp','.room-living.json');});
 
 writeFileSync('.room-chat.jsonl.tmp',rules.chat.records.map(record=>JSON.stringify(record)).join('\n')+'\n');renameSync('.room-chat.jsonl.tmp','.room-chat.jsonl');
 
@@ -117,7 +118,7 @@ sockets.on('connection', (socket, request) => {
     gesture: 'none', speed: 0, grounded: true, verticalSpeed: 0, flight: false, ragdoll: false,
   };
   Object.assign(player,rules.savedPosition(profile)||{});
-  players.set(socket, { player, lastStateAt: 0 });
+  players.set(socket, { player, lastStateAt: 0,send:message=>send(socket,message) });
   send(socket, { type: 'joined', version:SYNC_VERSION,protocol:SYNC_PROTOCOL, gunShots:rules.guns.shots, chat:rules.chat.page(), projectiles:rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:rules.houses.snapshots(), kitchens:rules.cooking.snapshots(), characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
   broadcast({ type: 'player-joined', player }, socket);
   send(socket,rules.snapshot());

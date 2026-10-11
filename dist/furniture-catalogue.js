@@ -138,6 +138,9 @@ dryer|衣類乾燥機|dryer|.9,1.05,.8
 water-dispenser|ウォーターサーバー|water|.65,1.6,.65
 trash-can|ペダル式ごみ箱|trash|.5,.8,.5
 recycle-bin|分別ごみ箱セット|recycle|1.1,.8,.5
+bathtub|バスタブ|bath|1.3,.8,2.2
+shower-stall|シャワーブース|shower|1.2,2.4,1.2
+laundry-clothes|洗濯物のかご|clothes|.7,.6,.6
 dish-rack|食器乾燥ラック|dishes|.7,.45,.45
 pot-rack-wall|壁掛け鍋ラック|pots|1.2,.8,.35|wall
 range-hood|アイランドレンジフード|hood|1.4,1.1,.9|ceiling

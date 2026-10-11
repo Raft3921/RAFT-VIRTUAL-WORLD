@@ -1,15 +1,15 @@
 import * as THREE from 'three';
-import {HOUSES,houseDescriptor,ROOM,FURNITURE_BY_ID,furnitureDefinition,FINISHES,emptyHouse,furniturePose} from './housing-data.js?v=20261011-free-cook81';
-import {furnitureParts} from './furniture-models.js?v=20261011-free-cook81';
-import {createHousingMirrors} from './housing-mirror.js?v=20261011-free-cook81';
-import {createFurnitureEffects} from './furniture-effects.js?v=20261011-free-cook81';
-import {createRecordAudio} from './record-audio.js?v=20261011-free-cook81';
-import {withLocalLighting,setHouseLighting,updateFurnitureLighting,setFurnitureEnabled} from './local-lighting.js?v=20261011-free-cook81';
-import {furnitureGeometry} from './furniture-geometry.js?v=20261011-free-cook81';
-import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook81';
-import {PIANO_MELODY} from './world-clock.js?v=20261011-free-cook81';
+import {HOUSES,houseDescriptor,ROOM,FURNITURE_BY_ID,furnitureDefinition,FINISHES,emptyHouse,furniturePose} from './housing-data.js?v=20261011-life82';
+import {furnitureParts} from './furniture-models.js?v=20261011-life82';
+import {createHousingMirrors} from './housing-mirror.js?v=20261011-life82';
+import {createFurnitureEffects} from './furniture-effects.js?v=20261011-life82';
+import {createRecordAudio} from './record-audio.js?v=20261011-life82';
+import {withLocalLighting,setHouseLighting,updateFurnitureLighting,setFurnitureEnabled} from './local-lighting.js?v=20261011-life82';
+import {furnitureGeometry} from './furniture-geometry.js?v=20261011-life82';
+import {furnitureAction} from './furniture-actions.js?v=20261011-life82';
+import {PIANO_MELODY} from './world-clock.js?v=20261011-life82';
 
-import {furnitureDiningSeats,tableForSeat} from './dining.js?v=20261011-free-cook81';
+import {furnitureDiningSeats,tableForSeat} from './dining.js?v=20261011-life82';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1),materials=new Map();
 function material(color,detail=false,glow=false){const key=color+':'+detail+':'+glow;if(!materials.has(key)){const mat=withLocalLighting(new THREE.MeshStandardMaterial({color,roughness:.84,polygonOffset:detail,polygonOffsetFactor:-1,polygonOffsetUnits:-1,emissive:glow?color:'#000000',emissiveIntensity:glow?.65:0}));if(glow){const compile=mat.onBeforeCompile,cache=mat.customProgramCacheKey();mat.onBeforeCompile=function(shader,renderer){compile.call(this,shader,renderer);shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n#ifdef USE_COLOR\n totalEmissiveRadiance*=vColor.rgb;\n#endif');};mat.customProgramCacheKey=()=>cache+'|fixture-power-1';}materials.set(key,mat);}return materials.get(key);}
@@ -27,11 +27,11 @@ function finishMaterial(surface,id){
 }
 export function createHousingRenderer(scene,world,{environment=null}={}){
   const rooms=Object.fromEntries(HOUSES.slice(0,8).map(h=>[h.index,{group:new THREE.Group(),layout:emptyHouse(),meshes:[],references:new Map(),finishes:[],mirrors:[],animated:[],editing:false}])),transform=new THREE.Object3D(),itemTransform=new THREE.Object3D(),partMatrix=new THREE.Matrix4(),partOffset=new THREE.Vector3(),mirrors=createHousingMirrors(scene,world),effects=createFurnitureEffects(scene),recordAudio=createRecordAudio(index=>rooms[index]?.layout);let gamePhase=.5;
-  const furnitureStates=new Map(),offlineNotes=new Map(),tint=new THREE.Color(),cookingHidden=new Set(),hiddenMatrix=new THREE.Matrix4().makeScale(0,0,0);for(const room of Object.values(rooms))room.runtime=new Map();
+  const livingStates=new Map(),furnitureStates=new Map(),offlineNotes=new Map(),tint=new THREE.Color(),cookingHidden=new Set(),hiddenMatrix=new THREE.Matrix4().makeScale(0,0,0);for(const room of Object.values(rooms))room.runtime=new Map();
   for(const h of HOUSES.slice(0,8)){const room=rooms[h.index];room.group.userData.houseIndex=h.index;room.group.name='Furnished house '+h.index;room.group.position.set(h.x,ROOM.floor,h.z);room.group.rotation.y=h.front<0?Math.PI:0;scene.add(room.group);}
   const pose=(item)=>{const p=furniturePose(item);itemTransform.position.set(p.x,p.y,p.z);itemTransform.rotation.set(0,p.yaw,p.roll);itemTransform.scale.setScalar(1);itemTransform.updateMatrix();return p;};
   function syncReference(ref,item,time=animationTime){ref.item=item;if(!ref.mirror&&cookingHidden.has(ref.house+':'+item.id)){ref.mesh.setMatrixAt(ref.instance,hiddenMatrix);ref.mesh.instanceMatrix.needsUpdate=true;return;}pose(item);const p=ref.part;transform.position.set(p.x,p.y,p.z);transform.rotation.set(p.rx||0,p.ry||0,p.rz||0);transform.scale.set(p.w,p.h,p.d);
-    const state=furnitureStates.get(ref.house+':'+item.id),enabled=state?.enabled??ref.action?.defaultEnabled??true,age=state?time-state.at:Infinity,pulse=age>=0&&age<.8?Math.sin(age*18)*Math.exp(-age*5):0,blend=THREE.MathUtils.smoothstep(Math.max(0,age),0,.35),from=state?.fromEnabled??enabled,openness=1-(Number(from)+(Number(enabled)-Number(from))*blend);let pivot=p.pivot;
+    const state=furnitureStates.get(ref.house+':'+item.id),enabled=state?.enabled??ref.action?.defaultEnabled??true,age=state?time-state.at:Infinity,pulse=age>=0&&age<.8?Math.sin(age*18)*Math.exp(-age*5):0,blend=THREE.MathUtils.smoothstep(Math.max(0,age),0,.35),from=state?.fromEnabled??enabled,openness=1-(Number(from)+(Number(enabled)-Number(from))*blend);const life=livingStates.get(ref.house+':'+item.id),doorOpen=life?THREE.MathUtils.damp(ref.lifeOpen||0,life.open?1:0,10,1/30):openness;if(life)ref.lifeOpen=doorOpen;let pivot=p.pivot;
     if(p.motion==='spin'||p.motion==='orbit')transform.rotation.y=ref.isRecord&&!recordAudio.isPlaying(ref.house,item.id)?0:time*(p.rate||1);
     else if(p.motion==='propeller')transform.rotation.z=time*(p.rate||7);
     else if(p.motion==='sway')transform.rotation.z=Math.sin(time*1.5+(p.phase||0))*.035;
@@ -40,8 +40,8 @@ export function createHousingRenderer(scene,world,{environment=null}={}){
     else if(p.motion==='hand')transform.rotation.z=p.clockHand==='hour'?Math.PI/2-gamePhase*Math.PI*4:-gamePhase*Math.PI*48;
     else if(p.motion==='key'&&p.key===ref.keyNote&&time<ref.pressedUntil)transform.position.y-=.018;
     if(ref.action?.kind==='fan'&&!enabled){transform.rotation.set(p.rx||0,p.ry||0,p.rz||0);}
-    if(p.role==='door'&&p.doorPivot){transform.rotation.y+=(p.doorSign||1)*.8*openness;pivot=p.doorPivot;}
-    else if(p.role==='lid'&&p.lidPivot){transform.rotation.x-=.75*openness;pivot=p.lidPivot;}
+    if(p.role==='door'&&p.doorPivot){transform.rotation.y+=(p.doorSign||1)*.8*doorOpen;pivot=p.doorPivot;}
+    else if(p.role==='lid'&&p.lidPivot){transform.rotation.x-=.75*doorOpen;pivot=p.lidPivot;}
     else if(p.role==='curtain'){if(['venetian','roman','bamboo','roller'].includes(ref.design)){transform.scale.y*=1-.78*openness;transform.position.y+=p.h*.39*openness;}else{transform.scale.x*=1-.70*openness;transform.position.x+=Math.sign(p.x||1)*ref.width*.12*openness;}}
     if(pivot){partOffset.set(p.x-pivot[0],p.y-pivot[1],p.z-pivot[2]).applyEuler(transform.rotation);transform.position.set(...pivot).add(partOffset);}
     if(pulse&&state?.kind!=='door'&&state?.kind!=='curtain'){const kind=state?.kind;transform.rotation.z+=pulse*(kind==='plant'?.08:kind==='table'||kind==='storage'?.045:.025);transform.position.y+=Math.max(0,pulse)*(['toy','bed','seat'].includes(kind)?.035:kind==='aquarium'?.018:.009);if(kind==='toy'||kind==='seat'||kind==='bed')transform.scale.y*=1+pulse*.08;if(kind==='gadget'||kind==='craft')transform.rotation.y+=pulse*.06;}
@@ -52,6 +52,8 @@ export function createHousingRenderer(scene,world,{environment=null}={}){
     const h=HOUSES[index],records=[{x:h.x,y:ROOM.floor-.009,z:h.z,w:ROOM.x*2,h:.018,d:ROOM.z*2}],seats=[],beds=[];
     for(const item of layout.items){const def=furnitureDefinition(item),p=furniturePose(item),yaw=p.yaw+(h.front<0?Math.PI:0),x=h.x+p.x*h.front,z=h.z+p.z*h.front;
       const add=(w,height,d,dy=height/2,dx=0,dz=0)=>records.push({x:x+Math.cos(yaw)*dx+Math.sin(yaw)*dz,y:ROOM.floor+dy,z:z-Math.sin(yaw)*dx+Math.cos(yaw)*dz,w,h:height,d,rotation:yaw,boardId:'furniture:'+index+':'+item.id});
+      if(def.design==='treadmill'){add(def.w*.88,.16,def.d*.88,p.y+.08);for(const sign of [-1,1])add(.09,def.h*.88,.12,p.y+def.h*.44,sign*def.w*.35,-def.d*.32);continue;}
+      if(def.design==='bath'){add(def.w*.88,.12,def.d*.88,p.y+.06);for(const sign of [-1,1])add(.12,def.h*.88,def.d*.88,p.y+def.h*.44,sign*def.w*.39,0);continue;}
       if(def.solid===false||def.family==='mirror'||def.family==='wall-mirror')continue;
       if(def.seat){const seatHeight=def.extended?def.seat:.88*(def.family==='chair'?def.h*.515:def.family==='sofa'?def.h*.55:def.seat);add(def.w*.88,seatHeight,def.d*.88,p.y+seatHeight/2);if((def.family==='chair'||def.family==='sofa')&&(!def.extended||def.back!==false)&&def.h*.88>seatHeight+.04)add(def.w*.88,def.h*.88-seatHeight,def.d*.14*.88,seatHeight+(def.h*.88-seatHeight)/2,0,-def.d*.43*.88);seats.push(...furnitureDiningSeats(h,item));}
       else if(def.family==='bed'||def.family==='canopy'){const height=def.bedHeight??.55;if(height>1){add(def.w*.88,.24,def.d*.88,height-.12);for(const dx of [-def.w*.4,def.w*.4])for(const dz of [-def.d*.4,def.d*.4])add(.1,height,.1,height/2,dx,dz);}else add(def.w*.88,height,def.d*.88);if(!def.extended||def.bedBack)add(def.w*.88,def.extended?.25:.88,def.d*.07,def.extended?height+.1:.44,0,-def.d*.46*.88);beds.push({id:index+':'+item.id,x,y:ROOM.floor+height,z,yaw,w:def.w*.75,d:def.d*.70});if(def.family==='canopy'||def.design==='fourposter'||def.design==='crib')for(const dx of [-def.w*.46*.88,def.w*.46*.88])for(const dz of [-def.d*.46*.88,def.d*.46*.88])add(def.w*.055*.88,def.h*.88,def.d*.055*.88,def.h*.44,dx,dz);}
@@ -104,6 +106,7 @@ export function createHousingRenderer(scene,world,{environment=null}={}){
   function watchableTV(seat){if(!seat||!['chair','sofa'].includes(seat.family))return null;const room=rooms[seat.houseIndex],h=houseDescriptor(seat.houseIndex);if(!room||!h)return null;for(const item of room.layout.items){const def=FURNITURE_BY_ID.get(item.t);if(!(def.family==='tv'||def.family==='electronics'&&(def.design?.startsWith('tv-')||def.design==='crt')))continue;const enabled=furnitureStates.get(h.index+':'+item.id)?.enabled??furnitureAction(def).defaultEnabled;if(!enabled)continue;const pose=furniturePose(item),x=h.x+pose.x*h.front,z=h.z+pose.z*h.front,dx=x-seat.x,dz=z-seat.z,d=Math.hypot(dx,dz);if(d<.6||d>9||(dx*Math.sin(seat.yaw)+dz*Math.cos(seat.yaw))/d<.55)continue;const from=new THREE.Vector3(seat.x,seat.y+.7,seat.z),to=new THREE.Vector3(x,ROOM.floor+pose.centerY,z);if(world.cameraPosition(from,to,.025,'furniture:'+h.index+':'+item.id).distanceTo(to)>.12)continue;return {index:h.index,itemId:item.id};}return null;}
   function diningTableForSeat(seat){const home=seat&&houseDescriptor(seat.houseIndex),room=home&&rooms[home.index],table=tableForSeat(room?.layout,home,seat);return table?{...table,point:new THREE.Vector3(table.x,table.y+.015,table.z)}:null;}
   function resetMirrorRooms(){mirrors.clearSpaces();for(const [index,room]of Object.entries(rooms))if(index.startsWith('m|')){for(const e of room.mirrors)mirrors.remove(e);for(const mesh of room.meshes)mesh.dispose?.();room.group.removeFromParent();world.setHouseBodies(index,[]);setHouseLighting(index,{items:[]});delete rooms[index];}}
+  function applyLiving(record){const key=record.index+':'+record.itemId,previous=livingStates.get(key);livingStates.set(key,record);if(previous?.rev===record.rev)return;const room=rooms[record.index],item=room?.layout.items.find(i=>i.id===record.itemId);if(!item)return;room.runtime.set(item.id,{at:animationTime,kind:'living'});for(const ref of room.references.get(item.id)||[])syncReference(ref,item);}
   function setCookingApplianceHidden(index,itemId,hidden){const key=index+':'+itemId;if(hidden)cookingHidden.add(key);else cookingHidden.delete(key);const room=rooms[index],item=room?.layout.items.find(item=>item.id===itemId);if(item)for(const ref of room.references.get(itemId)||[])syncReference(ref,item);for(const mesh of room?.meshes||[]){mesh.computeBoundingSphere();mesh.boundingSphere.radius+=2;}}
-  return {diningTableForSeat,setCookingApplianceHidden,watchableTV,recordAudio,resetMirrorRooms,ensureRoom,portals:mirrors,rooms,apply,preview,pick,setEditing,cull,update,instrumentHit,playPiano:playInstrument,playInstrument,receiveFurnitureEvent,hydrateFurnitureStates,interactOffline};
+  return {applyLiving,diningTableForSeat,setCookingApplianceHidden,watchableTV,recordAudio,resetMirrorRooms,ensureRoom,portals:mirrors,rooms,apply,preview,pick,setEditing,cull,update,instrumentHit,playPiano:playInstrument,playInstrument,receiveFurnitureEvent,hydrateFurnitureStates,interactOffline};
 }

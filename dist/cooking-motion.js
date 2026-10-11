@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-free-cook81';
-import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-free-cook81';
+import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261011-life82';
+import {toolModel,seasoningModel} from './cooking-tools.js?v=20261011-life82';
 
 export function createCookingMotion({scene,point}){
  const root=new THREE.Group();root.name='Cooking hand work';scene.add(root);
@@ -17,7 +17,7 @@ export function createCookingMotion({scene,point}){
   if(key!==next){
    key=next;clearModels();tool=null;prop=null;stream=null;
    const toolId=work.source?.type==='tool'?work.source.id:{cut:'knife',chop:'knife',peel:'peeler',grate:'grater',mix:'whisk',stir:'ladle',drain:'colander',clean:'sponge',roll:'rolling-pin',knead:'rolling-pin',plate:'ladle','stove-pick':'mitt'}[id];
-   if(toolId){tool=toolModel(toolId);root.add(tool);}
+   if(toolId){tool=toolModel(toolId);root.add(tool);const hand=new THREE.Group();part(hand,'box',0,.06,-.15,.11,.1,.18,'#be9875');part(hand,'box',0,.1,-.38,.1,.1,.32,'#556678');tool.add(hand);}
    if(id==='sprinkle'&&work.source?.type==='seasoning'){tool=seasoningModel(work.source.id);root.add(tool);}
    if(['wash','fill','drain','clean','pour-water','stove-pour','bowl-merge','knead','roll','plate'].includes(id)&&work.source){
     prop=work.source.type==='food'?foodModel(work.source.food):work.source.type==='vessel'?vesselModel(id==='fill'?session.vessels[work.source.id]||work.source.vessel:work.source.vessel):null;if(prop)root.add(prop);

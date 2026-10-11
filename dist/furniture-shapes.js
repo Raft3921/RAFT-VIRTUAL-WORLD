@@ -95,6 +95,10 @@ export function expandedParts(f,paint,box,motion,parts){
       break;
     }
     case 'appliance':{
+      if(s==='bath'){B(0,.12,0,1,.24,1,WHITE);for(const x of [-.45,.45])B(x,.52,0,.1,.72,1,WHITE);for(const z of [-.45,.45])B(0,.52,z,.85,.72,.1,WHITE);B(.3,1,-.38,.06,.13,.09,METAL);B(.2,1.06,-.38,.2,.04,.06,METAL);break;}
+      if(s==='shower'){B(0,.04,0,1,.08,1,WHITE);B(0,.5,-.46,1,1,.05,GLASS);B(-.47,.5,0,.045,1,1,GLASS);B(.28,.6,-.4,.03,.7,.03,METAL);B(.28,.95,-.3,.2,.025,.2,METAL);break;}
+      if(s==='clothes'){B(0,.1,0,1,.2,1,WOOD);for(const x of [-.45,.45])B(x,.4,0,.1,.6,1,WOOD);for(let j=0;j<3;j++)B((j-1)*.2,.45+j*.1,0,.3,.13,.6,WHITE);break;}
+
       if(['kettle','blender','mixer','coffee'].includes(s)){B(0,.055,0,.95,.11,.9,DARK);if(s==='kettle'){disk(0,.43,0,.63,.65,.7,WHITE);B(.34,.58,0,.16,.12,.12,paint);B(-.34,.54,0,.08,.45,.08,DARK);}else if(s==='blender'){B(0,.2,0,.8,.3,.8,paint);B(0,.59,0,.65,.5,.65,GLASS);B(0,.89,0,.8,.06,.8,DARK);}else if(s==='mixer'){B(-.31,.48,-.12,.2,.8,.6);B(0,.86,0,.8,.18,.45);disk(.12,.27,0,.65,.38,.65,METAL);}else{B(0,.62,-.22,.92,.74,.5);B(0,.44,.15,.65,.09,.5,METAL);B(-.21,.51,.28,.06,.15,.06,METAL);B(.16,.19,.27,.27,.27,.27,WHITE);}break;}
       if(s==='fruit'){disk(0,.14,0,1,.28,1,WOOD);for(const [x,z]of [[-.2,0],[.1,-.2],[.17,.15]]){B(x,.43,z,.3,.35,.3,paint);B(x,.65,z,.025,.09,.025,LEAF);}break;}
       if(s==='dishes'){B(0,.07,0,1,.14,1,METAL);for(let j=0;j<5;j++)B(-.36+j*.18,.48,0,.035,.65,.8,WHITE);break;}

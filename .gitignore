@@ -13,3 +13,6 @@ artifacts/
 .room-chat.jsonl
 .room-kitchens.json
 .room-kitchens.json.tmp
+
+.room-living.json
+.room-living.json.tmp

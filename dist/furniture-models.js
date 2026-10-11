@@ -1,6 +1,6 @@
-import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261011-free-cook81';
-import {expandedParts} from './furniture-shapes.js?v=20261011-free-cook81';
-import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook81';
+import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261011-life82';
+import {expandedParts} from './furniture-shapes.js?v=20261011-life82';
+import {furnitureAction} from './furniture-actions.js?v=20261011-life82';
 const WOOD='#bd9166',DARK='#354353',METAL='#87929a',WHITE='#f4eee2',LEAF='#52a96d';
 const partsCache=new Map();
 export function furnitureParts(item){
@@ -77,14 +77,17 @@ export function furnitureParts(item){
     case 'light-bar':for(const x of [-.36,.36])box(x,.72,0,.025,.56,.025,METAL);box(0,.26,0,1,.45,1,paint);box(0,.035,0,.9,.035,.8,WHITE);break;
   }
   const shift=f.mount==='wall'?-f.h*.44:f.mount==='ceiling'?-f.h*.88:0,light=f.light||['lamp','sconce','pendant','chandelier','fan','ceiling-light','light-bar'].includes(f.family),action=furnitureAction(f);for(const p of parts){
-    if(action.kind==='screen'&&p.d<f.d*.18&&(p.c===paint||p.c==='#8fbac9'||['vr','projector'].includes(f.design)&&p.z>f.d*.2))p.role='screen';
-    if(action.kind==='door'&&p.z>f.d*.30&&p.d<f.d*.20)p.role='door';
+    if(['screen','chat'].includes(action.kind)&&p.d<f.d*.18&&(p.c===paint||p.c==='#8fbac9'||['vr','projector'].includes(f.design)&&p.z>f.d*.2))p.role='screen';
+    if((action.kind==='door'||['washer','dryer','microwave','dishwasher'].includes(f.design))&&p.z>f.d*.30&&p.d<f.d*.20)p.role='door';
     if(action.kind==='door'&&['rice','trash','recycle','trunk','suitcase'].includes(f.design)&&p.y>f.h*.72&&p.h<f.h*.18&&p.w>f.w*.4)p.role='lid';
     if(action.kind==='curtain'&&p.h>f.h*.3&&p.c!==METAL)p.role='curtain';
+    if(['washer','dryer'].includes(f.design)&&p.role==='door'){p.doorPivot=[-f.w*.33,f.h*.47,f.d*.45];p.doorSign=-1;}
+    if(['washer','dryer','microwave','dishwasher'].includes(f.design)&&p.detail&&p.y>f.h*.65)p.role='button';
     p.y+=shift;if(p.pivot)p.pivot[1]+=shift;if(p.detail&&f.family!=='rug'&&f.solid!==false)p.z+=.001;p.glow=light&&p.c===WHITE;
   }
   const doors=parts.filter(p=>p.role==='door'&&p.w>f.w*.15&&p.h>f.h*.2),lids=parts.filter(p=>p.role==='lid');
   for(const p of parts){if(p.role==='door'&&doors.length){const panel=[...doors].sort((a,b)=>Math.abs(a.x-p.x)+Math.abs(a.y-p.y)-Math.abs(b.x-p.x)-Math.abs(b.y-p.y))[0],sign=panel.x<0?-1:1;p.doorPivot=[panel.x+sign*panel.w/2,panel.y,panel.z];p.doorSign=sign;}if(p.role==='lid'){p.lidPivot=[p.x,p.y,p.z-p.d/2];}}
+  for(const p of parts)if(['washer','dryer'].includes(f.design)&&p.role==='door'){p.doorPivot=[-f.w*.33,f.h*.47,f.d*.45];p.doorSign=-1;}
   // Separate remaining exposed co-planar box faces across every furniture
   // family. Do this once when building, not during animation/render updates.
   const axes=[['x','w'],['y','h'],['z','d']];

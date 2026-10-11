@@ -1,26 +1,27 @@
-import {CookingStore} from './cooking-store.js?v=20261011-free-cook81';
-import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261011-free-cook81';
-import {cleanMeal,describeDish} from './cooking-data.js?v=20261011-free-cook81';
-import {recognizeKitchens} from './kitchen-layout.js?v=20261011-free-cook81';
-import {buildDistrict} from './district.js?v=20261011-free-cook81';
-import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261011-free-cook81';
-import {GunRules} from './gun-rules.js?v=20261011-free-cook81';
-import {weaponById} from './gun-layout.js?v=20261011-free-cook81';
-import {WorldChatStore} from './world-chat-store.js?v=20261011-free-cook81';
-import { ARENA,insideArena } from './world-layout.js?v=20261011-free-cook81';
-import { ATTACKS } from './combat-motion.js?v=20261011-free-cook81';
-import { CharacterStore,cleanCharacter } from './character-store.js?v=20261011-free-cook81';
-import { GYOZA_SKIN,GUEST_SKIN,playableSkin } from './player-types.js?v=20261011-free-cook81';
-import { HousingStore } from './housing-store.js?v=20261011-free-cook81';
-import {BROWN_PROJECTILE,projectileAt,segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261011-free-cook81';
-import {hitShape} from './hit-reaction.js?v=20261011-free-cook81';
-import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js?v=20261011-free-cook81';
-import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261011-free-cook81';
-import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js?v=20261011-free-cook81';
-import {furnitureAction} from './furniture-actions.js?v=20261011-free-cook81';
+import {LivingStore} from './living-store.js?v=20261011-life82';
+import {CookingStore} from './cooking-store.js?v=20261011-life82';
+import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261011-life82';
+import {cleanMeal,describeDish} from './cooking-data.js?v=20261011-life82';
+import {recognizeKitchens} from './kitchen-layout.js?v=20261011-life82';
+import {buildDistrict} from './district.js?v=20261011-life82';
+import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261011-life82';
+import {GunRules} from './gun-rules.js?v=20261011-life82';
+import {weaponById} from './gun-layout.js?v=20261011-life82';
+import {WorldChatStore} from './world-chat-store.js?v=20261011-life82';
+import { ARENA,insideArena } from './world-layout.js?v=20261011-life82';
+import { ATTACKS } from './combat-motion.js?v=20261011-life82';
+import { CharacterStore,cleanCharacter } from './character-store.js?v=20261011-life82';
+import { GYOZA_SKIN,GUEST_SKIN,playableSkin } from './player-types.js?v=20261011-life82';
+import { HousingStore } from './housing-store.js?v=20261011-life82';
+import {BROWN_PROJECTILE,projectileAt,segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261011-life82';
+import {hitShape} from './hit-reaction.js?v=20261011-life82';
+import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js?v=20261011-life82';
+import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261011-life82';
+import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js?v=20261011-life82';
+import {furnitureAction} from './furniture-actions.js?v=20261011-life82';
 const menuBoards=[{x:6,z:11},{x:ARENA.x+3,z:ARENA.z+20},GUN_ENTRY,...GUN_EXIT_BOARDS,...HOUSES.slice(0,8).map(h=>({x:h.x-6,z:h.z+h.front*9}))];
 buildDistrict({box:()=>{},sign:()=>{},board:(x,y,z)=>menuBoards.push({x,y,z}),seats:[],clockHands:[]});
-export const SYNC_VERSION='2026-10-11-vrs-free-cook-81';
+export const SYNC_VERSION='2026-10-11-vrs-life-82';
 // Release labels identify updates; the protocol identifies connection compatibility.
 export const SYNC_PROTOCOL=1;
 export function compatibleSync(message){if(message?.protocol!==undefined)return message.protocol===SYNC_PROTOCOL;return message?.version===SYNC_VERSION||/^2026-10-10-vrs-(entry-37|countdown-38|victory-40|feedback-41|roster-46)$/.test(message?.version||'');}
@@ -60,14 +61,14 @@ export function applyPlayerState(player,state){
   state.equippedWeapon=player.equippedWeapon;state.hitSerial=serial;state.crownEnabled=player.crownEnabled;Object.assign(player,state);
 }
 export class GameRules{
-  constructor(players,broadcast,scores={},save=()=>{},settings={},saveSettings=()=>{},characters={},saveCharacters=()=>{},houses={},saveHouses=()=>{},onAsyncWork=()=>{},chat=[],saveChat=()=>{},kitchens={},saveKitchens=()=>{}){
+  constructor(players,broadcast,scores={},save=()=>{},settings={},saveSettings=()=>{},characters={},saveCharacters=()=>{},houses={},saveHouses=()=>{},onAsyncWork=()=>{},chat=[],saveChat=()=>{},kitchens={},saveKitchens=()=>{},livingRecords={},saveLiving=async()=>{}){
     this.players=players;this.broadcast=broadcast;this.scores=scores;this.save=save;this.ready=new Map();this.duel=null;this.cooldowns=new Map();this.backdrop='GB';
     settings=settings&&typeof settings==='object'?settings:{};
     const goal=Number(settings.goalDamage);this.settings={...settings,goalDamage:Number.isInteger(goal)&&goal>=1&&goal<=100?goal:11};this.saveSettings=saveSettings;this.settingsQueue=Promise.resolve();
     this.characters=new CharacterStore(characters,scores,saveCharacters,(skin,record)=>this.broadcastCharacter(skin,record),()=>this.broadcast({type:'character-save-error',message:'キャラクターの状態をサーバーに保存できませんでした。'}));
     this.houses=new HousingStore(houses,saveHouses,broadcast);this.chat=new WorldChatStore(chat,saveChat);
     this.projectiles=[];this.projectileTimer=null;this.projectileSequence=0;this.onAsyncWork=onAsyncWork;this.projectileFlight=null;this.finishFlight=null;this.cooking=new CookingStore(this,kitchens,saveKitchens);
-    this.settings.cycle=cleanCycle(settings.cycle);this.pianoSteps=new Map();this.records=new Map();this.furnitureStates=new Map();this.furnitureSequence=0;this.guns=new GunRules(this);
+    this.settings.cycle=cleanCycle(settings.cycle);this.pianoSteps=new Map();this.records=new Map();this.furnitureStates=new Map();this.furnitureSequence=0;this.guns=new GunRules(this);this.living=new LivingStore(this,livingRecords,saveLiving);for(const record of Object.values(livingRecords))if(record.furnitureEvent)this.furnitureStates.set(record.index+':'+record.itemId,record.furnitureEvent);
   }
   savedPosition(profile){let p=this.settings.positions?.[profile];if(p?.mirrorRealm&&p.mirrorRealm!=='m|0|shared')p={...p,mirrorRealm:'m|0|shared',x:2000-39,y:.265,z:2000-45-8,yaw:Math.PI};return p&&[p.x,p.y,p.z,p.yaw].every(Number.isFinite)?{...p}:null;}
   savePosition(p,force=false){if(!p.profile||p.ragdoll)return;const now=Date.now();this.positionTimes??=new Map();if(!force&&now-(this.positionTimes.get(p.profile)||0)<5000)return;this.positionTimes.set(p.profile,now);const position={x:p.x,y:p.y,z:p.z,yaw:p.yaw,mirrorRealm:p.mirrorRealm||null};this.settingsQueue=this.settingsQueue.then(async()=>{const settings={...this.settings,positions:{...this.settings.positions,[p.profile]:position}};try{await this.saveSettings(settings);this.settings=settings;}catch{}});this.onAsyncWork(this.settingsQueue);}
@@ -85,7 +86,7 @@ export class GameRules{
     p.skin=skin;p.guest=skin===GUEST_SKIN;Object.assign(p,this.character(skin,p.profile));this.broadcastCharacter(skin);this.broadcast({type:'state',player:p});return true;
   }
   inside(p){return insideArena(p);}
-  snapshot(){this.pruneRecords();return {type:'world',version:SYNC_VERSION,protocol:SYNC_PROTOCOL,gunBattle:this.guns.snapshot(),gunMarks:this.guns.marks.filter(m=>Date.now()-m.at<20000),backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel,cycle:this.settings.cycle,serverNow:Date.now(),records:[...this.records.values()],furnitureStates:[...this.furnitureStates.values()]};}
+  snapshot(){this.pruneRecords();return {type:'world',version:SYNC_VERSION,protocol:SYNC_PROTOCOL,gunBattle:this.guns.snapshot(),gunMarks:this.guns.marks.filter(m=>Date.now()-m.at<20000),backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel,cycle:this.settings.cycle,serverNow:Date.now(),records:[...this.records.values()],living:this.living.snapshot(),furnitureStates:[...this.furnitureStates.values()]};}
   flashlightPreference(profile){return this.settings.flashlights?.[profile]!==false;}
   setFlashlight(p,enabled){
     this.settingsQueue=this.settingsQueue.then(async()=>{try{const settings={...this.settings,flashlights:{...this.settings.flashlights,[p.profile]:enabled}};await this.saveSettings(settings);this.settings=settings;for(const entry of this.entries())if(entry.player.profile===p.profile){entry.player.flashlightEnabled=enabled;this.broadcast({type:'flashlight-state',id:entry.player.id,enabled});}}catch{this.broadcast({type:'flashlight-error',id:p.id,message:'懐中電灯の設定を保存できませんでした'});}});return this.settingsQueue;
@@ -104,7 +105,7 @@ export class GameRules{
     return this.settingsQueue;
   }
   cancel(){if(this.duel){this.duel=null;this.ready.clear();this.broadcast({type:'duel-cancel',reason:'プレイヤーが闘技場から離れたため終了しました'});}}
-  removed(id){this.cooking.remove(id);this.guns.remove(id);this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
+  removed(id){this.onAsyncWork(this.living.remove(id));this.cooking.remove(id);this.guns.remove(id);this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
   state(entry){
     const p=entry.player;this.guns.state(p);this.savePosition(p);
     // One server-owned window per knockdown, never reset by repeat packets.
@@ -174,6 +175,7 @@ export class GameRules{
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
+    if(m.type==='living-action')return this.living.receive(entry,m);
     if(['kitchen-open','kitchen-edit','kitchen-work','cooking-eat','cooking-eat-cancel'].includes(m.type))return this.cooking.receive(entry,m);
     if(m.type==='cooking-save'||m.type==='cooking-finish')return; // Shared transactions supersede per-character snapshots.
     if(m.type==='cooking-stop'){entry.cooking=null;return;}
@@ -218,8 +220,8 @@ export class GameRules{
       entry.lastInstrumentAt=now;const key=h.index+':'+item.id;
       if(family==='chat'){entry.chatTerminal={index:h.index,itemId:item.id};this.broadcast({type:'pc-open',playerId:p.id});return;}
       if(family==='record'){const playing=!this.records.has(key),record={type:'record-state',index:h.index,itemId:item.id,playing,startedAt:now};if(playing)this.records.set(key,record);else this.records.delete(key);this.broadcast(record);return;}
-      if(family==='piano'||family==='instrument'){const step=this.pianoSteps.get(key)||0,note=PIANO_MELODY[step%PIANO_MELODY.length];this.pianoSteps.set(key,(step+1)%PIANO_MELODY.length);this.broadcast({type:family==='piano'?'piano-play':'instrument-play',index:h.index,itemId:item.id,note,instrument:action.instrument,serial:++this.furnitureSequence,playerId:p.id});return;}
-      const previous=this.furnitureStates.get(key),enabled=action.toggle?!(previous?.enabled??action.defaultEnabled):true,event={type:'furniture-event',index:h.index,itemId:item.id,kind:family,enabled,serial:++this.furnitureSequence,playerId:p.id};if(action.toggle)this.furnitureStates.set(key,event);this.broadcast(event);return;
+      if(family==='piano'||family==='instrument'){const step=this.pianoSteps.get(key)||0,note=Number.isInteger(m.note)&&m.note>=0&&m.note<36?m.note:PIANO_MELODY[step%PIANO_MELODY.length];this.pianoSteps.set(key,(step+1)%PIANO_MELODY.length);this.broadcast({type:family==='piano'?'piano-play':'instrument-play',index:h.index,itemId:item.id,note,instrument:action.instrument,serial:++this.furnitureSequence,playerId:p.id});return;}
+      const previous=this.furnitureStates.get(key),enabled=action.toggle?!(previous?.enabled??action.defaultEnabled):true,event={type:'furniture-event',index:h.index,itemId:item.id,kind:family,enabled,serial:++this.furnitureSequence,playerId:p.id};if(action.toggle){this.furnitureStates.set(key,event);this.living.queue=this.living.queue.then(()=>this.living.persist({...this.living.records[key],index:h.index,itemId:item.id,kind:'object',furnitureEvent:event,rev:(this.living.records[key]?.rev||0)+1})).catch(()=>{});this.onAsyncWork(this.living.queue);}this.broadcast(event);return;
     }
     if(m.type==='flashlight-toggle'&&typeof m.enabled==='boolean')return this.setFlashlight(p,m.enabled);
     if(m.type==='housing-op'){const home=houseDescriptor(m.index,this.houses.realms);if(!home||Math.hypot(p.x-home.x,p.z-(home.z+home.front*7.8))>5){this.broadcast({type:'house-state',index:m.index,house:this.houses.snapshots()[m.index],requestId:m.requestId,error:'家の入り口からカスタマイズしてください'});return;}if(this.duel?.ids.includes(p.id)||p.ragdoll){const house=this.houses.snapshots()[m.index];if(house)this.broadcast({type:'house-state',index:m.index,house,requestId:m.requestId,error:'試合・被弾中は家を編集できません'});return;}return Promise.resolve(this.houses.apply(p.skin,m)).then(()=>{this.pruneRecords();const c=this.characters.get(p.skin),total=Object.entries(this.houses.snapshots()).filter(([index])=>houseDescriptor(index,this.houses.realms)?.owner===p.skin).reduce((n,[,h])=>n+(h.items?.length||0),0),peak=Math.max(c.furniturePeak,total);return this.characters.change(p.skin,{furniturePeak:peak,coins:c.coins+Math.floor(peak/5)-Math.floor(c.furniturePeak/5)});});}

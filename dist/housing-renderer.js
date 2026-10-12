@@ -1,18 +1,20 @@
 import * as THREE from 'three';
-import {HOUSES,houseDescriptor,ROOM,FURNITURE_BY_ID,furnitureDefinition,FINISHES,emptyHouse,furniturePose} from './housing-data.js?v=20261012-life87';
-import {furnitureParts} from './furniture-models.js?v=20261012-life87';
-import {createHousingMirrors} from './housing-mirror.js?v=20261012-life87';
-import {createFurnitureEffects} from './furniture-effects.js?v=20261012-life87';
-import {createRecordAudio} from './record-audio.js?v=20261012-life87';
-import {withLocalLighting,setHouseLighting,updateFurnitureLighting,setFurnitureEnabled} from './local-lighting.js?v=20261012-life87';
-import {furnitureGeometry} from './furniture-geometry.js?v=20261012-life87';
-import {furnitureAction} from './furniture-actions.js?v=20261012-life87';
-import {PIANO_MELODY} from './world-clock.js?v=20261012-life87';
+import {HOUSES,houseDescriptor,ROOM,FURNITURE_BY_ID,furnitureDefinition,FINISHES,emptyHouse,furniturePose} from './housing-data.js?v=20261012-life88';
+import {furnitureParts} from './furniture-models.js?v=20261012-life88';
+import {createHousingMirrors} from './housing-mirror.js?v=20261012-life88';
+import {createFurnitureEffects} from './furniture-effects.js?v=20261012-life88';
+import {createRecordAudio} from './record-audio.js?v=20261012-life88';
+import {withLocalLighting,setHouseLighting,updateFurnitureLighting,setFurnitureEnabled} from './local-lighting.js?v=20261012-life88';
+import {furnitureGeometry} from './furniture-geometry.js?v=20261012-life88';
+import {furnitureAction} from './furniture-actions.js?v=20261012-life88';
+import {PIANO_MELODY} from './world-clock.js?v=20261012-life88';
 
-import {furnitureDiningSeats,tableForSeat} from './dining.js?v=20261012-life87';
+import {furnitureDiningSeats,tableForSeat} from './dining.js?v=20261012-life88';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1),materials=new Map();
-function material(color,detail=false,glow=false){const key=color+':'+detail+':'+glow;if(!materials.has(key)){const mat=withLocalLighting(new THREE.MeshStandardMaterial({color,roughness:.84,polygonOffset:detail,polygonOffsetFactor:-1,polygonOffsetUnits:-1,emissive:glow?color:'#000000',emissiveIntensity:glow?.65:0}));if(glow){const compile=mat.onBeforeCompile,cache=mat.customProgramCacheKey();mat.onBeforeCompile=function(shader,renderer){compile.call(this,shader,renderer);shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n#ifdef USE_COLOR\n totalEmissiveRadiance*=vColor.rgb;\n#endif');};mat.customProgramCacheKey=()=>cache+'|fixture-power-1';}materials.set(key,mat);}return materials.get(key);}
+const grainTextures=new Map();
+function furnitureGrain(kind){if(!kind)return null;if(grainTextures.has(kind))return grainTextures.get(kind);const canvas=document.createElement('canvas');canvas.width=canvas.height=16;const c=canvas.getContext('2d');c.fillStyle='#ffffff';c.fillRect(0,0,16,16);for(let y=0;y<16;y++)for(let x=0;x<16;x++){const shade=kind==='wood'?255-((Math.floor(x/4)*3+y*7)%5)*3:255-((x+y)%2)*10;c.fillStyle=`rgb(${shade},${shade},${shade})`;c.fillRect(x,y,1,1);}const texture=new THREE.CanvasTexture(canvas);texture.magFilter=texture.minFilter=THREE.NearestFilter;texture.generateMipmaps=false;texture.colorSpace=THREE.SRGBColorSpace;grainTextures.set(kind,texture);return texture;}
+function material(color,detail=false,glow=false,grain=''){const key=color+':'+detail+':'+glow+':'+grain;if(!materials.has(key)){const mat=withLocalLighting(new THREE.MeshStandardMaterial({color,map:furnitureGrain(grain),roughness:.94,polygonOffset:detail,polygonOffsetFactor:-1,polygonOffsetUnits:-1,emissive:glow?color:'#000000',emissiveIntensity:glow?.65:0}));if(glow){const compile=mat.onBeforeCompile,cache=mat.customProgramCacheKey();mat.onBeforeCompile=function(shader,renderer){compile.call(this,shader,renderer);shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n#ifdef USE_COLOR\n totalEmissiveRadiance*=vColor.rgb;\n#endif');};mat.customProgramCacheKey=()=>cache+'|fixture-power-1';}materials.set(key,mat);}return materials.get(key);}
 function finishMaterial(surface,id){
   const key=surface+':'+id;if(materials.has(key))return materials.get(key);
   const choice=FINISHES[surface].find(f=>f[0]===id)||FINISHES[surface][0],canvas=document.createElement('canvas');canvas.width=canvas.height=64;const ctx=canvas.getContext('2d');ctx.fillStyle=choice[2];ctx.fillRect(0,0,64,64);
@@ -68,7 +70,7 @@ export function createHousingRenderer(scene,world,{environment=null}={}){
     if(existing?.meshes.length&&existing.geometryKey===geometryKey){const previous=new Map(existing.layout.items.map(i=>[i.id,i]));let moved=false;existing.layout=layout;for(const item of layout.items){if(JSON.stringify(previous.get(item.id))===JSON.stringify(item))continue;moved=true;for(const ref of existing.references.get(item.id)||[])syncReference(ref,item);}if(moved){for(const mesh of existing.meshes){mesh.computeBoundingSphere();mesh.boundingSphere.radius+=2;}colliders(index,layout);setHouseLighting(index,layout);}return;}
     const h=houseDescriptor(index),room=ensureRoom(index);if(!room)return;for(const item of room.layout.items)if(!layout.items.some(next=>next.id===item.id)){furnitureStates.delete(index+':'+item.id);offlineNotes.delete(index+':'+item.id);room.runtime.delete(item.id);setFurnitureEnabled(index,item.id,true);}for(const entry of room.mirrors)mirrors.remove(entry);room.mirrors=[];room.animated=[];for(const mesh of room.meshes){room.group.remove(mesh);mesh.dispose?.();}room.meshes=[];room.finishes=[];room.references.clear();room.layout=layout;room.geometryKey=geometryKey;
     const batches=new Map(),push=(key,mat,part,item=null,hidden=false)=>{if(!batches.has(key))batches.set(key,{mat,parts:[],hidden,detail:part.detail===true});batches.get(key).parts.push({part,item});};
-    for(const item of layout.items)for(const part of furnitureParts(item)){push((part.shape||'box')+':'+!!part.detail+':'+!!part.glow,material('#ffffff',part.detail,part.glow),part,item);if(part.mirror){const entry=mirrors.add(room.group,item.id,part),ref={mesh:entry.mesh,part,mirror:true,house:index,action:furnitureAction(FURNITURE_BY_ID.get(item.t))};room.mirrors.push(entry);if(!room.references.has(item.id))room.references.set(item.id,[]);room.references.get(item.id).push(ref);syncReference(ref,item);}}
+    for(const item of layout.items)for(const part of furnitureParts(item)){const def=FURNITURE_BY_ID.get(item.t),grain=part.detail||part.glow?'':part.c==='#bd9166'?'wood':['sofa','bed','canopy'].includes(def?.family)&&!['#354353','#87929a'].includes(part.c)?'cloth':'';push((part.shape||'box')+':'+!!part.detail+':'+!!part.glow+':'+grain,material('#ffffff',part.detail,part.glow,grain),part,item);if(part.mirror){const entry=mirrors.add(room.group,item.id,part),ref={mesh:entry.mesh,part,mirror:true,house:index,action:furnitureAction(FURNITURE_BY_ID.get(item.t))};room.mirrors.push(entry);if(!room.references.has(item.id))room.references.set(item.id,[]);room.references.get(item.id).push(ref);syncReference(ref,item);}}
     const floor={x:0,y:-.009,z:0,w:ROOM.x*2,h:.018,d:ROOM.z*2};push('floor',finishMaterial('floor',layout.finish.floor),floor);
     const panels=[{x:0,y:ROOM.height/2,z:-6.925,w:14.8,h:ROOM.height,d:.025,wallZ:-1},...[-1,1].map(sign=>({x:sign*7.425,y:ROOM.height/2,z:0,w:.025,h:ROOM.height,d:13.8,wallX:sign})),...[-1,1].map(sign=>({x:sign*4.85,y:ROOM.height/2,z:6.925,w:5.1,h:ROOM.height,d:.025,wallZ:1})),{x:0,y:4.53,z:6.925,w:4.6,h:1.44,d:.025,wallZ:1}];
     for(const p of panels)push('wall:'+p.wallX+':'+p.wallZ,finishMaterial('wallpaper',layout.finish.wallpaper),p);

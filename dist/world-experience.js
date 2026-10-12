@@ -1,12 +1,12 @@
-import {createGunEffects} from './gun-effects.js?v=20261012-life87';
-import {createBodycam} from './bodycam.js?v=20261012-life87';
-import {createWorldAudio} from './world-audio.js?v=20261012-life87';
-import {createWorldInteraction} from './world-interaction.js?v=20261012-life87';
-import {fallbackMuzzle} from './weapon-dimensions.js?v=20261012-life87';
-import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261012-life87';
+import {createGunEffects} from './gun-effects.js?v=20261012-life88';
+import {createBodycam} from './bodycam.js?v=20261012-life88';
+import {createWorldAudio} from './world-audio.js?v=20261012-life88';
+import {createWorldInteraction} from './world-interaction.js?v=20261012-life88';
+import {fallbackMuzzle} from './weapon-dimensions.js?v=20261012-life88';
+import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261012-life88';
 import * as THREE from 'three';
-import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js?v=20261012-life87';
-import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261012-life87';
+import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js?v=20261012-life88';
+import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261012-life88';
 export function createWorldExperience({scene,camera,get,send,notify,openChat,openMenu,onModal,onTeleport,onCharacter,onAim,makeFace,skinURL,names,openMap}){
  const positionKey='vrs-last-position'+(new URL(location.href).searchParams.get('vrsDepth')?'-embedded-'+new URL(location.href).searchParams.get('vrsDepth'):'');
  const shell=document.createElement('div');shell.innerHTML=`

@@ -1,5 +1,5 @@
-import {compatibleSync} from './game-rules.js?v=20261012-life87';
-import {BUILD_ID,RELEASE_ID} from './build-info.js?v=20261012-life87';
+import {compatibleSync} from './game-rules.js?v=20261012-life88';
+import {BUILD_ID,RELEASE_ID} from './build-info.js?v=20261012-life88';
 export function startUpdateNotice({endpoint,version}){
  const notice=document.getElementById('updateNotice');let busy=false,clientUpdate=false,incompatible=false,explicit=false;
  const draw=()=>{notice.hidden=!(explicit||clientUpdate||incompatible);};

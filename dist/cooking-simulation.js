@@ -1,4 +1,4 @@
-import {FOOD_BY_ID} from './cooking-data.js?v=20261012-life87';
+import {FOOD_BY_ID} from './cooking-data.js?v=20261012-life88';
 export function advanceCookingHeat(v,elapsed,dt){
  // Short integration steps preserve warm-up time, evaporation and timer expiry
  // even when a saved Durable Object wakes after nobody has been watching it.

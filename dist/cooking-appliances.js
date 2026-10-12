@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import {part} from './cooking-models.js?v=20261012-life87';
-import {cookingLabel} from './cooking-labels.js?v=20261012-life87';
+import {part} from './cooking-models.js?v=20261012-life88';
+import {cookingLabel} from './cooking-labels.js?v=20261012-life88';
 export function cookingAppliance(station,state,pickable){
  const root=new THREE.Group(),door=new THREE.Group(),inside=new THREE.Group(),w=station.w*.88,h=station.h*.88,d=station.d*.88;
  pickable(root,station,'appliance-body');root.add(inside);inside.visible=!!state.open;

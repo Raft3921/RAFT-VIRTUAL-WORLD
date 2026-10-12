@@ -1,7 +1,7 @@
-import {changePaintHistory,appendPaint} from './painting-history.js?v=20261012-life87';
-import {furnitureAction} from './furniture-actions.js?v=20261012-life87';
-import {FURNITURE_BY_ID,houseDescriptor,ROOM} from './housing-data.js?v=20261012-life87';
-import {livingKind,livingPose,rhythm,chessStart,chessMove} from './living-shared.js?v=20261012-life87';
+import {changePaintHistory,appendPaint} from './painting-history.js?v=20261012-life88';
+import {furnitureAction} from './furniture-actions.js?v=20261012-life88';
+import {FURNITURE_BY_ID,houseDescriptor,ROOM} from './housing-data.js?v=20261012-life88';
+import {livingKind,livingPose,rhythm,chessStart,chessMove} from './living-shared.js?v=20261012-life88';
 // No physics loop: machines advance from server timestamps; clients send intentions.
 export class LivingStore{
  constructor(rules,records={},save=async()=>{}){this.rules=rules;this.records=records;this.save=save;this.runs=new Map();this.queue=Promise.resolve();}

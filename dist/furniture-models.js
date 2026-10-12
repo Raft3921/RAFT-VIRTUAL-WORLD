@@ -1,6 +1,6 @@
-import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261012-life87';
-import {expandedParts} from './furniture-shapes.js?v=20261012-life87';
-import {furnitureAction} from './furniture-actions.js?v=20261012-life87';
+import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261012-life88';
+import {expandedParts} from './furniture-shapes.js?v=20261012-life88';
+import {furnitureAction} from './furniture-actions.js?v=20261012-life88';
 const WOOD='#bd9166',DARK='#354353',METAL='#87929a',WHITE='#f4eee2',LEAF='#52a96d';
 const partsCache=new Map();
 export function furnitureParts(item){
@@ -41,8 +41,8 @@ export function furnitureParts(item){
     case 'sink':box(0,.43,0,1,.86,1);box(0,.94,0,1,.12,1,WHITE);for(const x of [-.25,.25]){box(x,.44,.505,.46,.78,.02,WOOD);box(x,.69,.52,.16,.03,.03,DARK,true);}box(0,1.002,0,.6,.02,.6,DARK);box(0,1.08,-.24,.045,.2,.045,METAL);box(0,1.18,-.12,.045,.045,.3,METAL);break;
     case 'fridge':box(0,.5,0,1,1,1,WHITE);box(0,.75,.51,.96,.45,.02,paint);box(0,.25,.51,.96,.46,.02,paint);for(const y of [.35,.68])box(.31,y,.55,.04,.16,.06,DARK,true);break;
     case 'oven':box(0,.45,0,1,.9,1);box(0,.94,0,1,.12,1,WHITE);box(0,.48,.51,.78,.47,.03,DARK);box(0,.75,.54,.6,.035,.04,METAL,true);for(const x of [-.25,.25])for(const z of [-.23,.23])box(x,1.001,z,.25,.01,.25,DARK,true);break;
-    case 'tv':box(0,.2,0,1,.4,1,WOOD);box(0,.44,-.1,.2,.2,.1,DARK);box(0,.75,-.1,.95,.5,.12,DARK);box(0,.75,-.03,.88,.42,.02,paint);box(0,.8,-.015,.55,.03,.008,WHITE,true);break;
-    case 'computer':legs(.57);box(0,.6,0,1,.06,1,WOOD);box(0,.7,-.23,.16,.16,.08,DARK);box(0,.87,-.23,.6,.26,.08,DARK);box(0,.87,-.18,.54,.21,.025,paint);box(0,.65,.22,.42,.035,.22,DARK,true);box(.35,.35,-.1,.18,.5,.5,DARK);break;
+    case 'tv':box(0,.2,0,1,.4,1,WOOD);box(0,.44,-.1,.2,.2,.1,DARK);box(0,.70,-.1,.95,.60,.09,DARK);box(0,.70,-.045,.88,.88*f.w/f.h*9/16,.018,'#8fbac9');parts[parts.length-1].role='screen';break;
+    case 'computer':legs(.57);box(0,.6,0,1,.06,1,WOOD);box(0,.655,-.23,.3,.03,.22,DARK);box(0,.72,-.23,.08,.14,.06,METAL);box(0,.835,-.23,.50,.33,.055,DARK);box(0,.835,-.193,.44,.44*f.w/f.h/1.6,.018,'#8fbac9');parts[parts.length-1].role='screen';box(-.07,.646,.16,.44,.02,.24,DARK);for(let j=0;j<3;j++)box(-.07,.658,.085+j*.065,.39,.006,.018,METAL,true);box(.29,.65,.2,.085,.027,.12,DARK);box(.35,.3,-.1,.17,.47,.48,DARK);box(.35,.43,.145,.11,.045,.01,METAL,true);break;
     case 'piano':legs(.5);box(0,.68,-.27,1,.6,.46,paint);box(0,.52,.17,1,.07,.58,WHITE);for(let i=0;i<14;i++){box(-.44+i*.068,.575,.15,.025,.035,.28,DARK,true);motion('key',{key:i});}break;
     case 'record':legs(.5);box(0,.59,0,1,.18,1,WOOD);box(0,.72,0,.8,.09,.8,paint);box(-.12,.775,0,.4,.015,.4,DARK);motion('spin',{rate:.8});box(.21,.85,-.04,.035,.04,.5,METAL,true);box(0,.4,.51,.65,.22,.03,DARK,true);break;
     case 'plant':case 'bonsai':{
@@ -78,11 +78,11 @@ export function furnitureParts(item){
   }
   const shift=f.mount==='wall'?-f.h*.44:f.mount==='ceiling'?-f.h*.88:0,light=f.light||['lamp','sconce','pendant','chandelier','fan','ceiling-light','light-bar'].includes(f.family),action=furnitureAction(f);for(const p of parts){
     if(['screen','chat'].includes(action.kind)&&p.d<f.d*.18&&(p.c===paint||p.c==='#8fbac9'||['vr','projector'].includes(f.design)&&p.z>f.d*.2))p.role='screen';
-    if((action.kind==='door'||['washer','dryer','microwave','dishwasher'].includes(f.design))&&p.z>f.d*.30&&p.d<f.d*.20)p.role='door';
+    if(!p.role&&(action.kind==='door'||['washer','dryer','microwave','dishwasher'].includes(f.design))&&p.z>f.d*.30&&p.d<f.d*.20)p.role='door';
     if(action.kind==='door'&&['rice','trash','recycle','trunk','suitcase'].includes(f.design)&&p.y>f.h*.72&&p.h<f.h*.18&&p.w>f.w*.4)p.role='lid';
     if(action.kind==='curtain'&&p.h>f.h*.3&&p.c!==METAL)p.role='curtain';
     if(['washer','dryer'].includes(f.design)&&p.role==='door'){p.doorPivot=[-f.w*.33,f.h*.47,f.d*.45];p.doorSign=-1;}
-    if(['washer','dryer','microwave','dishwasher'].includes(f.design)&&p.detail&&p.y>f.h*.65)p.role='button';
+    if(!p.role&&['washer','dryer','microwave','dishwasher'].includes(f.design)&&p.detail&&p.y>f.h*.65)p.role='button';
     p.y+=shift;if(p.pivot)p.pivot[1]+=shift;if(p.detail&&f.family!=='rug'&&f.solid!==false)p.z+=.001;p.glow=light&&p.c===WHITE;
   }
   const doors=parts.filter(p=>p.role==='door'&&p.w>f.w*.15&&p.h>f.h*.2),lids=parts.filter(p=>p.role==='lid');

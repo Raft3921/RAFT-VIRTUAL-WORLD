@@ -1,18 +1,18 @@
 import * as THREE from 'three';
-import {copy,same,kitchenIdentity,kitchenResources} from './cooking-shared.js?v=20261012-life84';
-import {cookingAppliance,cookingToolStand} from './cooking-appliances.js?v=20261012-life84';
-import {tableForObject} from './dining.js?v=20261012-life84';
-import {cookingLabel} from './cooking-labels.js?v=20261012-life84';
-import {cookingCabinet} from './cooking-storage.js?v=20261012-life84';
-import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261012-life84';
-import {recognizeKitchens,pinKitchenBoard} from './kitchen-layout.js?v=20261012-life84';
-import {ROOM,FURNITURE_BY_ID,furniturePose} from './housing-data.js?v=20261012-life84';
-import {INGREDIENTS,fridgeFoods,FOOD_BY_ID,FOOD_GROUPS,SEASONINGS,CUTS,COOK_METHODS,cleanMeal,describeDish} from './cooking-data.js?v=20261012-life84';
-import {createCookingMotion} from './cooking-motion.js?v=20261012-life84';
-import {toolModel,seasoningModel} from './cooking-tools.js?v=20261012-life84';
-import {fridgeModel} from './cooking-fridge.js?v=20261012-life84';
-import {createCookingPlacement} from './cooking-placement.js?v=20261012-life84';
-import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261012-life84';
+import {copy,same,kitchenIdentity,kitchenResources} from './cooking-shared.js?v=20261012-life85';
+import {cookingAppliance,cookingToolStand} from './cooking-appliances.js?v=20261012-life85';
+import {tableForObject} from './dining.js?v=20261012-life85';
+import {cookingLabel} from './cooking-labels.js?v=20261012-life85';
+import {cookingCabinet} from './cooking-storage.js?v=20261012-life85';
+import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261012-life85';
+import {recognizeKitchens,pinKitchenBoard} from './kitchen-layout.js?v=20261012-life85';
+import {ROOM,FURNITURE_BY_ID,furniturePose} from './housing-data.js?v=20261012-life85';
+import {INGREDIENTS,fridgeFoods,FOOD_BY_ID,FOOD_GROUPS,SEASONINGS,CUTS,COOK_METHODS,cleanMeal,describeDish} from './cooking-data.js?v=20261012-life85';
+import {createCookingMotion} from './cooking-motion.js?v=20261012-life85';
+import {toolModel,seasoningModel} from './cooking-tools.js?v=20261012-life85';
+import {fridgeModel} from './cooking-fridge.js?v=20261012-life85';
+import {createCookingPlacement} from './cooking-placement.js?v=20261012-life85';
+import {part,foodModel,vesselModel,animateCookingModel} from './cooking-models.js?v=20261012-life85';
 const toolNames={knife:'包丁',peeler:'ピーラー',grater:'おろし金',whisk:'泡立て器',spatula:'木べら',ladle:'おたま',tongs:'トング',colander:'ざる','rolling-pin':'めん棒',mitt:'ミトン',sponge:'スポンジ',board:'まな板',plate:'空のお皿'};
 const vesselNames={pan:'フライパン',pot:'鍋',bowl:'ボウル',jug:'水差し'},capacity={pan:.8,pot:3,bowl:1.5,jug:1.5};
 export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onReposition=point=>get().player.position.copy(point),onMenu=()=>{},onPrecisionChange=()=>{}}){
@@ -155,7 +155,7 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
  }
  function selectTarget(ndc={x:0,y:0}){
   target=null;picked=null;if(!session)return;camera.updateMatrixWorld(true);raycaster.setFromCamera(ndc,camera);
-  let best=running?3.6:10;const range=best,h=zone.home;
+  let best=3.6;const range=best,h=zone.home;
   for(const station of zone.stations){
    const yaw=station.yaw+(h.front<0?Math.PI:0),center=new THREE.Vector3(h.x+station.x*h.front,ROOM.floor+station.centerY,h.z+station.z*h.front);
    const local=raycaster.ray.clone();local.origin.sub(center).applyAxisAngle(upAxis,-yaw);local.direction.applyAxisAngle(upAxis,-yaw);
@@ -274,7 +274,7 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
  }
  function heldName(){const h=session.hand;return h?.type==='food'?FOOD_BY_ID.get(h.food.id).name:h?.type==='tool'?toolNames[h.id]:h?.type==='seasoning'?SEASONINGS[h.id]:h?.type==='vessel'?vesselNames[h.id]:'空き';}
  hud.onclick=event=>{const button=event.target.closest('button[data-act]');if(button&&!button.disabled)action(button.dataset.act);};start.onclick=begin;
- function scan(){const s=get(),zones=[];let hint='';for(const [index,room]of Object.entries(s.housing?.rooms||{})){if(!room.layout||!s.player||Math.abs(s.player.position.x-room.group.position.x)>ROOM.x+3||Math.abs(s.player.position.z-room.group.position.z)>ROOM.z+3)continue;const key=index+':'+JSON.stringify(room.layout.items);let result=cache.get(key);if(!result){result=recognizeKitchens(index,room.layout);cache.set(key,result);if(cache.size>100)cache.delete(cache.keys().next().value);}zones.push(...result.zones);if(s.player&&Math.abs(s.player.position.x-room.group.position.x)<ROOM.x&&Math.abs(s.player.position.z-room.group.position.z)<ROOM.z&&room.layout.items.some(i=>i.t==='kitchen'||i.t==='island'))hint=result.reason;}near=s.cameraMode==='first'&&s.connected&&s.inStudio&&!s.paused&&!s.ragdoll&&!s.seated&&!s.sleeping&&!s.inBattle?zones.find(z=>z.allowed(s.player.position)&&Math.abs(s.player.position.y-ROOM.floor)<.8):null;start.hidden=s.cameraMode!=='first'||precisionMode()||!near&&!hint;start.disabled=!near;start.textContent=near?(session?'クッキングを再開する':'自由にクッキングを始める'):hint;}
+ function scan(){const s=get(),zones=[];let hint='';for(const [index,room]of Object.entries(s.housing?.rooms||{})){if(!room.layout||!s.player||Math.abs(s.player.position.x-room.group.position.x)>ROOM.x+3||Math.abs(s.player.position.z-room.group.position.z)>ROOM.z+3)continue;const key=index+':'+JSON.stringify(room.layout.items);let result=cache.get(key);if(!result){result=recognizeKitchens(index,room.layout);cache.set(key,result);if(cache.size>100)cache.delete(cache.keys().next().value);}zones.push(...result.zones);if(s.player&&Math.abs(s.player.position.x-room.group.position.x)<ROOM.x&&Math.abs(s.player.position.z-room.group.position.z)<ROOM.z&&room.layout.items.some(i=>i.t==='kitchen'||i.t==='island'))hint=result.reason;}near=s.cameraMode==='first'&&s.connected&&s.inStudio&&!s.paused&&!s.ragdoll&&!s.seated&&!s.sleeping&&!s.inBattle?zones.find(z=>z.allowed(s.player.position)&&Math.abs(s.player.position.y-ROOM.floor)<.8):null;start.hidden=true;}
  function vesselStatus(v){
   const wet=v.water>.01,waiting=['boil','simmer','steam'].includes(v.mode)&&(!wet||v.mode==='steam'&&!v.covered);
   return vesselNames[v.kind]+' · '+Math.round(v.temperature)+'℃ · '+COOK_METHODS[v.mode]+' '+timeLabel(v.cookSeconds)+(v.timer?'\n残り '+timeLabel(v.timer.remaining)+(waiting?'（水・ふたを確認）':v.temperature<92&&wet?'（沸騰待ち）':''):v.timerDone?'\nタイマー終了・消火済み':'')+' · 水 '+v.water.toFixed(1)+'L';
@@ -299,7 +299,7 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
   if(task.id==='cut'&&knife){knife.position.y=.04+Math.abs(Math.sin(session.elapsed*12))*.12;knife.rotation.z=Math.sin(session.elapsed*12)*.2;}
   if(task.remaining===0&&!pending&&get().connected){const finished=task;task=null;send({type:'kitchen-work',index:zone.index,kitchenId:zone.id,cancel:true});useCounter(finished.station);session.boardIndex=finished.foodIndex;session.cutMode=finished.cutMode;action(finished.id,true,finished.station,finished.vesselId);if(knife){knife.position.y=.03;knife.rotation.z=0;}}
  }
- function worldInteraction(ndc){const state=get();if(!session||running||state.cameraMode!=='first'||state.paused||!state.inStudio||state.ragdoll||state.inBattle)return false;if(session.hand?.type==='dish')return releaseHand(ndc);selectTarget(ndc);if(state.seated&&!session.hand&&picked?.type==='loose'&&picked.body.payload.type==='dish'){const meal=tableMeal(picked.body.payload.dish.id);if(meal){startEating(meal);return true;}}if(!target){if(session.hand)return releaseHand(ndc);return false;}if(!picked&&!session.hand)return false;useCounter(target);if(target.role==='stove')session.activeStoveId=target.item.id;return directUse(ndc);}
+ function worldInteraction(ndc){const state=get();if(!session||running||state.cameraMode!=='first'||state.paused||!state.inStudio||state.ragdoll||state.inBattle)return false;if(session.hand?.type==='dish')return releaseHand(ndc);selectTarget(ndc);if(state.seated&&!session.hand&&picked?.type==='loose'&&picked.body.payload.type==='dish'){const meal=tableMeal(picked.body.payload.dish.id);if(meal){startEating(meal);return true;}}if(!target){if(session.hand)return releaseHand(ndc);return false;}if(!inReach(target))return false;useCounter(target);if(target.role==='stove')session.activeStoveId=target.item.id;return directUse(ndc);}
  function showRating(rating){ratingHUD.textContent=rating.name+'\n'+'★'.repeat(rating.stars)+'☆'.repeat(5-rating.stars)+'\n'+rating.label;ratingHUD.hidden=false;setTimeout(()=>{ratingHUD.hidden=true;},8000);}
  function tableAt(point,preferredId=''){return tableForObject(get().housing.rooms[zone.index]?.layout,zone.home,point,preferredId);}
  function tableMeal(preferredId=eating?.id){
@@ -330,7 +330,7 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
  function update(dt,now){
   const state=get();
   if(session&&session.ownerSkin!==state.skin){if(running)end();disposeWorkspace();}
-  if(!running&&now-lastScan>700){lastScan=now;scan();const display=near||[...shared.values()].map(r=>recognizeKitchens(r.state.index,state.housing.rooms[r.state.index]?.layout).zones.find(z=>z.id===r.state.kitchenId)).find(z=>z&&Math.abs(state.player.position.x-z.home.x)<ROOM.x&&Math.abs(state.player.position.z-z.home.z)<ROOM.z&&state.housing.rooms[z.index]?.group.visible);if(display&&(!session||String(zone.index)!==String(display.index)||zone.id!==display.id)&&!session?.hand){if(session)disposeWorkspace();zone=display;createSession();requestKitchen();}}
+  if(!running&&now-lastScan>250){lastScan=now;scan();const display=near||[...shared.values()].map(r=>recognizeKitchens(r.state.index,state.housing.rooms[r.state.index]?.layout).zones.find(z=>z.id===r.state.kitchenId)).find(z=>z&&Math.abs(state.player.position.x-z.home.x)<ROOM.x&&Math.abs(state.player.position.z-z.home.z)<ROOM.z&&state.housing.rooms[z.index]?.group.visible);if(display&&(!session||String(zone.index)!==String(display.index)||zone.id!==display.id)&&!session?.hand){if(session)disposeWorkspace();zone=display;createSession();requestKitchen();}}
   if(!session)return;
   if(state.player&&zone&&!session.hand&&!running&&!precisionMode()&&(Math.abs(state.player.position.x-zone.home.x)>ROOM.x+4||Math.abs(state.player.position.z-zone.home.z)>ROOM.z+4)){disposeWorkspace();return;}
   const room=state.housing?.rooms[zone.index];

@@ -164,8 +164,8 @@ export function expandedParts(f,paint,box,motion,parts){
       if(['drums','e-drums','snare'].includes(s)){for(const [x,z,y,w]of s==='snare'?[[0,0,.65,.9]]:[[-.29,-.1,.65,.34],[.22,-.1,.7,.32],[0,.28,.35,.5]]){B(x,y-.17,z,w,.3,w,paint);disk(x,y, z,w,.035,w,WHITE,5);B(x,y/2-.08,z,.025,y-.17,.025,METAL);}if(s!=='snare')for(const x of [-.42,.42]){B(x,.47,-.28,.02,.88,.025,METAL);disk(x,.9,-.28,.31,.035,.31,'#d3ac58',5);}break;}
       if(s==='harp'){B(0,.04,0,.95,.08,.8,WOOD);B(-.4,.5,0,.11,1,.13,WOOD);B(.35,.5,0,.07,1,.1,WOOD);B(0,.93,0,.85,.12,.18,WOOD);for(let j=0;j<7;j++)B(-.28+j*.085,.52,0,.008,.82,.012,WHITE);break;}
       if(s==='keyboard'){fourLegs(.7,METAL);B(0,.81,0,1,.16,1,DARK);for(let j=0;j<12;j++){B(-.45+j*.082,.9,.12,.07,.025,.5,WHITE,true);motion('key',{key:j,keySpan:12});}break;}
-      if(s==='easel'){for(const x of [-.36,.36])B(x,.5,-.1,.055,1,.065,WOOD);B(0,.35,-.35,.05,.7,.06,WOOD);B(0,.6,0,.85,.64,.055,WOOD);B(0,.6,.04,.78,.56,.025,WHITE);B(-.12,.63,.057,.22,.12,.01,paint,true);B(0,.29,.045,1,.035,.14,WOOD);break;}
-      if(s==='canvas'){B(0,.5,0,1,1,.55,WOOD);B(0,.5,.32,.94,.94,.03,WHITE);for(let j=0;j<4;j++)B(-.3+j*.2,.3+j%2*.3,.345,.14,.2,.012,paint,true);break;}
+      if(s==='easel'){for(const x of [-.36,.36])B(x,.5,-.1,.055,1,.065,WOOD);B(0,.35,-.35,.05,.7,.06,WOOD);B(0,.6,0,.85,.64,.055,WOOD);B(0,.6,.04,.78,.56,.025,WHITE);parts[parts.length-1].role='canvas';B(0,.29,.045,1,.035,.14,WOOD);break;}
+      if(s==='canvas'){B(0,.5,0,1,1,.55,WOOD);B(0,.5,.32,.94,.94,.03,WHITE);parts[parts.length-1].role='canvas';break;}
       if(s==='bike'){B(0,.07,0,.8,.14,.95,METAL);B(0,.37,0,.35,.5,.5,DARK);B(0,.74,-.26,.05,.7,.07,METAL);B(0,.95,-.26,.65,.05,.06,DARK);B(0,.61,.18,.06,.4,.07,METAL);B(0,.8,.18,.4,.08,.24,paint);break;}
       if(s==='treadmill'){B(0,.06,0,1,.12,1,DARK);B(0,.135,.12,.8,.025,.68,paint);for(const x of [-.4,.4])B(x,.5,-.37,.055,.9,.07,METAL);B(0,.95,-.35,.95,.07,.23,DARK);screen(0,.96,-.31,.42,.07);break;}
       if(s==='yoga'){B(0,.4,0,1,.8,1,paint);for(let j=0;j<6;j++)B(0,.82,-.38+j*.15,.85,.015,.025,WHITE,true);break;}

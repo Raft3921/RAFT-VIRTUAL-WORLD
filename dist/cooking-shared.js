@@ -1,4 +1,4 @@
-import {cleanKitchenState,cleanCarry} from './cooking-state.js?v=20261011-life82';
+import {cleanKitchenState,cleanCarry} from './cooking-state.js?v=20261012-life83';
 export const copy=value=>value==null?value:JSON.parse(JSON.stringify(value));
 export const same=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);
 export const kitchenIdentity=(index,id)=>String(index)+'/'+id;

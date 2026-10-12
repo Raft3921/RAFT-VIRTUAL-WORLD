@@ -169,7 +169,7 @@ export function expandedParts(f,paint,box,motion,parts){
       if(s==='bike'){B(0,.07,0,.8,.14,.95,METAL);B(0,.37,0,.35,.5,.5,DARK);B(0,.74,-.26,.05,.7,.07,METAL);B(0,.95,-.26,.65,.05,.06,DARK);B(0,.61,.18,.06,.4,.07,METAL);B(0,.8,.18,.4,.08,.24,paint);break;}
       if(s==='treadmill'){B(0,.06,0,1,.12,1,DARK);B(0,.135,.12,.8,.025,.68,paint);for(const x of [-.4,.4])B(x,.5,-.37,.055,.9,.07,METAL);B(0,.95,-.35,.95,.07,.23,DARK);screen(0,.96,-.31,.42,.07);break;}
       if(s==='yoga'){B(0,.4,0,1,.8,1,paint);for(let j=0;j<6;j++)B(0,.82,-.38+j*.15,.85,.015,.025,WHITE,true);break;}
-      if(s==='sewing'){B(0,.055,0,1,.11,1,WHITE);B(-.3,.48,-.18,.25,.86,.4,paint);B(0,.86,-.18,.85,.18,.4);B(.23,.5,-.18,.05,.55,.04,METAL);break;}
+      if(s==='sewing'){B(0,.055,0,1,.11,1,WHITE);B(-.3,.48,-.18,.25,.86,.4,paint);B(0,.86,-.18,.85,.18,.4);B(.23,.5,-.18,.05,.55,.04,METAL);motion('sew');break;}
       if(s==='vinyl'){shelf(1,3);for(let j=0;j<6;j++)B(-.4+j*.16,.52,0,.065,.75,.8,j%2?paint:DARK);break;}
       B(0,.14,0,.95,.28,.94,WOOD);if(s==='palette')for(let j=0;j<5;j++)B(-.3+j*.15,.32,0,.08,.07,.08,j%2?paint:WHITE);else for(let j=0;j<5;j++)B(-.3+j*.15,.54,(j%2-.5)*.2,.07,.78,.07,j%2?paint:METAL);break;
     }

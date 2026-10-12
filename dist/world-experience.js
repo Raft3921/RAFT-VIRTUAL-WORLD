@@ -1,12 +1,12 @@
-import {createGunEffects} from './gun-effects.js?v=20261011-life82';
-import {createBodycam} from './bodycam.js?v=20261011-life82';
-import {createWorldAudio} from './world-audio.js?v=20261011-life82';
-import {createWorldInteraction} from './world-interaction.js?v=20261011-life82';
-import {fallbackMuzzle} from './weapon-dimensions.js?v=20261011-life82';
-import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261011-life82';
+import {createGunEffects} from './gun-effects.js?v=20261012-life83';
+import {createBodycam} from './bodycam.js?v=20261012-life83';
+import {createWorldAudio} from './world-audio.js?v=20261012-life83';
+import {createWorldInteraction} from './world-interaction.js?v=20261012-life83';
+import {fallbackMuzzle} from './weapon-dimensions.js?v=20261012-life83';
+import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261012-life83';
 import * as THREE from 'three';
-import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js?v=20261011-life82';
-import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261011-life82';
+import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js?v=20261012-life83';
+import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261012-life83';
 export function createWorldExperience({scene,camera,get,send,notify,openChat,openMenu,onModal,onTeleport,onCharacter,onAim,makeFace,skinURL,names,openMap}){
  const positionKey='vrs-last-position'+(new URL(location.href).searchParams.get('vrsDepth')?'-embedded-'+new URL(location.href).searchParams.get('vrsDepth'):'');
  const shell=document.createElement('div');shell.innerHTML=`
@@ -30,15 +30,16 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
  const tracerPool=Array.from({length:16},()=>({life:0,start:new THREE.Vector3(),end:new THREE.Vector3()}));let tracerCursor=0;const tracers=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshBasicMaterial({color:'#ffe5b2',transparent:true,opacity:.7,depthWrite:false,blending:THREE.AdditiveBlending}),16);tracers.frustumCulled=false;tracers.visible=false;scene.add(tracers);function trace(start,end){const t=tracerPool[tracerCursor++%tracerPool.length];t.start.copy(start);t.end.copy(end);t.life=.065;}
  const holes=new THREE.InstancedMesh(new THREE.CircleGeometry(1,7),new THREE.MeshBasicMaterial({color:'#33261c',side:THREE.DoubleSide,transparent:true,opacity:.8,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}),maxMarks);holes.frustumCulled=false;scene.add(holes);
  function sound(id,position){worldAudio.shot(position,get());}
- function close(){const chat=$('worldChat');if(chat.dataset.pcEmbedded==='true'){chat.hidden=true;delete chat.dataset.pcEmbedded;document.body.append(chat);document.body.dataset.chatting='false';} $('roomPlayersPanel').hidden=$('pcDesktop').hidden=$('teamPanel').hidden=true;$('pcContent').replaceChildren();held=false;scoped=false;onModal(false);}
+ function releaseEmbeddedChat(){const chat=$('worldChat');if(chat?.dataset.pcEmbedded==='true')chat.dispatchEvent(new Event('vrs-chat-release'));}
+ function close(){releaseEmbeddedChat();$('roomPlayersPanel').hidden=$('pcDesktop').hidden=$('teamPanel').hidden=true;$('pcContent').replaceChildren();held=false;scoped=false;onModal(false);}
  function renderRoomPlayers(){const list=$('roomPlayersList'),players=get().roster||[],key=players.map(p=>p.id+':'+p.skin).join('|');if(list.dataset.rosterKey===key)return;list.dataset.rosterKey=key;list.replaceChildren();for(const player of players){const row=document.createElement('div');row.className='room-player-row';const face=document.createElement('span');makeFace(skinURL(player.skin),face);const label=document.createElement('span');label.textContent=(names[player.skin]||'ゲスト')+(player.id===get().selfId?'（自分）':'')+' · '+player.id.slice(-6);const button=document.createElement('button');button.textContent='退出';button.onclick=()=>{send({type:'room-kick',playerId:player.id});button.disabled=true;button.textContent='退出中…';};row.append(face,label,button);list.append(row);}if(!players.length)list.textContent='接続中のプレイヤーはいません';}
  function roomPlayers(){close();onModal(true);$('roomPlayersPanel').hidden=false;delete $('roomPlayersList').dataset.rosterKey;renderRoomPlayers();}
  $('closeRoomPlayers').onclick=close;
  function desktop(){close();onModal(true);$('pcDesktop').hidden=false;$('pcContent').innerHTML='<p>アプリを選んでください。</p>';}
- function refreshStore(){const c=get().character,content=$('pcContent');content.replaceChildren();const info=document.createElement('p');info.className='store-balance';info.append(coinIcon(26),document.createTextNode(`${c.coins} ラフトコイン · 銃撃戦の勝利で次の武器を解放`));content.append(info);
+ function refreshStore(){releaseEmbeddedChat();const c=get().character,content=$('pcContent');content.replaceChildren();const info=document.createElement('p');info.className='store-balance';info.append(coinIcon(26),document.createTextNode(`${c.coins} ラフトコイン · 銃撃戦の勝利で次の武器を解放`));content.append(info);
   WEAPONS.forEach((w,i)=>{const row=document.createElement('article');row.className='store-row';const owned=c.ownedWeapons.includes(w.id),previous=WEAPONS[i-1],wins=previous?c.weaponWins[previous.id]||0:0,unlocked=!previous||c.ownedWeapons.includes(previous.id)&&wins>=w.require;const description=document.createElement('div'),label=document.createElement('strong'),detail=document.createElement('p');label.textContent=w.name;const price=document.createElement('span');price.className='store-price';price.append(coinIcon(22),document.createTextNode(w.price+' コイン'));label.append(price);detail.textContent=`${w.magazine}発 / 停止してリロード`+(previous?` · ${previous.name} ${wins}/${w.require}勝`:' · 最初の武器');description.append(label,detail);const button=document.createElement('button');button.textContent=owned?(c.equippedWeapon===w.id?'装備中':'装備'):unlocked?'購入':'未解放';button.disabled=owned?c.equippedWeapon===w.id||battle.phase==='active'&&!!selfMember():!unlocked||c.coins<w.price;button.onclick=()=>send({type:owned?'gun-equip':'gun-buy',weapon:w.id});row.append(description,button);content.append(row);});const unequip=document.createElement('button');unequip.textContent='素手に戻す';unequip.onclick=()=>send({type:'gun-equip',weapon:null});content.append(unequip);
  }
- function web(){const s=get(),depth=Number(new URL(location.href).searchParams.get('vrsDepth')||0);if(depth>=2){$('pcContent').innerHTML='<p>VRS内のVRSはここまで開けます。PCを閉じると元の世界に戻ります。</p>';return;}const frame=document.createElement('iframe');frame.title='VRS の中の VRS';frame.src='https://raft3921.github.io/RAFT-VIRTUAL-WORLD/?vrsDepth='+(depth+1);frame.allow='fullscreen; autoplay';frame.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-pointer-lock');$('pcContent').replaceChildren(frame);}
+ function web(){releaseEmbeddedChat();const s=get(),depth=Number(new URL(location.href).searchParams.get('vrsDepth')||0);if(depth>=2){$('pcContent').innerHTML='<p>VRS内のVRSはここまで開けます。PCを閉じると元の世界に戻ります。</p>';return;}const frame=document.createElement('iframe');frame.title='VRS の中の VRS';frame.src='https://raft3921.github.io/RAFT-VIRTUAL-WORLD/?vrsDepth='+(depth+1);frame.allow='fullscreen; autoplay';frame.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-pointer-lock');$('pcContent').replaceChildren(frame);}
  function chat(){if($('pcDesktop').dataset.worldScreen==='true'&&!$('pcDesktop').hidden){const panel=$('worldChat');$('pcContent').replaceChildren(panel);panel.dataset.pcEmbedded='true';openChat();return;}close();openChat();}
  function teams(){close();onModal(true);$('teamPanel').hidden=false;$('gunTravel').textContent=inGunZone(get().player.position)?'退出':'入場';$('gunTravel').disabled=!inGunZone(get().player.position)&&battle.phase==='active';renderTeams();}
  $('gunTravel').onclick=()=>{send({type:inGunZone(get().player.position)?'gun-exit':'gun-enter'});close();};

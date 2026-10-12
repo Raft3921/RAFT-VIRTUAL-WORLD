@@ -1,4 +1,4 @@
-import {CHAT_HISTORY_LIMIT} from './world-chat-store.js?v=20261011-life82';
+import {CHAT_HISTORY_LIMIT} from './world-chat-store.js?v=20261012-life83';
 export function createWorldChat({names,skinURL,makeFace,getSelfId,send,isConnected,onOpen,onClose}){
   const $=id=>document.getElementById(id),panel=$('worldChat'),history=$('chatHistory'),records=new Map();let nextCursor=null,pending=false,loading=false,terminal=false,latestTimer=0;
   function face(skin){const holder=document.createElement('span');holder.className='chat-face';makeFace(skinURL(skin),holder);return holder;}
@@ -8,7 +8,8 @@ export function createWorldChat({names,skinURL,makeFace,getSelfId,send,isConnect
   function prune(page){for(const [id,message]of records)if(page?.oldestAt&&(message.at<page.oldestAt||message.at===page.oldestAt&&id.localeCompare(page.oldestId)<0))records.delete(id);const ordered=[...records.values()].sort((a,b)=>a.at-b.at||a.id.localeCompare(b.id));for(const message of ordered.slice(0,Math.max(0,ordered.length-CHAT_HISTORY_LIMIT)))records.delete(message.id);}
   function ingest(page){prune(page);for(const message of page?.messages||[])records.set(message.id,message);prune(page);nextCursor=page?.nextCursor??null;loading=false;render(false);}
   function open(page){terminal=true;onOpen();panel.hidden=false;document.body.dataset.chatting='true';if(page)ingest(page);render(true);$('chatInput').focus();$('chatStatus').textContent=isConnected()?'ワールドにメッセージを残せます':'サーバー接続が必要です';}
-  function close(){panel.hidden=true;terminal=false;document.body.dataset.chatting='false';onClose();}
+  function close(){panel.hidden=true;terminal=false;document.body.dataset.chatting='false';if(panel.dataset.pcEmbedded==='true'){delete panel.dataset.pcEmbedded;document.body.append(panel);}onClose();}
+  panel.addEventListener('vrs-chat-release',close);
   function older(){if(loading||nextCursor===null||!isConnected())return;loading=true;$('chatOlder').disabled=true;send({type:'chat-history',before:nextCursor});}
   $('chatOlder').onclick=older;history.addEventListener('scroll',()=>{if(history.scrollTop<20)older();});$('closeWorldChat').onclick=close;
   $('chatForm').onsubmit=event=>{event.preventDefault();const text=$('chatInput').value.trim();if(!text||pending)return;if(!isConnected()||!terminal){$('chatStatus').textContent='サーバーに接続してから送信してください';return;}pending=true;$('chatSend').disabled=true;$('chatStatus').textContent='保存中…';send({type:'chat-post',text});};

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import {createPortalViews,portalFrame,passageTransform} from './portal-view.js?v=20261012-life85';
-import {HOUSES,ROOM,mirrorRealmKey,mirrorRealm,mirrorHouseKey,houseDescriptor} from './housing-data.js?v=20261012-life85';
+import {createPortalViews,portalFrame,passageTransform} from './portal-view.js?v=20261012-life86';
+import {HOUSES,ROOM,mirrorRealmKey,mirrorRealm,mirrorHouseKey,houseDescriptor} from './housing-data.js?v=20261012-life86';
 
 // Portal windows render their linked rooms from the viewer’s perspective. A source mirror owns
 // the same reversed residential avenue as every other member mirror.

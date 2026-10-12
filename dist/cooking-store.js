@@ -1,10 +1,10 @@
-import {cleanKitchenState,COOK_VESSELS,dishRating} from './cooking-state.js?v=20261012-life85';
-import {advanceCookingHeat} from './cooking-simulation.js?v=20261012-life85';
-import {tableForObject,tableForSeat,diningSeatAt} from './dining.js?v=20261012-life85';
-import {cleanMeal} from './cooking-data.js?v=20261012-life85';
-import {copy,same,kitchenIdentity,kitchenResources,resourcesToKitchen,mergeKitchenEdit} from './cooking-shared.js?v=20261012-life85';
-import {recognizeKitchens,pinKitchenBoard} from './kitchen-layout.js?v=20261012-life85';
-import {houseDescriptor,FURNITURE_BY_ID,furniturePose,ROOM} from './housing-data.js?v=20261012-life85';
+import {cleanKitchenState,COOK_VESSELS,dishRating} from './cooking-state.js?v=20261012-life86';
+import {advanceCookingHeat} from './cooking-simulation.js?v=20261012-life86';
+import {tableForObject,tableForSeat,diningSeatAt} from './dining.js?v=20261012-life86';
+import {cleanMeal} from './cooking-data.js?v=20261012-life86';
+import {copy,same,kitchenIdentity,kitchenResources,resourcesToKitchen,mergeKitchenEdit} from './cooking-shared.js?v=20261012-life86';
+import {recognizeKitchens,pinKitchenBoard} from './kitchen-layout.js?v=20261012-life86';
+import {houseDescriptor,FURNITURE_BY_ID,furniturePose,ROOM} from './housing-data.js?v=20261012-life86';
 
 export class CookingStore{
  constructor(rules,data={},save=()=>{}){

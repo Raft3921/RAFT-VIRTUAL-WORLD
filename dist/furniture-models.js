@@ -1,6 +1,6 @@
-import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261012-life86';
-import {expandedParts} from './furniture-shapes.js?v=20261012-life86';
-import {furnitureAction} from './furniture-actions.js?v=20261012-life86';
+import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261012-life87';
+import {expandedParts} from './furniture-shapes.js?v=20261012-life87';
+import {furnitureAction} from './furniture-actions.js?v=20261012-life87';
 const WOOD='#bd9166',DARK='#354353',METAL='#87929a',WHITE='#f4eee2',LEAF='#52a96d';
 const partsCache=new Map();
 export function furnitureParts(item){

@@ -3,7 +3,7 @@ export const clothName=stage=>({dirty:'汚れた服',washed:'濡れた服',dry:'
 export function furnitureControls(t,state={},carry=null,run=null,now=Date.now(),selfId=null){
  const actions=[],add=(id,label,disabled=false)=>actions.push({id,label,disabled});let status='';
  const busy=state.endAt>now,remaining=Math.max(0,Math.ceil((state.endAt-now)/1000));
- if(t.kind==='exercise'){status=run?'移動を押して運動。緑の輪に重なる瞬間にジャンプ。':'移動で走る・こぐ → ジャンプで呼吸を整える → 記録を保存';add(run?'exercise-stop':'exercise-start',run?'降りて記録を保存':'乗って運動する');}
+ if(t.kind==='exercise'){status=run?'移動を押して運動。緑の輪に重なる瞬間にジャンプ。':'移動で走る・こぐ → ジャンプで呼吸を整える → 記録を保存';add(run?'exercise-stop':'exercise-start',run?'降りて記録を保存':'乗って運動する');if(run)add('exercise-jump','ジャンプ / リズム（Space）');}
  else if(t.kind==='clothes'){const count=state.count??3;status=`かご：${count}束${carry?.type==='clothes'?' / 手元：'+clothName(carry.stage):''}`;add('use',carry?'かごへ戻す':'洗濯物を取る',carry?carry.type!=='clothes':count===0);}
  else if(['laundry','sewing','microwave'].includes(t.kind)){
   const sewing=t.kind==='sewing',micro=t.kind==='microwave',loaded=state.loaded;

@@ -1,33 +1,33 @@
-import {furniturePose} from './housing-data.js?v=20261012-life86';
-import {createLiving} from './living.js?v=20261012-life86';
-import {livingHome} from './living-shared.js?v=20261012-life86';
-import {createCookingControls} from './cooking-controls.js?v=20261012-life86';
-import {createCooking} from './cooking.js?v=20261012-life86';
-import {createPlazaMap} from './plaza-map.js?v=20261012-life86';
-import {createWorldExperience} from './world-experience.js?v=20261012-life86';
-import {inGunZone,weaponById} from './gun-layout.js?v=20261012-life86';
-import {createWorldChat} from './world-chat.js?v=20261012-life86';
-import {startUpdateNotice} from './update-notice.js?v=20261012-life86';
-import {memberColor} from './housing-data.js?v=20261012-life86';
+import {furniturePose} from './housing-data.js?v=20261012-life87';
+import {createLiving} from './living.js?v=20261012-life87';
+import {livingHome} from './living-shared.js?v=20261012-life87';
+import {createCookingControls} from './cooking-controls.js?v=20261012-life87';
+import {createCooking} from './cooking.js?v=20261012-life87';
+import {createPlazaMap} from './plaza-map.js?v=20261012-life87';
+import {createWorldExperience} from './world-experience.js?v=20261012-life87';
+import {inGunZone,weaponById} from './gun-layout.js?v=20261012-life87';
+import {createWorldChat} from './world-chat.js?v=20261012-life87';
+import {startUpdateNotice} from './update-notice.js?v=20261012-life87';
+import {memberColor} from './housing-data.js?v=20261012-life87';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261012-life86';
-import { createEnvironment } from './environment.js?v=20261012-life86';
-import { createWorld } from './world.js?v=20261012-life86';
-import { ARENA,insideArena } from './world-layout.js?v=20261012-life86';
-import { SYNC_ENDPOINT } from './sync-config.js?v=20261012-life86';
-import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261012-life86';
-import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js?v=20261012-life86';
-import { createCombatEffects } from './combat-effects.js?v=20261012-life86';
-import { createBrownProjectiles } from './brown-projectiles.js?v=20261012-life86';
-import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261012-life86';
-import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261012-life86';
-import { cleanCharacter } from './character-store.js?v=20261012-life86';
-import { createHousingRenderer } from './housing-renderer.js?v=20261012-life86';
+import { createAvatar } from './avatar.js?v=20261012-life87';
+import { createEnvironment } from './environment.js?v=20261012-life87';
+import { createWorld } from './world.js?v=20261012-life87';
+import { ARENA,insideArena } from './world-layout.js?v=20261012-life87';
+import { SYNC_ENDPOINT } from './sync-config.js?v=20261012-life87';
+import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261012-life87';
+import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js?v=20261012-life87';
+import { createCombatEffects } from './combat-effects.js?v=20261012-life87';
+import { createBrownProjectiles } from './brown-projectiles.js?v=20261012-life87';
+import { SYNC_VERSION,compatibleSync } from './game-rules.js?v=20261012-life87';
+import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261012-life87';
+import { cleanCharacter } from './character-store.js?v=20261012-life87';
+import { createHousingRenderer } from './housing-renderer.js?v=20261012-life87';
 // Versioned URL prevents a previously cached editor module from blocking startup.
-import { createHouseEditor } from './house-editor.js?v=20261012-life86';
-import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261012-life86';
-import {cleanCycle,dayPhase,clockLabel} from './world-clock.js?v=20261012-life86';
-import {createWorldGuide} from './world-guide.js?v=20261012-life86';
+import { createHouseEditor } from './house-editor.js?v=20261012-life87';
+import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261012-life87';
+import {cleanCycle,dayPhase,clockLabel} from './world-clock.js?v=20261012-life87';
+import {createWorldGuide} from './world-guide.js?v=20261012-life87';
 
 const $ = id => document.getElementById(id);
 const clamp = THREE.MathUtils.clamp;
@@ -509,7 +509,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
         }else velocity.set(0,0,0);
         if(sleeping){
           const current=world.bedById(bed?.id);if(!current){wakeFromBed();}else{bed=current;const offset=(actors[selected].collisionShape?.height||2)*.45;p.position.set(bed.x+Math.sin(bed.yaw)*offset,bed.y,bed.z+Math.cos(bed.yaw)*offset);p.rotation.y=bed.yaw;verticalSpeed=0;velocity.set(0,0,0);grounded=true;airWalk=false;jumpRequested=false;}
-        }else if(living?.exercise){living.constrain();velocity.set(0,0,0);verticalSpeed=0;grounded=true;speed=living.exercise.speed||0;
+        }else if(living?.exercise){const hop=living.constrain();velocity.set(0,0,0);verticalSpeed=hop?.velocity||0;grounded=!hop?.airborne;jumpRequested=false;speed=living.exercise.speed||0;
         }else if(seated){
           p.position.set(seat.x,seat.y-actors[selected].seatOffset,seat.z);p.rotation.y=seat.yaw;verticalSpeed=0;grounded=true;
         }else{

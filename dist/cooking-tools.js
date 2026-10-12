@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {part} from './cooking-models.js?v=20261012-life83';
+import {part} from './cooking-models.js?v=20261012-life84';
 
 // Every tool is a reusable model. Its local origin is the working end so that
 // the same model can sit in the rack or perform a preparation animation.

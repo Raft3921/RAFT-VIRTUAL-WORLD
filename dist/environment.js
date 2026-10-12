@@ -1,4 +1,4 @@
-import {GUN_ZONE} from './gun-layout.js?v=20261012-life83';
+import {GUN_ZONE} from './gun-layout.js?v=20261012-life84';
 import * as THREE from 'three';
 
 // All vegetation and terrain are geometry/shaders: no image textures or downloads.

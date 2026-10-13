@@ -1,6 +1,7 @@
-import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261012-life88';
-import {expandedParts} from './furniture-shapes.js?v=20261012-life88';
-import {furnitureAction} from './furniture-actions.js?v=20261012-life88';
+import {plazaParts} from './plaza-shapes.js?v=20261013-life89';
+import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261013-life89';
+import {expandedParts} from './furniture-shapes.js?v=20261013-life89';
+import {furnitureAction} from './furniture-actions.js?v=20261013-life89';
 const WOOD='#bd9166',DARK='#354353',METAL='#87929a',WHITE='#f4eee2',LEAF='#52a96d';
 const partsCache=new Map();
 export function furnitureParts(item){
@@ -11,7 +12,7 @@ export function furnitureParts(item){
   const inset=.88,box=(x,y,z,w,h,d,c=paint,detail=false)=>{parts.push({x:x*f.w*inset,y:y*f.h*inset,z:z*f.d*inset,w:w*f.w*inset,h:h*f.h*inset,d:d*f.d*inset,c,detail});};
   const motion=(kind,options={})=>Object.assign(parts[parts.length-1],{motion:kind,...options});
   const legs=(height=.7)=>{for(const x of [-.39,.39])for(const z of [-.36,.36])box(x,height/2,z,.075,height,.085,WOOD);};
-  if(f.extended)expandedParts(f,paint,box,motion,parts);else switch(f.family){
+  if(['nature','outdoor','playground'].includes(f.family))plazaParts(f,paint,box,parts);else if(f.extended)expandedParts(f,paint,box,motion,parts);else switch(f.family){
     case 'chair':legs(.43);box(0,.46,0,1,.11,1);box(0,.75,-.43,1,.5,.14);box(0,.77,-.35,.7,.17,.04,WOOD,true);break;
     case 'sofa':legs(.13);box(0,.26,0,.96,.32,.96,DARK);box(0,.48,.055,.78,.14,.79);box(0,.76,-.43,.98,.48,.14);for(const x of [-.45,.45])box(x,.57,0,.1,.42,1);box(0,.557,.14,.022,.008,.54,WHITE,true);break;
     case 'stool':legs(.85);box(0,.92,0,1,.16,1);break;

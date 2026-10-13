@@ -1,6 +1,9 @@
 const instruments=new Set(['acoustic','electric','bass','ukulele','drums','snare','e-drums','keyboard','violin','harp']);
 export function furnitureAction(f){
   const s=f.design;
+  if(f.family==='playground')return {kind:'playground',label:'遊具で遊ぶ'};
+  if(f.family==='outdoor')return {kind:'scenery',label:f.name};
+  if(f.family==='nature')return {kind:'plant',label:f.name};
   if(f.family==='computer'||f.family==='electronics'&&['pc','laptop','tablet','server'].includes(s))return {kind:'chat',label:'PCデスクトップ'};
   if(f.family==='record')return {kind:'record',defaultEnabled:false,label:'レコード'};
   if(f.family==='piano')return {kind:'piano',instrument:'piano',label:'ピアノ'};

@@ -1,9 +1,10 @@
-import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261012-life88';
+import {rampHeight} from './plaza-surfaces.js?v=20261013-life89';
+import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261013-life89';
 import * as THREE from 'three';
-import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261012-life88';
-import { buildDistrict } from './district.js?v=20261012-life88';
-import { HOUSES,HOUSE_COLORS } from './housing-data.js?v=20261012-life88';
-import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js?v=20261012-life88';
+import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261013-life89';
+import { buildDistrict } from './district.js?v=20261013-life89';
+import { HOUSES,HOUSE_COLORS } from './housing-data.js?v=20261013-life89';
+import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js?v=20261013-life89';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const materials=new Map();
@@ -255,7 +256,7 @@ export function createWorld(scene){
   function terrainHeight(p){const distance=Math.hypot(p.x-ARENA.x,p.z-ARENA.z);return distance<ARENA.radius?.24:distance<33.1?.12:0;}
   function floorAt(p,limit=p.y+.48){
     let floor=terrainHeight(p),body=null;
-    for(const b of nearby(p)){const q=localPoint(p,b),top=b.y+b.h/2;if(!b.disabled&&Math.abs(q.x)<b.w/2+.12&&Math.abs(q.z)<b.d/2+.12&&top<=limit&&top>=floor){floor=top;body=b;}}
+    for(const b of nearby(p)){const q=localPoint(p,b),top=b.ramp?rampHeight(b,q.z):b.y+b.h/2;if(!b.disabled&&Math.abs(q.x)<b.w/2+.12&&Math.abs(q.z)<b.d/2+.12&&top<=limit&&top>=floor){floor=top;body=b;}}
     return {y:floor,body};
   }
   // Read-only occupancy query for entering activities at an unobstructed spot.
@@ -279,8 +280,9 @@ export function createWorld(scene){
       for(const b of nearby(center)){
         if(b.disabled||api.portalPassage?.(b,p,previous,height))continue;
         const q=localPoint({x:p.x+offsetX,z:p.z+offsetZ},b),relative=angle-(b.rotation||0),rxExtent=shape?Math.abs(Math.cos(relative))*width+Math.abs(Math.sin(relative))*depth:.32,rzExtent=shape?Math.abs(Math.sin(relative))*width+Math.abs(Math.cos(relative))*depth:.32;
-        const bottom=b.y-b.h/2,top=b.y+b.h/2;
+        const bottom=b.y-b.h/2,top=b.ramp?rampHeight(b,q.z):b.y+b.h/2;
         if(Math.abs(q.x)>=b.w/2+rxExtent||Math.abs(q.z)>=b.d/2+rzExtent)continue;
+        if(b.ramp){const prior=localPoint(previous,b),priorHeight=rampHeight(b,prior.z);if(vel.y<=.5&&previous.y>=priorHeight-.3&&p.y>=top-.35){p.y=top;vel.y=0;grounded=true;landed=b;continue;}if(p.y<top-.35)continue;}
         if(vel.y<=0&&previous.y>=top-.025&&p.y<=top){p.y=top;vel.y=0;grounded=true;landed=b;if(b.activatedAt===null)b.activatedAt=worldTime;continue;}
         if(vel.y>0&&previous.y+height<=bottom+.025&&p.y+height>=bottom){p.y=bottom-height;vel.y=0;continue;}
         if(p.y>=top-.02||p.y+height-.05<=bottom)continue;

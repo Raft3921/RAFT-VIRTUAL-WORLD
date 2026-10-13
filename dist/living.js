@@ -1,11 +1,11 @@
-import {furnitureControls,clothName} from './living-actions.js?v=20261012-life88';
-import {paintAvailability,strokeMetadata} from './painting-history.js?v=20261012-life88';
-import {createFirstPersonHands} from './first-person-hands.js?v=20261012-life88';
+import {furnitureControls,clothName} from './living-actions.js?v=20261013-life89';
+import {paintAvailability,strokeMetadata} from './painting-history.js?v=20261013-life89';
+import {createFirstPersonHands} from './first-person-hands.js?v=20261013-life89';
 import * as THREE from 'three';
-import {FURNITURE_BY_ID,furniturePose,ROOM} from './housing-data.js?v=20261012-life88';
-import {furnitureDiningSeats} from './dining.js?v=20261012-life88';
-import {furnitureAction} from './furniture-actions.js?v=20261012-life88';
-import {livingHome,livingKind,livingPose,rhythm,chessStart} from './living-shared.js?v=20261012-life88';
+import {FURNITURE_BY_ID,furniturePose,ROOM} from './housing-data.js?v=20261013-life89';
+import {furnitureDiningSeats} from './dining.js?v=20261013-life89';
+import {furnitureAction} from './furniture-actions.js?v=20261013-life89';
+import {livingHome,livingKind,livingPose,rhythm,chessStart} from './living-shared.js?v=20261013-life89';
 const glyphs={k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟',K:'♔',Q:'♕',R:'♖',B:'♗',N:'♘',P:'♙'};
 export function createLiving({scene,camera,canvas,renderer,get,send,notify,experience,cooking,look,onFall=()=>{},onExercise=()=>{},onPCView=()=>{},onPCJump=()=>{},onExerciseEnd=()=>{},onBathStart=()=>{}}){
  const surfaceLayouts=new WeakMap(),records=new Map(),surfaces=new Map(),direction=new THREE.Vector3(),ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),matrix=new THREE.Matrix4(),planeGeometry=new THREE.PlaneGeometry(1,1),box=new THREE.BoxGeometry(1,1,1),propMaterial=new THREE.MeshStandardMaterial({color:'#ece6d8',roughness:.9});

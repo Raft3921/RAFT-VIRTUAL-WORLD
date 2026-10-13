@@ -1,12 +1,12 @@
-import {createGunEffects} from './gun-effects.js?v=20261012-life88';
-import {createBodycam} from './bodycam.js?v=20261012-life88';
-import {createWorldAudio} from './world-audio.js?v=20261012-life88';
-import {createWorldInteraction} from './world-interaction.js?v=20261012-life88';
-import {fallbackMuzzle} from './weapon-dimensions.js?v=20261012-life88';
-import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261012-life88';
+import {createGunEffects} from './gun-effects.js?v=20261013-life89';
+import {createBodycam} from './bodycam.js?v=20261013-life89';
+import {createWorldAudio} from './world-audio.js?v=20261013-life89';
+import {createWorldInteraction} from './world-interaction.js?v=20261013-life89';
+import {fallbackMuzzle} from './weapon-dimensions.js?v=20261013-life89';
+import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261013-life89';
 import * as THREE from 'three';
-import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js?v=20261012-life88';
-import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261012-life88';
+import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js?v=20261013-life89';
+import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261013-life89';
 export function createWorldExperience({scene,camera,get,send,notify,openChat,openMenu,onModal,onTeleport,onCharacter,onAim,makeFace,skinURL,names,openMap}){
  const positionKey='vrs-last-position'+(new URL(location.href).searchParams.get('vrsDepth')?'-embedded-'+new URL(location.href).searchParams.get('vrsDepth'):'');
  const shell=document.createElement('div');shell.innerHTML=`
@@ -129,5 +129,5 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
  }
  function restorePosition(){try{const p=JSON.parse(localStorage.getItem(positionKey)||'null');if(p?.mirrorRealm&&p.mirrorRealm!=='m|0|shared')return {...p,mirrorRealm:'m|0|shared',x:1961,y:.265,z:1947,yaw:Math.PI};return p;}catch{return null;}}
  addEventListener('pagehide',()=>{if(get().connected)send({type:'position-save'});});document.addEventListener('visibilitychange',()=>{if(document.hidden&&get().connected)send({type:'position-save'});});
- return {mapLivingNdc(point){if(bodycamActive)bodycam.mapNdc(point,get().character.fisheye??1);},broadcastCamera(output,index=0){const c=channels[((index%channels.length)+channels.length)%channels.length];output.position.set(...c.position);output.lookAt(new THREE.Vector3(...c.target));output.updateMatrixWorld();},get bodycamActive(){return bodycamActive;},renderBodycam(renderer,scene,camera){if(!bodycamActive)return false;bodycam.render(renderer,scene,camera,{...get(),scoped});return true;},get active(){return !$('roomPlayersPanel').hidden||!$('pcDesktop').hidden||!$('teamPanel').hidden;},get scoped(){return scoped;},get watching(){return watching;},get eliminated(){return battle.phase==='active'&&!!selfMember()?.out;},get inZone(){return inGunZone(get().player?.position);},get battle(){return battle;},desktop,close,press,release,cancel,update,cameraOverride,receive,restorePosition,pointer:e=>interaction.pointer(e),key(e){if(interaction.key(e))return true;if(!this.active)return false;if(e.code==='Escape'){e.preventDefault();close();}return true;},disconnected(){++reloadToken;reloadAudioBusy=false;reloadAnimation=null;worldAudio.cancelReload();interaction.hide();for(const tracer of tracerPool)tracer.life=0;coinRewards.clear();shots.clear();battle={phase:'waiting',members:[]};startFlashUntil=0;clearTimeout(resultTimer);$('gunResult').hidden=true;$('gunCountdown').hidden=$('gunHealthHud').hidden=true;ammo=null;recoil=recoilVelocity=0;aimYaw=aimPitch=null;walkBlend=lateralSway=forwardSway=cameraLean=0;damageAnimation?.cancel();cancel();close();}};
+ return {mapLivingNdc(point){if(bodycamActive)bodycam.mapNdc(point,get().character.fisheye??1);},broadcastCamera(output,index=0){const c=channels[((index%channels.length)+channels.length)%channels.length];output.position.set(...c.position);output.lookAt(new THREE.Vector3(...c.target));output.updateMatrixWorld();},get bodycamActive(){return bodycamActive;},renderBodycam(renderer,scene,camera){if(!bodycamActive)return false;bodycam.render(renderer,scene,camera,{...get(),scoped});return true;},get active(){return !$('roomPlayersPanel').hidden||!$('pcDesktop').hidden||!$('teamPanel').hidden;},get scoped(){return scoped;},get watching(){return watching;},get eliminated(){return battle.phase==='active'&&!!selfMember()?.out;},get inZone(){return inGunZone(get().player?.position);},get battle(){return battle;},openPlayers(){onModal(true);$('roomPlayersPanel').hidden=false;renderRoomPlayers();},desktop,close,press,release,cancel,update,cameraOverride,receive,restorePosition,pointer:e=>interaction.pointer(e),key(e){if(interaction.key(e))return true;if(!this.active)return false;if(e.code==='Escape'){e.preventDefault();close();}return true;},disconnected(){++reloadToken;reloadAudioBusy=false;reloadAnimation=null;worldAudio.cancelReload();interaction.hide();for(const tracer of tracerPool)tracer.life=0;coinRewards.clear();shots.clear();battle={phase:'waiting',members:[]};startFlashUntil=0;clearTimeout(resultTimer);$('gunResult').hidden=true;$('gunCountdown').hidden=$('gunHealthHud').hidden=true;ammo=null;recoil=recoilVelocity=0;aimYaw=aimPitch=null;walkBlend=lateralSway=forwardSway=cameraLean=0;damageAnimation?.cancel();cancel();close();}};
 }

@@ -196,3 +196,6 @@ body[data-touch=true] #cookingHUD .cook-tools{bottom:calc(202px + env(safe-area-
 
 .house-editor[data-touch=true][data-pane=edit]:not([data-folded=true]) #houseTouchTools{grid-template-columns:1.5fr 1.5fr repeat(3,minmax(0,1fr))}
 .house-editor[data-touch=true] #houseTouchTools button{font-size:11px;line-height:1.3;overflow-wrap:anywhere}
+.house-editor[data-plaza=true] [data-house-tab=wall],.house-editor[data-plaza=true] [data-house-tab=ceiling],.house-editor[data-plaza=true] #houseFinish-wallpaper,.house-editor[data-plaza=true] #houseFinish-ceiling{display:none}
+.house-editor[data-plaza=true] .eyebrow{font-size:0}.house-editor[data-plaza=true] .eyebrow::after{content:'SHARED PLAZA';font-size:11px}
+.house-editor[data-plaza=true] #houseMaterials label:nth-of-type(n+2){display:none}

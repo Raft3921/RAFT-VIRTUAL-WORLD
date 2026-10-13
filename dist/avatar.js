@@ -1,9 +1,9 @@
-import {createGunModel,triggerGunFlash,updateGunFlash} from './gun-visual.js?v=20261012-life88';
+import {createGunModel,triggerGunFlash,updateGunFlash} from './gun-visual.js?v=20261013-life89';
 import * as THREE from 'three';
-import {withLocalLighting} from './local-lighting.js?v=20261012-life88';
-import { sampleAttack,sampleCharge } from './combat-motion.js?v=20261012-life88';
-import { sampleHit } from './hit-reaction.js?v=20261012-life88';
-import { jemAvatarDefinition } from './jem-avatar.js?v=20261012-life88';
+import {withLocalLighting} from './local-lighting.js?v=20261013-life89';
+import { sampleAttack,sampleCharge } from './combat-motion.js?v=20261013-life89';
+import { sampleHit } from './hit-reaction.js?v=20261013-life89';
+import { jemAvatarDefinition } from './jem-avatar.js?v=20261013-life89';
 
 const PX = 1 / 16;
 const TAU = Math.PI * 2;
@@ -469,6 +469,24 @@ export async function createAvatar(url,{model=null}={}) {
     Object.assign(animation, { speed, motion, running, grounded, phase, gesture: gestureName });
   }
 
+  function applyPlayPose(pose){
+    if(disposed||!pose)return;const kind=pose.kind,phase=pose.phase||0,wave=Math.sin(phase*7),seated=['swing','seesaw','spring','slide'].includes(kind);
+    pelvis.rotation.set(0,0,0);torso.rotation.set(0,0,0);pelvis.position.y=(kind==='slide'?-legHeight*PX:seated?-.34*motionScale:0);
+    for(const [side,sign]of [['left',1],['right',-1]]){
+      hips[side].rotation.set(seated?-Math.PI/2:0,0,sign*.035);knees[side].rotation.set(seated?Math.PI/2:.08,0,0);shoulders[side].rotation.set(-.45,0,sign*.12);elbows[side].rotation.set(-.25,0,0);
+      if(kind==='swing'){shoulders[side].rotation.set(-1.7,0,sign*.18);elbows[side].rotation.x=-.8;hips[side].rotation.x=-1.25+(pose.angle||0)*.25;knees[side].rotation.x=.9-(pose.angle||0)*.3;torso.rotation.x=-(pose.angle||0)*.5;}
+      else if(kind==='seesaw'){shoulders[side].rotation.x=-1.2;elbows[side].rotation.x=-.7;hips[side].rotation.x=pose.lift?-.65:-1.4;knees[side].rotation.x=pose.lift?.2:1.3;}
+      else if(kind==='spring'){shoulders[side].rotation.x=-1.35;elbows[side].rotation.x=-.55;torso.rotation.x=(pose.input||0)*Math.min(.4,(pose.charge||0)*.18);torso.rotation.z=-(pose.inputX||0)*Math.min(.3,(pose.charge||0)*.14);}
+      else if(kind==='monkey'||kind==='zipline'){shoulders[side].rotation.set(-3.05+(kind==='monkey'?sign*wave*.28:.04),0,sign*.06);elbows[side].rotation.x=kind==='monkey'?-.12-Math.max(0,sign*wave)*.5:-.15;hips[side].rotation.x=sign*wave*(kind==='monkey'?.3:.18);knees[side].rotation.x=.4+Math.max(0,sign*wave)*.25;torso.rotation.z=wave*.05;}
+      else if(kind==='climb'){shoulders[side].rotation.x=-2.55+sign*wave*.5;elbows[side].rotation.x=-.3-Math.max(0,sign*wave)*.7;hips[side].rotation.x=-.6-sign*wave*.5;knees[side].rotation.x=.65+Math.max(0,sign*wave)*.75;torso.rotation.x=.15;}
+      else if(kind==='slide'){hips[side].rotation.x=-Math.PI/2;knees[side].rotation.x=.16;shoulders[side].rotation.set(-.8,0,sign*.6);torso.rotation.x=-.15;}
+      else if(kind==='trampoline'){const tuck=Math.max(0,Math.sin(phase*5));hips[side].rotation.x=-tuck*.7;knees[side].rotation.x=tuck;shoulders[side].rotation.set(-.3-tuck*.8,0,sign*(.4+tuck*.35));}
+      else if(kind==='carousel'){shoulders[side].rotation.x=-1.25;elbows[side].rotation.x=-.35;knees[side].rotation.x=.14;torso.rotation.z=(pose.angle||0)*.005;}
+      else if(kind==='launch'){shoulders[side].rotation.set(-.5-wave*.15,0,sign*1);hips[side].rotation.x=-.3-sign*wave*.2;knees[side].rotation.x=.6;torso.rotation.x=-.18;}
+    }
+    if(gunModel)gunModel.visible=false;
+  }
+
   function dispose() {
     if (disposed) return;
     disposed = true;
@@ -482,7 +500,7 @@ export async function createAvatar(url,{model=null}={}) {
   root.traverse(object=>{if(object.isMesh)withLocalLighting(object.material);});
   return {
     animation,
-    root, update, dispose, head, setAppearance,gripColor:skinColor,createFirstPersonHand:()=>createSkinnedFiringHand({forearm:true}),
+    root, update, applyPlayPose, dispose, head, setAppearance,gripColor:skinColor,createFirstPersonHand:()=>createSkinnedFiringHand({forearm:true}),
     getGunMuzzle(target=new THREE.Vector3()){if(!gunModel?.visible)return null;root.updateMatrixWorld(true);return gunModel.userData.muzzle.getWorldPosition(target);},fireGun(){triggerGunFlash(gunModel);},
     reactHit(serial,strength=.2,age=0){if(!Number.isFinite(serial)||serial<=flinchSerial)return;flinchSerial=serial;if(age>=.24)return;flinchStart=elapsed-Math.max(0,age);flinchStrength=clamp(strength,0,1);},
     resetHitReaction(){flinchSerial=0;flinchStart=-Infinity;},

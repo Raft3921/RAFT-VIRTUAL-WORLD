@@ -1,27 +1,28 @@
-import {LivingStore} from './living-store.js?v=20261012-life88';
-import {CookingStore} from './cooking-store.js?v=20261012-life88';
-import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261012-life88';
-import {cleanMeal,describeDish} from './cooking-data.js?v=20261012-life88';
-import {recognizeKitchens} from './kitchen-layout.js?v=20261012-life88';
-import {buildDistrict} from './district.js?v=20261012-life88';
-import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261012-life88';
-import {GunRules} from './gun-rules.js?v=20261012-life88';
-import {weaponById} from './gun-layout.js?v=20261012-life88';
-import {WorldChatStore} from './world-chat-store.js?v=20261012-life88';
-import { ARENA,insideArena } from './world-layout.js?v=20261012-life88';
-import { ATTACKS } from './combat-motion.js?v=20261012-life88';
-import { CharacterStore,cleanCharacter } from './character-store.js?v=20261012-life88';
-import { GYOZA_SKIN,GUEST_SKIN,playableSkin } from './player-types.js?v=20261012-life88';
-import { HousingStore } from './housing-store.js?v=20261012-life88';
-import {BROWN_PROJECTILE,projectileAt,segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261012-life88';
-import {hitShape} from './hit-reaction.js?v=20261012-life88';
-import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js?v=20261012-life88';
-import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261012-life88';
-import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js?v=20261012-life88';
-import {furnitureAction} from './furniture-actions.js?v=20261012-life88';
+import {PlazaPlayStore} from './plaza-play-store.js?v=20261013-life89';
+import {LivingStore} from './living-store.js?v=20261013-life89';
+import {CookingStore} from './cooking-store.js?v=20261013-life89';
+import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261013-life89';
+import {cleanMeal,describeDish} from './cooking-data.js?v=20261013-life89';
+import {recognizeKitchens} from './kitchen-layout.js?v=20261013-life89';
+import {buildDistrict} from './district.js?v=20261013-life89';
+import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261013-life89';
+import {GunRules} from './gun-rules.js?v=20261013-life89';
+import {weaponById} from './gun-layout.js?v=20261013-life89';
+import {WorldChatStore} from './world-chat-store.js?v=20261013-life89';
+import { ARENA,insideArena } from './world-layout.js?v=20261013-life89';
+import { ATTACKS } from './combat-motion.js?v=20261013-life89';
+import { CharacterStore,cleanCharacter } from './character-store.js?v=20261013-life89';
+import { GYOZA_SKIN,GUEST_SKIN,playableSkin } from './player-types.js?v=20261013-life89';
+import { HousingStore } from './housing-store.js?v=20261013-life89';
+import {BROWN_PROJECTILE,projectileAt,segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261013-life89';
+import {hitShape} from './hit-reaction.js?v=20261013-life89';
+import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js?v=20261013-life89';
+import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261013-life89';
+import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js?v=20261013-life89';
+import {furnitureAction} from './furniture-actions.js?v=20261013-life89';
 const menuBoards=[{x:6,z:11},{x:ARENA.x+3,z:ARENA.z+20},GUN_ENTRY,...GUN_EXIT_BOARDS,...HOUSES.slice(0,8).map(h=>({x:h.x-6,z:h.z+h.front*9}))];
 buildDistrict({box:()=>{},sign:()=>{},board:(x,y,z)=>menuBoards.push({x,y,z}),seats:[],clockHands:[]});
-export const SYNC_VERSION='2026-10-12-vrs-life-88';
+export const SYNC_VERSION='2026-10-13-vrs-life-89';
 // Release labels identify updates; the protocol identifies connection compatibility.
 export const SYNC_PROTOCOL=1;
 export function compatibleSync(message){if(message?.protocol!==undefined)return message.protocol===SYNC_PROTOCOL;return message?.version===SYNC_VERSION||/^2026-10-10-vrs-(entry-37|countdown-38|victory-40|feedback-41|roster-46)$/.test(message?.version||'');}
@@ -66,7 +67,7 @@ export class GameRules{
     settings=settings&&typeof settings==='object'?settings:{};
     const goal=Number(settings.goalDamage);this.settings={...settings,goalDamage:Number.isInteger(goal)&&goal>=1&&goal<=100?goal:11};this.saveSettings=saveSettings;this.settingsQueue=Promise.resolve();
     this.characters=new CharacterStore(characters,scores,saveCharacters,(skin,record)=>this.broadcastCharacter(skin,record),()=>this.broadcast({type:'character-save-error',message:'キャラクターの状態をサーバーに保存できませんでした。'}));
-    this.houses=new HousingStore(houses,saveHouses,broadcast);this.chat=new WorldChatStore(chat,saveChat);
+    this.houses=new HousingStore(houses,saveHouses,broadcast);this.plazaPlay=new PlazaPlayStore(this);this.chat=new WorldChatStore(chat,saveChat);
     this.projectiles=[];this.projectileTimer=null;this.projectileSequence=0;this.onAsyncWork=onAsyncWork;this.projectileFlight=null;this.finishFlight=null;this.cooking=new CookingStore(this,kitchens,saveKitchens);
     this.settings.cycle=cleanCycle(settings.cycle);this.pianoSteps=new Map();this.records=new Map();this.furnitureStates=new Map();this.furnitureSequence=0;this.guns=new GunRules(this);this.living=new LivingStore(this,livingRecords,saveLiving);for(const record of Object.values(livingRecords))if(record.furnitureEvent)this.furnitureStates.set(record.index+':'+record.itemId,record.furnitureEvent);
   }
@@ -86,7 +87,7 @@ export class GameRules{
     p.skin=skin;p.guest=skin===GUEST_SKIN;Object.assign(p,this.character(skin,p.profile));this.broadcastCharacter(skin);this.broadcast({type:'state',player:p});return true;
   }
   inside(p){return insideArena(p);}
-  snapshot(){this.pruneRecords();return {type:'world',version:SYNC_VERSION,protocol:SYNC_PROTOCOL,gunBattle:this.guns.snapshot(),gunMarks:this.guns.marks.filter(m=>Date.now()-m.at<20000),backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel,cycle:this.settings.cycle,serverNow:Date.now(),records:[...this.records.values()],living:this.living.snapshot(),furnitureStates:[...this.furnitureStates.values()]};}
+  snapshot(){this.pruneRecords();return {type:'world',version:SYNC_VERSION,protocol:SYNC_PROTOCOL,gunBattle:this.guns.snapshot(),gunMarks:this.guns.marks.filter(m=>Date.now()-m.at<20000),backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel,cycle:this.settings.cycle,serverNow:Date.now(),records:[...this.records.values()],living:this.living.snapshot(),plazaPlay:this.plazaPlay.snapshot(),furnitureStates:[...this.furnitureStates.values()]};}
   flashlightPreference(profile){return this.settings.flashlights?.[profile]!==false;}
   setFlashlight(p,enabled){
     this.settingsQueue=this.settingsQueue.then(async()=>{try{const settings={...this.settings,flashlights:{...this.settings.flashlights,[p.profile]:enabled}};await this.saveSettings(settings);this.settings=settings;for(const entry of this.entries())if(entry.player.profile===p.profile){entry.player.flashlightEnabled=enabled;this.broadcast({type:'flashlight-state',id:entry.player.id,enabled});}}catch{this.broadcast({type:'flashlight-error',id:p.id,message:'懐中電灯の設定を保存できませんでした'});}});return this.settingsQueue;
@@ -105,7 +106,7 @@ export class GameRules{
     return this.settingsQueue;
   }
   cancel(){if(this.duel){this.duel=null;this.ready.clear();this.broadcast({type:'duel-cancel',reason:'プレイヤーが闘技場から離れたため終了しました'});}}
-  removed(id){this.onAsyncWork(this.living.remove(id));this.cooking.remove(id);this.guns.remove(id);this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
+  removed(id){this.plazaPlay.stop(id);this.onAsyncWork(this.living.remove(id));this.cooking.remove(id);this.guns.remove(id);this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
   state(entry){
     const p=entry.player;this.guns.state(p);this.savePosition(p);
     // One server-owned window per knockdown, never reset by repeat packets.
@@ -175,6 +176,8 @@ export class GameRules{
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
+    if(m.type==='plaza-bounce')return this.plazaPlay.receiveBounce(entry,m,now);
+    if(m.type==='plaza-play')return this.plazaPlay.receive(entry,m,now);
     if(m.type==='living-action')return this.living.receive(entry,m);
     if(['kitchen-open','kitchen-edit','kitchen-work','cooking-eat','cooking-eat-cancel'].includes(m.type))return this.cooking.receive(entry,m);
     if(m.type==='cooking-save'||m.type==='cooking-finish')return; // Shared transactions supersede per-character snapshots.
@@ -224,7 +227,7 @@ export class GameRules{
       const previous=this.furnitureStates.get(key),enabled=action.toggle?!(previous?.enabled??action.defaultEnabled):true,event={type:'furniture-event',index:h.index,itemId:item.id,kind:family,enabled,serial:++this.furnitureSequence,playerId:p.id};if(action.toggle){this.furnitureStates.set(key,event);this.living.queue=this.living.queue.then(()=>this.living.persist({...this.living.records[key],index:h.index,itemId:item.id,kind:'object',furnitureEvent:event,rev:(this.living.records[key]?.rev||0)+1})).catch(()=>{});this.onAsyncWork(this.living.queue);}this.broadcast(event);return;
     }
     if(m.type==='flashlight-toggle'&&typeof m.enabled==='boolean')return this.setFlashlight(p,m.enabled);
-    if(m.type==='housing-op'){const home=houseDescriptor(m.index,this.houses.realms);if(!home||Math.hypot(p.x-home.x,p.z-(home.z+home.front*7.8))>5){this.broadcast({type:'house-state',index:m.index,house:this.houses.snapshots()[m.index],requestId:m.requestId,error:'家の入り口からカスタマイズしてください'});return;}if(this.duel?.ids.includes(p.id)||p.ragdoll){const house=this.houses.snapshots()[m.index];if(house)this.broadcast({type:'house-state',index:m.index,house,requestId:m.requestId,error:'試合・被弾中は家を編集できません'});return;}return Promise.resolve(this.houses.apply(p.skin,m)).then(()=>{this.pruneRecords();const c=this.characters.get(p.skin),total=Object.entries(this.houses.snapshots()).filter(([index])=>houseDescriptor(index,this.houses.realms)?.owner===p.skin).reduce((n,[,h])=>n+(h.items?.length||0),0),peak=Math.max(c.furniturePeak,total);return this.characters.change(p.skin,{furniturePeak:peak,coins:c.coins+Math.floor(peak/5)-Math.floor(c.furniturePeak/5)});});}
+    if(m.type==='housing-op'){const home=houseDescriptor(m.index,this.houses.realms);if(!home||Math.hypot(p.x-(home.entry?.x??home.x),p.z-(home.entry?.z??home.z+home.front*7.8))>5){this.broadcast({type:'house-state',index:m.index,house:this.houses.snapshots()[m.index],requestId:m.requestId,error:'家・プラザの入口からカスタマイズしてください'});return;}if(this.duel?.ids.includes(p.id)||p.ragdoll){const house=this.houses.snapshots()[m.index];if(house)this.broadcast({type:'house-state',index:m.index,house,requestId:m.requestId,error:'試合・被弾中は家を編集できません'});return;}return Promise.resolve(this.houses.apply(p.skin,m)).then(()=>{this.pruneRecords();this.plazaPlay.prune();if(home.shared)return;const c=this.characters.get(p.skin),total=Object.entries(this.houses.snapshots()).filter(([index])=>houseDescriptor(index,this.houses.realms)?.owner===p.skin).reduce((n,[,h])=>n+(h.items?.length||0),0),peak=Math.max(c.furniturePeak,total);return this.characters.change(p.skin,{furniturePeak:peak,coins:c.coins+Math.floor(peak/5)-Math.floor(c.furniturePeak/5)});});}
     if(m.type==='character-select'){this.selectCharacter(entry,m.skin);return this.characters.pending;}
     if(m.type==='crown-toggle'&&typeof m.enabled==='boolean')return this.characters.change(p.skin,{crownEnabled:m.enabled});
     if(m.type==='checkpoint')return this.characters.checkpoint(p.skin,m.id);

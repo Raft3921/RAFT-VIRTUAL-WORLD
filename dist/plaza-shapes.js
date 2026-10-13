@@ -33,7 +33,7 @@ export function plazaParts(f,paint,B,parts){
    B(0,.05,.45,.68,.025,.12,paint);return;
   }
   if(s==='swing'||s==='zipline'){
-   if(s==='zipline'){for(const z of [-.44,.44])for(const x of [-.4,.4])B(x,.5,z,.055,1,.055,wood);B(0,.95,0,.035,.035,.95,metal);}
+   if(s==='zipline'){for(const z of [-.44,.44])for(const x of [-.4,.4])B(x,.5,z,.055,1,.055,wood);B(0,.95,0,.035,.035,.95,metal);B(0,.81,0,.014,.28,.014,metal);role('ride');B(0,.67,0,.3,.015,.025,wood);role('ride');return;}
    else{for(const x of [-.43,.43])for(const z of [-.38,.38]){const rise=f.h*.88*.95,reach=z*f.d*.88;B(x,.475,z/2,.06,Math.hypot(rise,reach)/(f.h*.88),.06,wood);rot(Math.atan2(-reach,rise));B(x,.025,z,.12,.05,.16,metal);}B(0,.95,0,.96,.07,.07,metal);}
    for(const [slot,x]of (f.id==='play-double-swing'?[-.24,.24]:[0]).entries()){
     for(const side of [-1,1]){B(x+side*.115,.59,0,.014,.72,.014,metal);role('ride');parts[parts.length-1].rideSlot=slot;}

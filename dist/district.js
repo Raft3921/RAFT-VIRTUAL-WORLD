@@ -1,4 +1,4 @@
-import {STREET_LAMPS} from './street-lamps.js?v=20261013-life89';
+import {STREET_LAMPS} from './street-lamps.js?v=20261013-life89b';
 // Plaza scenery now comes entirely from the shared saved layout.
 export function buildDistrict({box,sign}){
  const stone='#c9c4b7';

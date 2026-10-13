@@ -1,15 +1,15 @@
 import * as THREE from 'three';
-import {HOUSES,houseDescriptor,ROOM,roomFor,FURNITURE_BY_ID,furnitureDefinition,FINISHES,emptyHouse,furniturePose} from './housing-data.js?v=20261013-life89';
-import {furnitureParts} from './furniture-models.js?v=20261013-life89';
-import {createHousingMirrors} from './housing-mirror.js?v=20261013-life89';
-import {createFurnitureEffects} from './furniture-effects.js?v=20261013-life89';
-import {createRecordAudio} from './record-audio.js?v=20261013-life89';
-import {withLocalLighting,setHouseLighting,updateFurnitureLighting,setFurnitureEnabled} from './local-lighting.js?v=20261013-life89';
-import {furnitureGeometry} from './furniture-geometry.js?v=20261013-life89';
-import {furnitureAction} from './furniture-actions.js?v=20261013-life89';
-import {PIANO_MELODY} from './world-clock.js?v=20261013-life89';
+import {HOUSES,houseDescriptor,ROOM,roomFor,FURNITURE_BY_ID,furnitureDefinition,FINISHES,emptyHouse,furniturePose} from './housing-data.js?v=20261013-life89b';
+import {furnitureParts} from './furniture-models.js?v=20261013-life89b';
+import {createHousingMirrors} from './housing-mirror.js?v=20261013-life89b';
+import {createFurnitureEffects} from './furniture-effects.js?v=20261013-life89b';
+import {createRecordAudio} from './record-audio.js?v=20261013-life89b';
+import {withLocalLighting,setHouseLighting,updateFurnitureLighting,setFurnitureEnabled} from './local-lighting.js?v=20261013-life89b';
+import {furnitureGeometry} from './furniture-geometry.js?v=20261013-life89b';
+import {furnitureAction} from './furniture-actions.js?v=20261013-life89b';
+import {PIANO_MELODY} from './world-clock.js?v=20261013-life89b';
 
-import {furnitureDiningSeats,tableForSeat} from './dining.js?v=20261013-life89';
+import {furnitureDiningSeats,tableForSeat} from './dining.js?v=20261013-life89b';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1),materials=new Map();
 const grainTextures=new Map();

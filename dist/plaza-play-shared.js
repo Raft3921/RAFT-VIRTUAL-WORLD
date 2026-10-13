@@ -4,5 +4,5 @@ export function stepSwing(state,input,dt,length){
  state.angularVelocity=Math.max(-2.4,Math.min(2.4,state.angularVelocity));state.angle=Math.max(-1.05,Math.min(1.05,(state.angle||0)+state.angularVelocity*dt));
  if(Math.abs(state.angle)>=1.05&&Math.sign(state.angularVelocity)===Math.sign(state.angle))state.angularVelocity*=.25;
 }
-export function swingSeat(def,angle,slot=0){const top=def.h*.88*.95,rest=def.h*.88*.23,length=top-rest;return {x:def.id==='play-double-swing'?(slot===1?.24:-.24)*def.w*.88:0,y:top-Math.cos(angle)*length,z:-Math.sin(angle)*length,top,length};}
+export function swingSeat(def,angle,slot=0){const top=def.h*.88*.95,rest=def.h*.88*(def.design==='zipline'?.67:.23),length=top-rest;return {x:def.id==='play-double-swing'?(slot===1?.24:-.24)*def.w*.88:0,y:top-Math.cos(angle)*length,z:-Math.sin(angle)*length,top,length};}
 export function motionAngle(state,now){if(!state)return 0;const age=Math.max(0,Math.min(.25,(now-state.updatedAt)/1000));if(state.kind==='seesaw'){const t=Math.min(1,age/.2);return (state.fromAngle??state.angle??0)+((state.angle||0)-(state.fromAngle??state.angle??0))*t;}return (state.angle||0)+(state.angularVelocity||0)*age;}

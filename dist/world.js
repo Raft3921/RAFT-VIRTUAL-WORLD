@@ -1,10 +1,10 @@
-import {rampHeight} from './plaza-surfaces.js?v=20261013-life89';
-import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261013-life89';
+import {rampHeight} from './plaza-surfaces.js?v=20261013-life89b';
+import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261013-life89b';
 import * as THREE from 'three';
-import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261013-life89';
-import { buildDistrict } from './district.js?v=20261013-life89';
-import { HOUSES,HOUSE_COLORS } from './housing-data.js?v=20261013-life89';
-import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js?v=20261013-life89';
+import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261013-life89b';
+import { buildDistrict } from './district.js?v=20261013-life89b';
+import { HOUSES,HOUSE_COLORS } from './housing-data.js?v=20261013-life89b';
+import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js?v=20261013-life89b';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const materials=new Map();

@@ -1,7 +1,7 @@
-import {plazaParts} from './plaza-shapes.js?v=20261013-life89';
-import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261013-life89';
-import {expandedParts} from './furniture-shapes.js?v=20261013-life89';
-import {furnitureAction} from './furniture-actions.js?v=20261013-life89';
+import {plazaParts} from './plaza-shapes.js?v=20261013-life89b';
+import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261013-life89b';
+import {expandedParts} from './furniture-shapes.js?v=20261013-life89b';
+import {furnitureAction} from './furniture-actions.js?v=20261013-life89b';
 const WOOD='#bd9166',DARK='#354353',METAL='#87929a',WHITE='#f4eee2',LEAF='#52a96d';
 const partsCache=new Map();
 export function furnitureParts(item){

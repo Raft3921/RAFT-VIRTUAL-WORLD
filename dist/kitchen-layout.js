@@ -1,4 +1,4 @@
-import {FURNITURE_BY_ID,furniturePose,ROOM,houseDescriptor} from './housing-data.js?v=20261013-life89';
+import {FURNITURE_BY_ID,furniturePose,ROOM,houseDescriptor} from './housing-data.js?v=20261013-life89b';
 export const isIsland=f=>f?.id==='island'||f?.design==='island';
 export function kitchenRole(f){if(!f)return null;if(f.family==='kitchen')return 'counter';if(f.family==='sink')return 'sink';if(f.family==='fridge'||f.id==='mini-fridge')return 'fridge';if(['stove','oven'].includes(f.family))return 'stove';if(f.id==='cutting-board')return 'board';if(['knife-block','cooking-knife','dish-rack','pot-rack-wall'].includes(f.id))return 'storage';if(['microwave','rice-cooker','kettle','blender','stand-mixer','toaster','dishwasher'].includes(f.id))return 'appliance';return null;}
 export const kitchenKey=stations=>JSON.stringify(stations.map(s=>s.item).sort((a,b)=>a.id.localeCompare(b.id)));

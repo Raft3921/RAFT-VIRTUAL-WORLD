@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import {part,foodModel} from './cooking-models.js?v=20261013-life89';
-import {FOOD_GROUPS,fridgeFoods} from './cooking-data.js?v=20261013-life89';
+import {part,foodModel} from './cooking-models.js?v=20261013-life89b';
+import {FOOD_GROUPS,fridgeFoods} from './cooking-data.js?v=20261013-life89b';
 const labels=new Map();
 const labelGeometry=new THREE.PlaneGeometry(1,1);
 function shelfLabel(text){if(labels.has(text))return labels.get(text);const canvas=document.createElement('canvas');canvas.width=256;canvas.height=64;const ctx=canvas.getContext('2d');ctx.fillStyle='#26463b';ctx.fillRect(0,0,256,64);ctx.fillStyle='#fff1ca';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,128,32,248);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.minFilter=texture.magFilter=THREE.NearestFilter;const material=new THREE.MeshBasicMaterial({map:texture});labels.set(text,material);return material;}

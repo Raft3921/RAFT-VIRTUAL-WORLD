@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {PLAZA,FURNITURE_BY_ID,furniturePose} from './housing-data.js';
-import {playHint,stepSwing,swingSeat,motionAngle} from './plaza-play-shared.js?v=20261013-life89';
-import {springLaunch} from './plaza-surfaces.js?v=20261013-life89';
+import {playHint,stepSwing,swingSeat,motionAngle} from './plaza-play-shared.js?v=20261013-life89b';
+import {springLaunch} from './plaza-surfaces.js?v=20261013-life89b';
 export function createPlazaPlay({scene,camera,view,get,send,notify,onStart,onEnd,mapTexture,openMap,openMenu,openGuide,openPlayers}){
  const states=new Map(),notices=new Map(),bounces=new Map(),ray=new THREE.Raycaster(),direction=new THREE.Vector3(),point=new THREE.Vector3(),scratch=new THREE.Object3D(),matrix=new THREE.Matrix4();let run=null,near=null,lastUI=0,lastNear=0,lastSend=0,layoutKey='',requestAt=-Infinity,flight=null;
  const panel=document.createElement('aside');panel.id='plazaPlayControls';panel.hidden=true;panel.innerHTML='<strong></strong><p></p><div><button data-play-start>遊ぶ</button><button data-play-leave hidden>降りる</button></div>';document.body.append(panel);
@@ -47,7 +47,7 @@ export function createPlazaPlay({scene,camera,view,get,send,notify,onStart,onEnd
  function constrain(){
   if(!run)return false;const s=get(),item=itemAt(run.itemId);if(!item)return false;const def=FURNITURE_BY_ID.get(item.t),p=furniturePose(item),kind=run.kind,t=run.progress||0,a=kind==='seesaw'?motionAngle(states.get(s.selfId),s.serverNow()):run.angle||0,seatOffset=s.avatar?.seatOffset||.41;let x=0,y=.3,z=0;
   if(kind==='swing'){const seat=swingSeat(def,a,run.slot);x=seat.x;y=seat.y+def.h*.88*.0175-seatOffset;z=seat.z;}
-  else if(kind==='zipline'){const seat=swingSeat(def,a);z=(t-.5)*def.d*.88*.86+seat.z;y=seat.y+def.h*.88*.0175-seatOffset;}
+  else if(kind==='zipline'){const seat=swingSeat(def,a);z=(t-.5)*def.d*.88*.86+seat.z;y=seat.y-(s.avatar?.eyeHeight||1.68)-.42;}
   else if(kind==='monkey'){z=(t-.5)*def.d*.88*.75;y=def.h*.88*.94-(s.avatar?.eyeHeight||1.68)-.48;}
   else if(kind==='climb'){x=(run.side||0)*def.w*.88;z=def.d*.88*(def.id==='play-climbing-wall'?-.18:.46);const reach=Math.max(.2,def.h*.88-(s.avatar?.eyeHeight||1.68)-.35),mantle=Math.min(1,(run.mantle||0)/.4);y=t*reach+mantle*(def.h*.88-reach);z-=mantle*def.d*.88*(def.id==='play-climbing-wall'?.2:.18);}
   else if(kind==='seesaw'){x=(run.slot===1?-1:1)*def.w*.88*.4;y=def.h*.88*.51+Math.sin(a)*x-seatOffset;}

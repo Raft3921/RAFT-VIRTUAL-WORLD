@@ -6,10 +6,10 @@ import {livingHome} from './living-shared.js?v=20261013-life89b';
 import {createCookingControls} from './cooking-controls.js?v=20261013-life89b';
 import {createCooking} from './cooking.js?v=20261013-life89b';
 import {createPlazaMap} from './plaza-map.js?v=20261013-life89b';
-import {createWorldExperience} from './world-experience.js?v=20261013-life89b';
-import {inGunZone,weaponById} from './gun-layout.js?v=20261013-life89b';
+import {createWorldExperience} from './world-experience.js?v=20261014-rocket90';
+import {inGunZone,weaponById} from './gun-layout.js?v=20261014-rocket90';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261013-life89b';
+import {startUpdateNotice} from './update-notice.js?v=20261014-rocket90';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261013-life89b';
@@ -29,7 +29,7 @@ import { createHousingRenderer } from './housing-renderer.js?v=20261013-life89b'
 import { createHouseEditor } from './house-editor.js?v=20261013-life89b';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261013-life89b';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js?v=20261013-life89b';
-import {createWorldGuide} from './world-guide.js?v=20261013-life89b';
+import {createWorldGuide} from './world-guide.js?v=20261014-rocket90';
 
 const $ = id => document.getElementById(id);
 const clamp = THREE.MathUtils.clamp;

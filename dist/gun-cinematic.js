@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {createGunEffects} from './gun-effects.js?v=20261014-cinema93';
+import {createGunEffects} from './gun-effects.js?v=20261014-world96';
 import {createCinematicProjectile} from './cinematic-projectile.js?v=20261014-fps94';
 import {applyAvatarHitPose,groundAvatarHitPose} from './avatar-hit-pose.js?v=20261014-cinema93';
 import {gunEliminationState} from './hit-reaction.js?v=20261014-cinema93';
@@ -50,7 +50,12 @@ export function createGunCinematic({scene,camera,get,audio}){
   camera.updateProjectionMatrix();camera.updateMatrixWorld();return true;
  }
  function duplicate(source){
-  const root=source.clone(true),base=[],meshes=[],guns=[];root.traverse(node=>{base.push({node,position:node.position.clone(),rotation:node.rotation.clone(),scale:node.scale.clone(),visible:node.visible});if(node.isMesh&&/-(base|overlay)$/.test(node.name))meshes.push(node);if(node.name.startsWith('handheld-'))guns.push(node);});
+  const root=source.clone(true),base=[],meshes=[],guns=[];root.traverse(node=>{
+   // The cinematic uses the existing full-body fall animation, independently
+   // of the live shoulder-and-arm silhouette.
+   if(root.userData.avatarArmsOnly&&(node.userData.avatarPart==='torso'||['neck','left-hip','right-hip'].includes(node.name)))node.visible=true;
+   base.push({node,position:node.position.clone(),rotation:node.rotation.clone(),scale:node.scale.clone(),visible:node.visible});if(node.isMesh&&/-(base|overlay)$/.test(node.name))meshes.push(node);if(node.name.startsWith('handheld-'))guns.push(node);
+  });
   const joints={pelvis:root.getObjectByName('pelvis'),torso:root.getObjectByName('waist'),head:root.getObjectByName('neck'),shoulders:{},elbows:{},hips:{},knees:{}};
   for(const side of ['right','left'])for(const [key,name]of [['shoulders','shoulder'],['elbows','elbow'],['hips','hip'],['knees','knee']])joints[key][side]=root.getObjectByName(side+'-'+name);
   stage.add(root);return {root,base,joints,meshes,guns};

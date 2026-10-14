@@ -7,25 +7,25 @@ import {livingHome} from './living-shared.js?v=20261013-life89b';
 import {createCookingControls} from './cooking-controls.js?v=20261013-life89b';
 import {createCooking} from './cooking.js?v=20261014-kitchen94';
 import {createPlazaMap} from './plaza-map.js?v=20261013-life89b';
-import {createWorldExperience} from './world-experience.js?v=20261014-optics95';
+import {createWorldExperience} from './world-experience.js?v=20261014-world96';
 import {inGunZone,weaponById} from './gun-layout.js?v=20261014-fps94';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261014-optics95';
+import {startUpdateNotice} from './update-notice.js?v=20261014-world96';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261014-optics95';
+import { createAvatar } from './avatar.js?v=20261014-world96';
 import { createEnvironment } from './environment.js?v=20261014-fps94';
-import { createWorld } from './world.js?v=20261014-fps94';
+import { createWorld } from './world.js?v=20261014-world96';
 import { ARENA,insideArena } from './world-layout.js?v=20261013-life89b';
 import { SYNC_ENDPOINT } from './sync-config.js?v=20261013-life89b';
 import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261013-life89b';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js?v=20261014-cinema93';
-import { createCombatEffects } from './combat-effects.js?v=20261013-life89b';
-import { createBrownProjectiles } from './brown-projectiles.js?v=20261013-life89b';
+import { createCombatEffects } from './combat-effects.js?v=20261014-world96';
+import { createBrownProjectiles } from './brown-projectiles.js?v=20261014-world96';
 import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261014-fps94';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261013-life89b';
 import { cleanCharacter } from './character-store.js?v=20261013-life89b';
-import { createHousingRenderer } from './housing-renderer.js?v=20261014-kitchen94';
+import { createHousingRenderer } from './housing-renderer.js?v=20261014-world96';
 // Versioned URL prevents a previously cached editor module from blocking startup.
 import { createHouseEditor } from './house-editor.js?v=20261014-kitchen94';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261013-life89b';
@@ -86,10 +86,9 @@ const combatEffects=createCombatEffects(scene,{mobile:touch});
 const particleLimit=touch||embeddedDepth?72:144,particleGeometry=new THREE.SphereGeometry(1,5,4),particleMaterial=new THREE.MeshBasicMaterial({color:0xffffff,vertexColors:true,transparent:true,opacity:.82,depthWrite:false,blending:THREE.AdditiveBlending});
 const particleMesh=new THREE.InstancedMesh(particleGeometry,particleMaterial,particleLimit),particleTransform=new THREE.Object3D(),particleColor=new THREE.Color();
 const particles=Array.from({length:particleLimit},()=>({position:new THREE.Vector3(),velocity:new THREE.Vector3(),color:new THREE.Color(),life:0,duration:1,gravity:0}));
-const particleOrigin=new THREE.Vector3();
+const particleOrigin=new THREE.Vector3(),liveParticles=new Set();
 let particleCursor=0,lastChargeEffectAt=0,lastDashEffectAt=0,lightweightUpdateAt=0;
-particleMesh.frustumCulled=false;particleMesh.name='Pooled action particles';
-for(let index=0;index<particleLimit;index++){particleTransform.scale.setScalar(0);particleTransform.updateMatrix();particleMesh.setMatrixAt(index,particleTransform.matrix)}
+particleMesh.frustumCulled=false;particleMesh.name='Pooled action particles';particleMesh.count=0;particleMesh.visible=false;particleMesh.matrixAutoUpdate=false;particleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 scene.add(particleMesh);
 const shockGeometry=new THREE.RingGeometry(.78,1,12),shocks=[];
 for(let i=0;i<6;i++){const mat=new THREE.MeshBasicMaterial({color:'#bdfbe8',transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending});const mesh=new THREE.Mesh(shockGeometry,mat);mesh.rotation.x=-Math.PI/2;mesh.visible=false;scene.add(mesh);shocks.push({mesh,life:0,power:0});}
@@ -155,8 +154,17 @@ function remotePlayerAt(clientX,clientY){
 }
 const cameraDescriptions={follow:'WASDで移動。家ではShiftでしゃがむ。屋外はShiftで走る。飛行中はSpaceで上昇、Shiftで下降。画面上の相手を長押しで狙ってパンチ。',first:'WASDで移動、マウスで視線。家ではShiftでしゃがむ。屋外はShiftで走る。飛行中はSpaceで上昇、Shiftで下降。相手を長押しでパンチ。',orbit:'プレイヤーはその場に残り、マウスで周囲を回り込みます。ホイールで距離を調整。1秒以内に5回クリックで操作に戻る。',free:'プレイヤーを残して撮影。WASDで移動、Spaceで上昇、Shiftで下降/水平加速。1秒以内に5回クリックで操作に戻る。'};
 function notify(message,duration=3000){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(notify.timer);notify.timer=setTimeout(()=>$('toast').hidden=true,duration)}
-function emitParticles(position,color,count=10,speed=2,gravity=7){const lightness=cachedCharacter().lightness||100,scaled=Math.max(1,Math.round(count*(.3+.7*(100-lightness)/90)));for(let index=0;index<scaled;index++){const particle=particles[particleCursor];particleCursor=(particleCursor+1)%particleLimit;particle.position.copy(position);particle.position.x+=(Math.random()-.5)*.16;particle.position.y+=(Math.random()-.5)*.12;particle.position.z+=(Math.random()-.5)*.16;const angle=Math.random()*Math.PI*2,vertical=Math.random()*1.4-.15;particle.velocity.set(Math.cos(angle)*speed*(.35+Math.random()),vertical*speed,Math.sin(angle)*speed*(.35+Math.random()));particle.color.set(color);particle.duration=.28+Math.random()*.38;particle.life=particle.duration;particle.gravity=gravity}}
-function updateParticles(dt){for(let index=0;index<particles.length;index++){const particle=particles[index];if(particle.life>0){particle.life=Math.max(0,particle.life-dt);particle.position.addScaledVector(particle.velocity,dt);particle.velocity.y-=particle.gravity*dt;particle.velocity.multiplyScalar(Math.max(0,1-dt*1.8));const fade=particle.life/particle.duration;particleTransform.position.copy(particle.position);particleTransform.scale.setScalar((.025+fade*.065)*activeParticleScale());particleTransform.updateMatrix();particleMesh.setMatrixAt(index,particleTransform.matrix);particleColor.copy(particle.color).multiplyScalar(.3+fade*.8);particleMesh.setColorAt(index,particleColor)}else{particleTransform.scale.setScalar(0);particleTransform.updateMatrix();particleMesh.setMatrixAt(index,particleTransform.matrix)}}particleMesh.instanceMatrix.needsUpdate=true;if(particleMesh.instanceColor)particleMesh.instanceColor.needsUpdate=true}
+function emitParticles(position,color,count=10,speed=2,gravity=7){const lightness=cachedCharacter().lightness||100,scaled=Math.max(1,Math.round(count*(.3+.7*(100-lightness)/90)));for(let index=0;index<scaled;index++){const particle=particles[particleCursor];particleCursor=(particleCursor+1)%particleLimit;particle.position.copy(position);particle.position.x+=(Math.random()-.5)*.16;particle.position.y+=(Math.random()-.5)*.12;particle.position.z+=(Math.random()-.5)*.16;const angle=Math.random()*Math.PI*2,vertical=Math.random()*1.4-.15;particle.velocity.set(Math.cos(angle)*speed*(.35+Math.random()),vertical*speed,Math.sin(angle)*speed*(.35+Math.random()));particle.color.set(color);particle.duration=.28+Math.random()*.38;particle.life=particle.duration;particle.gravity=gravity;liveParticles.add(particle)}}
+function updateParticles(dt){
+  if(!liveParticles.size){particleMesh.count=0;particleMesh.visible=false;return;}
+  let index=0;const scale=activeParticleScale();
+  for(const particle of liveParticles){
+    particle.life=Math.max(0,particle.life-dt);if(!particle.life){liveParticles.delete(particle);continue;}
+    particle.position.addScaledVector(particle.velocity,dt);particle.velocity.y-=particle.gravity*dt;particle.velocity.multiplyScalar(Math.max(0,1-dt*1.8));const fade=particle.life/particle.duration;
+    particleTransform.position.copy(particle.position);particleTransform.scale.setScalar((.025+fade*.065)*scale);particleTransform.updateMatrix();particleMesh.setMatrixAt(index,particleTransform.matrix);particleColor.copy(particle.color).multiplyScalar(.3+fade*.8);particleMesh.setColorAt(index++,particleColor);
+  }
+  particleMesh.count=index;particleMesh.visible=index>0;if(index){particleMesh.instanceMatrix.addUpdateRange(0,index*16);particleMesh.instanceMatrix.needsUpdate=true;particleMesh.instanceColor.addUpdateRange(0,index*3);particleMesh.instanceColor.needsUpdate=true;}
+}
 function activeParticleScale(){return activeQuality==='low'?.72:1}
 function mobileUI(value){touch=value;document.body.dataset.touch=String(touch);$('controlHelp').textContent=touch?'左スティックで移動、画面ドラッグで視点。攻撃は右下の✊のみ（長押しでパンチ・銃の操作）、↑でジャンプ、しゃがむボタンで低い姿勢。飛行中は上昇・降下を長押し。':'WASD：移動 / Shift：屋外ダッシュ・家ではしゃがむ / Space：ジャンプ / C：家でしゃがむ / 右下の✊長押し：パンチ / ドラッグ：視点 / ダブルクリック：マウス固定 / Esc：メニュー / F1：マスター';}
 mobileUI(touch);
@@ -610,7 +618,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
   });
   const locked=attackTarget(targetLock),showLock=locked&&p&&inStudio&&!clean&&performance.now()-lastComboAt<3000;lockMarker.visible=!!showLock;if(showLock){lockMarker.position.copy(locked).y+=.04;const index=targetLock.startsWith('cast:')?Number(targetLock.slice(5)):remoteActors.get(targetLock)?.skin;$('targetHud').textContent='LOCK ON · '+(skinDefs[index]?.[0]||'PLAYER')+' · '+p.position.distanceTo(locked).toFixed(1)+'m';}$('targetHud').hidden=!showLock;
   if(p&&inStudio)combatEffects.attack(actors[selected],attackKind,localRagdoll?0:punchSwing,attackSerial,attackStrength,attackRushing,dt);
-  cooking?.update(dt,now);living?.update(dt,now);plazaMap?.update(now);experience?.update(dt);combatEffects.update(dt);brownProjectiles.update();const lightness=cachedCharacter().lightness||100,lightweightInterval=5+(lightness-10)/90*45;if(now>=lightweightUpdateAt){lightweightUpdateAt=now+Math.max(100,lightweightInterval);updateParticles(dt);updateShockwaves(dt);world.cull(camera.position);housingView?.cull(camera.position,touch);}const phase=dayPhase(dayCycle,serverNow());environment.update(time,inStudio?(cameraMode==='free'||experience?.cinematic?camera.position:p?.position||focus):focus.set(0,0,0),phase);world.setNight(environment.settings.night);housingView?.update(dt,time,camera,renderer,inStudio?p?.position:null,touch,actors[selected]?.root,phase,serverNow);flashlight.intensity=inStudio&&flashlightEnabled&&p?38*(environment.settings.night||0):0;if(flashlight.intensity>0&&p){camera.getWorldDirection(flashlightDirection);flashlight.position.copy(p.position).y+=actors[selected].eyeHeight-.12;flashlight.position.addScaledVector(flashlightDirection,.35);flashlight.target.position.copy(flashlight.position).addScaledVector(flashlightDirection,20);}if(now-clockHudAt>200&&!$('worldMenu').hidden){clockHudAt=now;$('gameClock').textContent='ゲーム内時刻 '+clockLabel(phase)+' · '+(dayCycle.enabled?'1日 '+dayCycle.duration/60+'分':'ずっと昼');}plazaPlay?.animate(now);living?.renderScreens(now);experience?.beforeRender(renderer);if(!experience?.renderBodycam(renderer,scene,camera))renderer.render(scene,camera);experience?.afterRender();if(inStudio&&!housingEditor?.active&&!experience?.watching&&!experience?.bodycamActive)housingView?.portals.renderViews(renderer,camera,{mobile:touch,roots:[actors[selected]?.root,...[...remoteActors.values()].map(remote=>remote.actor.root)]});
+  cooking?.update(dt,now);living?.update(dt,now);plazaMap?.update(now);experience?.update(dt);combatEffects.update(dt);brownProjectiles.update();updateParticles(dt);updateShockwaves(dt);if(now>=lightweightUpdateAt){lightweightUpdateAt=now+100;world.cull(camera.position);housingView?.cull(camera.position,touch);}const phase=dayPhase(dayCycle,serverNow());environment.update(time,inStudio?(cameraMode==='free'||experience?.cinematic?camera.position:p?.position||focus):focus.set(0,0,0),phase);world.setNight(environment.settings.night);housingView?.update(dt,time,camera,renderer,inStudio?p?.position:null,touch,actors[selected]?.root,phase,serverNow);flashlight.intensity=inStudio&&flashlightEnabled&&p?38*(environment.settings.night||0):0;if(flashlight.intensity>0&&p){camera.getWorldDirection(flashlightDirection);flashlight.position.copy(p.position).y+=actors[selected].eyeHeight-.12;flashlight.position.addScaledVector(flashlightDirection,.35);flashlight.target.position.copy(flashlight.position).addScaledVector(flashlightDirection,20);}if(now-clockHudAt>200&&!$('worldMenu').hidden){clockHudAt=now;$('gameClock').textContent='ゲーム内時刻 '+clockLabel(phase)+' · '+(dayCycle.enabled?'1日 '+dayCycle.duration/60+'分':'ずっと昼');}plazaPlay?.animate(now);living?.renderScreens(now);experience?.beforeRender(renderer);if(!experience?.renderBodycam(renderer,scene,camera))renderer.render(scene,camera);experience?.afterRender();if(inStudio&&!housingEditor?.active&&!experience?.watching&&!experience?.bodycamActive)housingView?.portals.renderViews(renderer,camera,{mobile:touch,roots:[actors[selected]?.root,...[...remoteActors.values()].map(remote=>remote.actor.root)]});
   if(now-metricsAt>=1000){fps=fpsFrames*1000/Math.max(1,now-metricsAt);fpsFrames=0;metricsAt=now;$('performance').textContent=`${Math.round(fps)} fps · ${activeQuality==='ultra'?'最高画質':activeQuality==='high'?'高画質':activeQuality==='medium'?'標準':'軽量'} · 描画 ${renderer.info.render.calls} 回`;if(qualityChoice==='auto'&&fps<Math.min(34,(videoSettings?.settings.fps||60)*.8)){slowSeconds++;if(slowSeconds>=5&&activeQuality!=='low'){quality(activeQuality==='high'?'medium':'low');slowSeconds=0}}else slowSeconds=0;
     canvas.dataset.telemetry=JSON.stringify({selected,screen:inStudio?'studio':'lobby',touch,clean,cameraMode,athleticActive,checkpoint:athleticCheckpoint?.id,seated,duelActive,duelDamage,hitPhase:localHit?.phase||'none',hitRecovery:localHit?.recovery||0,attackRushing,targetLock,chainRemaining,attackKind,attackProgress:punchSwing,attackSerial,attackStrength,crownScore,crownEnabled,position:p?.position.toArray(),bodyYaw:p?.rotation.y,yaw,pitch,speed,grounded,camera:camera.position.toArray(),room:roomCode,roomPlayers:roomSelfId?remoteActors.size+1:remoteActors.size,remotePositions:[...remoteActors.values()].map(remote=>remote.target.toArray()),fps:Math.round(fps),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,quality:activeQuality});
   }

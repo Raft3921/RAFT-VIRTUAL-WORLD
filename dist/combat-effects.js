@@ -7,17 +7,19 @@ export function createCombatEffects(scene,{mobile=false}={}){
   const mesh=new THREE.InstancedMesh(geometry,material,limit);mesh.name='Fist foot wind and impact sparks';mesh.frustumCulled=false;
   const transform=new THREE.Object3D(),axis=new THREE.Vector3(0,1,0),delta=new THREE.Vector3(),anchor=new THREE.Vector3(),color=new THREE.Color();
   const pool=Array.from({length:limit},()=>({position:new THREE.Vector3(),velocity:new THREE.Vector3(),rotation:new THREE.Quaternion(),life:0,duration:1,width:.03,length:.2,gravity:0,color:new THREE.Color()}));
-  const tracks=new WeakMap();let cursor=0;
-  for(let i=0;i<limit;i++){transform.scale.setScalar(0);transform.updateMatrix();mesh.setMatrixAt(i,transform.matrix);}scene.add(mesh);
-  function next(){const p=pool[cursor];cursor=(cursor+1)%limit;return p;}
+  const tracks=new WeakMap(),live=new Set();let cursor=0;
+  mesh.count=0;mesh.visible=false;mesh.matrixAutoUpdate=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(mesh);
+  function next(){const p=pool[cursor];cursor=(cursor+1)%limit;live.add(p);return p;}
   function wind(from,to,strength){
     delta.subVectors(to,from);const length=delta.length();if(length<.015||length>1.4)return;
     const p=next();p.position.copy(from).addScaledVector(delta,.5);p.rotation.setFromUnitVectors(axis,delta.multiplyScalar(1/length));
     p.velocity.set(0,.05,0);p.duration=.11+strength*.07;p.life=p.duration;p.width=.025+strength*.025;p.length=length+.12;p.gravity=0;p.color.set(strength>.75?'#fff2bb':'#d7ffff');
   }
   function attack(actor,kind,progress,serial,strength,rushing,dt){
-    let track=tracks.get(actor);if(!track){track={serial:-1,last:[],valid:false,clock:0};for(let i=0;i<4;i++)track.last.push(new THREE.Vector3());tracks.set(actor,track);}
-    const active=progress>.12&&progress<.94&&!rushing;actor.root.updateMatrixWorld(true);
+    let track=tracks.get(actor);const active=progress>.12&&progress<.94&&!rushing;
+    if(!active){if(track)track.valid=false;return;}
+    if(!track){track={serial:-1,last:[],valid:false};for(let i=0;i<4;i++)track.last.push(new THREE.Vector3());tracks.set(actor,track);}
+    actor.root.updateMatrixWorld(true);
     const kick=[2,3,7,8,9].includes(kind),left=kind===1,rightHand=kind!==1;
     for(let i=0;i<4;i++){
       const leg=i>1,side=i%2?'left':'right',joint=leg?actor.joints.knees[side]:actor.joints.elbows[side];
@@ -35,14 +37,15 @@ export function createCombatEffects(scene,{mobile=false}={}){
     }
   }
   function update(dt){
+    if(!live.size){mesh.count=0;mesh.visible=false;return;}
     let active=0;
-    for(let i=0;i<limit;i++){
-      const p=pool[i];if(p.life>0){p.life=Math.max(0,p.life-dt);p.position.addScaledVector(p.velocity,dt);p.velocity.y-=p.gravity*dt;const fade=p.life/p.duration;
-        transform.position.copy(p.position);transform.quaternion.copy(p.rotation);transform.scale.set(p.width*fade,p.length*(.35+.65*fade),p.width*fade);color.copy(p.color).multiplyScalar(fade);mesh.setColorAt(i,color);active++;
-      }else transform.scale.setScalar(0);
-      transform.updateMatrix();mesh.setMatrixAt(i,transform.matrix);
+    for(const p of live){
+      p.life=Math.max(0,p.life-dt);if(!p.life){live.delete(p);continue;}
+      p.position.addScaledVector(p.velocity,dt);p.velocity.y-=p.gravity*dt;const fade=p.life/p.duration;
+      transform.position.copy(p.position);transform.quaternion.copy(p.rotation);transform.scale.set(p.width*fade,p.length*(.35+.65*fade),p.width*fade);color.copy(p.color).multiplyScalar(fade);mesh.setColorAt(active,color);
+      transform.updateMatrix();mesh.setMatrixAt(active++,transform.matrix);
     }
-    mesh.visible=active>0;mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+    mesh.count=active;mesh.visible=active>0;if(active){mesh.instanceMatrix.addUpdateRange(0,active*16);mesh.instanceMatrix.needsUpdate=true;mesh.instanceColor.addUpdateRange(0,active*3);mesh.instanceColor.needsUpdate=true;}
   }
   return {attack,impact,update,mesh,diagnostics:()=>({active:pool.filter(p=>p.life>0).length,limit}),dispose(){mesh.removeFromParent();geometry.dispose();material.dispose();tracks.delete(mesh);}};
 }

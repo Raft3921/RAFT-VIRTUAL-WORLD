@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261013-life89b';
 import { buildDistrict } from './district.js?v=20261013-life89b';
 import { HOUSES,HOUSE_COLORS } from './housing-data.js?v=20261013-life89b';
-import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js?v=20261013-life89b';
+import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js?v=20261014-world96';
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const materials=new Map();
@@ -343,7 +343,7 @@ export function createWorld(scene){
   }
   function update(t,p,clockPhase=.5){
     worldTime=t;
-    for(const hand of clockHands){const angle=hand.clockSide*(hand.clockHand==='hour'?Math.PI/2-clockPhase*Math.PI*4:-clockPhase*Math.PI*48);transform.position.set(hand.clockX+Math.cos(angle)*hand.clockDX-Math.sin(angle)*hand.clockDY,hand.clockY+Math.sin(angle)*hand.clockDX+Math.cos(angle)*hand.clockDY,hand.z);transform.rotation.set(0,0,angle);transform.scale.set(hand.w,hand.h,hand.d);transform.updateMatrix();hand.mesh.setMatrixAt(hand.instance,transform.matrix);hand.mesh.instanceMatrix.needsUpdate=true;}
+    for(const hand of clockHands){if(!hand.mesh.visible||hand.renderedPhase===clockPhase)continue;hand.renderedPhase=clockPhase;const angle=hand.clockSide*(hand.clockHand==='hour'?Math.PI/2-clockPhase*Math.PI*4:-clockPhase*Math.PI*48);transform.position.set(hand.clockX+Math.cos(angle)*hand.clockDX-Math.sin(angle)*hand.clockDY,hand.clockY+Math.sin(angle)*hand.clockDX+Math.cos(angle)*hand.clockDY,hand.z);transform.rotation.set(0,0,angle);transform.scale.set(hand.w,hand.h,hand.d);transform.updateMatrix();hand.mesh.setMatrixAt(hand.instance,transform.matrix);hand.mesh.instanceMatrix.needsUpdate=true;}
     transform.rotation.set(0,0,0);
     barrierMaterial.uniforms.uPlayer.value.copy(p).y+=1;barrierMaterial.uniforms.uTime.value=t;
     const sync=b=>{transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,b.rotation||0,0);transform.scale.set(b.w,b.disabled?.025:b.warning?.18:b.h,b.d);transform.updateMatrix();b.mesh.setMatrixAt(b.instance,transform.matrix);b.mesh.instanceMatrix.needsUpdate=true;};
@@ -356,6 +356,6 @@ export function createWorld(scene){
   function setBackdrop(mode){chromaMaterial.color.set(mode==='RB'?'#ff0000':mode==='BB'?'#0000ff':'#00ff00');}
   // Keep the inexpensive pool draw registered even during the day (alpha 0)
   // so its shader is not first compiled when night begins.
-  function setNight(value){nightLight.value=THREE.MathUtils.clamp(value||0,0,1);lampMaterial.emissiveIntensity=nightLight.value*1.8;}
+  function setNight(value){const night=THREE.MathUtils.clamp(value||0,0,1);if(nightLight.value===night&&lampMaterial.emissiveIntensity===night*1.8)return;nightLight.value=night;lampMaterial.emissiveIntensity=night*1.8;}
   const api={cameraClear,canStand,setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);},group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
 }

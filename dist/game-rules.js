@@ -6,7 +6,7 @@ import {cleanMeal,describeDish} from './cooking-data.js?v=20261013-life89b';
 import {recognizeKitchens} from './kitchen-layout.js?v=20261013-life89b';
 import {buildDistrict} from './district.js?v=20261013-life89b';
 import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261014-rocket91';
-import {GunRules} from './gun-rules.js?v=20261014-rocket91';
+import {GunRules} from './gun-rules.js?v=20261014-cinema92';
 import {weaponById} from './gun-layout.js?v=20261014-rocket91';
 import {WorldChatStore} from './world-chat-store.js?v=20261013-life89b';
 import { ARENA,insideArena } from './world-layout.js?v=20261013-life89b';
@@ -83,7 +83,7 @@ export class GameRules{
   selectCharacter(entry,value){
     const skin=playableSkin(value,null),p=entry.player;if(skin===null)return false;
     if(p.guest&&skin!==GUEST_SKIN){this.broadcast({type:'character-select-rejected',id:p.id,skin:p.skin,reason:'ゲストは入室中にメンバーへ変更できません'});return false;}
-    if(p.skin!==skin&&(this.duel?.ids.includes(p.id)||this.guns.phase==='active'&&this.guns.members.has(p.id)||p.ragdoll)){this.broadcast({type:'character-select-rejected',id:p.id,skin:p.skin});return false;}
+    if(p.skin!==skin&&(this.duel?.ids.includes(p.id)||['active','preview'].includes(this.guns.phase)&&this.guns.members.has(p.id)||p.ragdoll)){this.broadcast({type:'character-select-rejected',id:p.id,skin:p.skin});return false;}
     p.skin=skin;p.guest=skin===GUEST_SKIN;Object.assign(p,this.character(skin,p.profile));this.broadcastCharacter(skin);this.broadcast({type:'state',player:p});return true;
   }
   inside(p){return insideArena(p);}
@@ -176,6 +176,7 @@ export class GameRules{
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
+    if(this.guns.preview&&this.guns.members.has(p.id))return;
     if(m.type==='plaza-bounce')return this.plazaPlay.receiveBounce(entry,m,now);
     if(m.type==='plaza-play')return this.plazaPlay.receive(entry,m,now);
     if(m.type==='living-action')return this.living.receive(entry,m);

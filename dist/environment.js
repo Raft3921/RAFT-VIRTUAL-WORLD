@@ -3,6 +3,7 @@ import * as THREE from 'three';
 
 // All vegetation and terrain are geometry/shaders: no image textures or downloads.
 const TIERS = {
+  ultra: { clumps: 12000, span: 76, segments: 7, shadow: 4096, pixelRatio: 3 },
   low: { clumps: 2300, span: 34, segments: 3, shadow: 512, pixelRatio: 1.25 },
   medium: { clumps: 4600, span: 46, segments: 4, shadow: 1024, pixelRatio: 1.65 },
   high: { clumps: 7600, span: 58, segments: 5, shadow: 2048, pixelRatio: 2 },

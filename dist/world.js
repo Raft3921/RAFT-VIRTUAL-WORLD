@@ -310,6 +310,11 @@ export function createWorld(scene){
   function boardHit(o,f){let best=null,dist=4;for(const b of boards){if(b.kind==='house')continue;const dx=b.x-o.x,dy=b.y-o.y,dz=b.z-o.z,d=Math.hypot(dx,dy,dz);if(d<dist&&(dx*f.x+dz*f.z)/Math.max(.01,Math.hypot(dx,dz))>.45){best=b;dist=d;}}return best;}
   // Sweep a near-plane-sized camera sphere against the same oriented solids.
   // Test the whole segment (not just its endpoint), preventing fast wall tunnelling.
+  function cameraClear(point,radius=.32){
+    if(point.y<radius+.12)return false;
+    for(const b of nearby(point)){if(b.disabled)continue;const q=localPoint(point,b);if(Math.abs(q.x)<b.w/2+radius&&Math.abs(point.y-b.y)<b.h/2+radius&&Math.abs(q.z)<b.d/2+radius)return false;}
+    return true;
+  }
   function cameraPosition(from,to,radius=.24,ignoreBoardId=null){
     let fraction=1;const candidates=new Set(),length=from.distanceTo(to),sample=new THREE.Vector3();
     const steps=Math.max(1,Math.ceil(length/5));
@@ -352,5 +357,5 @@ export function createWorld(scene){
   // Keep the inexpensive pool draw registered even during the day (alpha 0)
   // so its shader is not first compiled when night begins.
   function setNight(value){nightLight.value=THREE.MathUtils.clamp(value||0,0,1);lampMaterial.emissiveIntensity=nightLight.value*1.8;}
-  const api={canStand,setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);},group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
+  const api={cameraClear,canStand,setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);},group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
 }

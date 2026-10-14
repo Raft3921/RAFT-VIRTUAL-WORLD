@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-export function createGunEffects(scene){
+export function createGunEffects(scene,{showRadius=true}={}){
  const canvas=document.createElement('canvas');canvas.width=canvas.height=64;const c=canvas.getContext('2d'),gradient=c.createRadialGradient(32,32,0,32,32,32);gradient.addColorStop(0,'rgba(255,255,255,.9)');gradient.addColorStop(.35,'rgba(255,255,255,.55)');gradient.addColorStop(1,'rgba(255,255,255,0)');c.fillStyle=gradient;c.fillRect(0,0,64,64);const texture=new THREE.CanvasTexture(canvas);
  const pool=Array.from({length:144},()=>{const material=new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false}),mesh=new THREE.Sprite(material);mesh.visible=false;scene.add(mesh);return {mesh,life:0,total:1,velocity:new THREE.Vector3(),size:1,fire:false,center:new THREE.Vector3(),radius:0};});let cursor=0,blastCursor=0;
  // Reuse a bounded pool of blasts. The stationary shell is the authoritative radius;
@@ -7,7 +7,7 @@ export function createGunEffects(scene){
  const shellGeometry=new THREE.SphereGeometry(1,24,12),ringGeometry=new THREE.RingGeometry(.965,1,64);
  const blasts=Array.from({length:8},()=>{
   const root=new THREE.Group(),shell=new THREE.Mesh(shellGeometry,new THREE.MeshBasicMaterial({color:'#ff9c32',wireframe:true,transparent:true,opacity:.4,depthWrite:false})),ring=new THREE.Mesh(ringGeometry,new THREE.MeshBasicMaterial({color:'#fff0a3',side:THREE.DoubleSide,transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending})),boundary=new THREE.Mesh(ringGeometry,new THREE.MeshBasicMaterial({color:'#ffb347',side:THREE.DoubleSide,transparent:true,opacity:.8,depthWrite:false}));
-  ring.rotation.x=boundary.rotation.x=-Math.PI/2;root.add(shell,ring,boundary);root.visible=false;scene.add(root);return {root,shell,ring,boundary,life:0,radius:12};
+  shell.visible=boundary.visible=showRadius;ring.rotation.x=boundary.rotation.x=-Math.PI/2;root.add(shell,ring,boundary);root.visible=false;scene.add(root);return {root,shell,ring,boundary,life:0,radius:12};
  });
  function puff(position,velocity,size,life,fire=false,radius=0,center=position){const p=pool[cursor++%pool.length];p.mesh.position.copy(position);p.velocity.copy(velocity);p.life=p.total=life;p.size=size;p.fire=fire;p.radius=radius;p.center.copy(center);p.mesh.material.color.set(fire?'#ffbd61':'#68615a');p.mesh.material.blending=fire?THREE.AdditiveBlending:THREE.NormalBlending;p.mesh.visible=true;}
  return {

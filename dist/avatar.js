@@ -2,8 +2,8 @@ import {createGunModel,triggerGunFlash,updateGunFlash} from './gun-visual.js?v=2
 import * as THREE from 'three';
 import {withLocalLighting} from './local-lighting.js?v=20261013-life89b';
 import { sampleAttack,sampleCharge } from './combat-motion.js?v=20261013-life89b';
-import { sampleHit } from './hit-reaction.js?v=20261013-life89b';
-import { jemAvatarDefinition } from './jem-avatar.js?v=20261013-life89b';
+import {applyAvatarHitPose,groundAvatarHitPose} from './avatar-hit-pose.js?v=20261014-cinema93';
+import { jemAvatarDefinition } from './jem-avatar.js?v=20261014-cinema93';
 
 const PX = 1 / 16;
 const TAU = Math.PI * 2;
@@ -265,7 +265,6 @@ export async function createAvatar(url,{model=null}={}) {
   let disposed = false;
   let previousSpeed=0,braking=0;
   let previousAttack=0,entryPose=null;
-  const groundProbe=new THREE.Vector3();
   for(const mesh of meshes)mesh.geometry.computeBoundingBox();
   const gestures = { none: 0, wave: 0, cheer: 0, pose: 0 };
   const animation = { speed: 0, motion: 0, running: 0, grounded: true, phase: 0, gesture: 'none' };
@@ -411,12 +410,7 @@ export async function createAvatar(url,{model=null}={}) {
     }
     const flinchAge=elapsed-flinchStart;
     if(!state.ragdoll&&flinchAge>=0&&flinchAge<.24){const recoil=Math.sin(Math.PI*flinchAge/.24)*(.5+flinchStrength*.5);torso.rotation.x-=recoil*.13;torso.rotation.z+=recoil*.035*(flinchSerial%2?1:-1);pelvis.position.z-=recoil*.025;}
-    if (state.ragdoll) {
-      const pose=sampleHit({phase:['impact','air','down','recover'].includes(state.hitPhase)?state.hitPhase:'air',elapsed:state.hitTime||0,downTime:state.hitDownTime||0,recovery:state.hitRecovery||0,strength:state.hitStrength||.5}),w=pose.weight;
-      pelvis.rotation.x=pose.tilt*w;pelvis.rotation.y=0;pelvis.rotation.z=pose.roll*w;pelvis.position.y=THREE.MathUtils.lerp(pelvis.position.y,pose.height,w);
-      torso.rotation.set(0,0,0);head.rotation.set(0,0,0);
-      for(const [side,index,sign]of [['right',0,-1],['left',1,1]]){gestureJoint(shoulders[side],pose.arms[index],0,sign*.35,w);gestureJoint(elbows[side],pose.elbows[index],0,0,w);gestureJoint(hips[side],pose.hips[index],0,sign*pose.spread,w);gestureJoint(knees[side],pose.knees[index],0,0,w);}
-    }
+    if(state.ragdoll)applyAvatarHitPose({pelvis,torso,head,shoulders,elbows,hips,knees},state);
     sitWeight=damp(sitWeight,state.seated?1:0,12,dt);
     if(sitWeight>.001){
       pelvis.position.y=THREE.MathUtils.lerp(pelvis.position.y,-.34*motionScale,sitWeight);
@@ -462,7 +456,7 @@ export async function createAvatar(url,{model=null}={}) {
       let sole=Infinity;for(const side of ['right','left']){const a=hips[side].rotation.x,b=a+knees[side].rotation.x,z=hips[side].rotation.z;const y=legHeight*PX+pelvis.position.y-(legHalf*PX*Math.cos(a)+legHalf*PX*Math.cos(b))*Math.cos(z)-.125*Math.abs(Math.sin(b));sole=Math.min(sole,y);}
       if(sole<0)pelvis.position.y-=sole;
     }
-    if(state.ragdoll&&grounded){root.updateMatrixWorld(true);let lowest=Infinity;for(const mesh of meshes){const b=mesh.geometry.boundingBox;for(let corner=0;corner<8;corner++){groundProbe.set(corner&1?b.max.x:b.min.x,corner&2?b.max.y:b.min.y,corner&4?b.max.z:b.min.z).applyMatrix4(mesh.matrixWorld);lowest=Math.min(lowest,groundProbe.y);}}if(lowest<root.position.y+.015)pelvis.position.y+=root.position.y+.015-lowest;}
+    if(state.ragdoll&&grounded)groundAvatarHitPose(root,pelvis,meshes);
     head.rotation.y = damp(head.rotation.y, state.ragdoll||state.sleeping?0:clamp(state.lookYaw || 0, -.95, .95) - torso.rotation.y * .6, 12, dt);
     head.rotation.x = damp(head.rotation.x, state.ragdoll||state.sleeping?0:clamp(state.lookPitch || 0, -.65, .7) - torso.rotation.x * .65, 12, dt);
     head.rotation.z = -torso.rotation.z * .4;

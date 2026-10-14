@@ -38,3 +38,6 @@ export function sampleHit(hit){
   }
   return {weight:0,tilt:0,height:0,spread:0};
 }
+
+// Gun eliminations settle on the floor and never enter the get-up phase.
+export function gunEliminationState(age){const t=Math.max(0,age);return {ragdoll:true,hitPhase:t<.55?'air':'down',hitTime:Math.min(.55,t),hitDownTime:Math.min(.65,Math.max(0,t-.55)),hitRecovery:0,hitStrength:.55,grounded:true};}

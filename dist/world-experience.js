@@ -1,5 +1,5 @@
-import {createGunCinematic} from './gun-cinematic.js?v=20261014-cinema92';
-import {createGunEffects} from './gun-effects.js?v=20261014-rocket91';
+import {createGunCinematic} from './gun-cinematic.js?v=20261014-cinema93';
+import {createGunEffects} from './gun-effects.js?v=20261014-cinema93';
 import {createBodycam} from './bodycam.js?v=20261014-cinema92';
 import {createWorldAudio} from './world-audio.js?v=20261014-rocket91';
 import {createWorldInteraction} from './world-interaction.js?v=20261013-life89b';

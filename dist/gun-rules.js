@@ -1,6 +1,7 @@
+import {GUN_SPAWNS,GUN_SOLIDS} from './gun-collision.js?v=20261014-fps94';
 import {gunEliminationState} from './hit-reaction.js?v=20261014-cinema93';
-import {fallbackMuzzle} from './weapon-dimensions.js?v=20261013-life89b';
-import {WEAPONS,weaponById,inGunZone,GUN_SPAWNS,GUN_SOLIDS,GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261014-rocket91';
+import {fallbackMuzzle} from './weapon-dimensions.js?v=20261014-fps94';
+import {WEAPONS,weaponById,inGunZone,GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261014-fps94';
 import {segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261013-life89b';
 import {buildDistrict} from './district.js?v=20261013-life89b';
 const district=[];buildDistrict({box:(x,y,z,w,h,d,color,solid=true)=>{if(solid)district.push({x,y,z,w,h,d});},board:()=>{},sign:()=>{},seats:[],clockHands:[]});
@@ -42,7 +43,7 @@ export class GunRules{
   const attacker=this.members.get(owner.id),target=this.members.get(victim.id),damage=weaponById(shot.weapon)?.damage||1;
   if(inGunZone(owner)||inGunZone(victim)){
    if(this.phase!=='active'||!attacker||!target||attacker.out||target.out||attacker.team===target.team)return;
-   target.damage=Math.min(3,target.damage+damage);target.out=target.damage>=3;if(target.out){target.outAt=now;target.outPosition={x:victim.x,y:victim.y,z:victim.z};Object.assign(victim,{ragdoll:true,hitPhase:'down',hitTime:0,hitDownTime:0,hitRecovery:0,hitStrength:.55,grounded:true,vx:0,vy:0,vz:0});this.send({type:'gun-eliminated',playerId:victim.id,position:target.outPosition,at:now});}
+   target.damage=Math.min(3,target.damage+damage);target.out=target.damage>=3;if(target.out){this.cancelReload(victim,now);target.outAt=now;target.outPosition={x:victim.x,y:victim.y,z:victim.z};Object.assign(victim,{ragdoll:true,hitPhase:'down',hitTime:0,hitDownTime:0,hitRecovery:0,hitStrength:.55,grounded:true,vx:0,vy:0,vz:0});this.send({type:'gun-eliminated',playerId:victim.id,position:target.outPosition,at:now});}
   }else if(this.rules.duel?.ids.includes(owner.id)||this.rules.duel?.ids.includes(victim.id))return;
   // Reuse light punch reaction; each pellet scores independently, without stun immunity.
   this.rules.hit(owner,victim,damage,now,{kind:0,held:0});
@@ -63,6 +64,7 @@ export class GunRules{
   if(!lethal.size||new Set([...this.members.values()].filter(m=>!m.out&&!lethal.has(m.id)).map(m=>m.team)).size>1)return false;
   const players=this.players().filter(p=>this.members.has(p.id)).map(p=>({id:p.id,skin:p.skin,x:p.x,y:p.y,z:p.z,yaw:p.yaw||0,crouched:!!p.crouched,equippedWeapon:p.equippedWeapon,ragdoll:!!p.ragdoll}));
   const message={type:'gun-preview',id:'final-'+this.round+'-'+shot.id,round:this.round,startAt:now+450,duration:10000,owner:owner.id,victims:[...lethal],players,shot:{...shot,position:{...shot.position},origin:{...(shot.origin||shot.position)}},impact};
+  for(const p of this.players())if(this.members.has(p.id))this.cancelReload(p,now);
   this.preview={message,owner,targets,shot,impact};this.phase='preview';this.shots=[];
   for(const p of this.players())if(this.members.has(p.id))p.speed=p.vx=p.vy=p.vz=p.verticalSpeed=0;
   this.send(message);this.publish();return true;
@@ -82,6 +84,7 @@ export class GunRules{
   if(!weapon||!c.ownedWeapons.includes(weapon.id)||p.ragdoll||p.seated||this.rules.duel?.ids.includes(p.id))return;
   if(inGunZone(p)&&(this.phase!=='active'||!m||m.out))return;
   if(this.shots.length+weapon.pellets>96)return;
+  this.cancelReload(p,now);
   let ammo=this.ammo.get(p.id+':'+weapon.id);if(!ammo||ammo.weapon!==weapon.id)ammo={weapon:weapon.id,left:weapon.magazine,reloadAt:0,lastAt:0};
   if(ammo.reloadAt||ammo.left<=0||now-ammo.lastAt<weapon.interval)return;
   const aim=message.aim;if(!aim||![aim.x,aim.y,aim.z].every(Number.isFinite))return;const length=Math.hypot(aim.x,aim.y,aim.z);if(length<.9||length>1.1)return;
@@ -94,8 +97,24 @@ export class GunRules{
    const shot={id:'gun-'+(++this.sequence),owner:p.id,weapon:weapon.id,serial:message.serial,position:{...origin},origin:{...origin},vx:dx/n*weapon.speed,vy:dy/n*weapon.speed,vz:dz/n*weapon.speed,born:now,lastAt:now,life:weapon.range/weapon.speed,round:inGunZone(p)?this.round:null};this.shots.push(shot);this.send({type:'gun-shot',shot});
   }this.ensureTimer();
  }
- reload(p,now){const weapon=weaponById(p.equippedWeapon),ammo=this.ammo.get(p.id+':'+p.equippedWeapon);if(!weapon||!ammo||ammo.left>=weapon.magazine||ammo.reloadAt||p.speed>.15||Math.hypot(p.vx||0,p.vz||0)>.2||p.grounded===false||p.flight||p.ragdoll||this.members.get(p.id)?.out)return;const duration=Math.max(120,Math.round(3250*(weapon.magazine-ammo.left)/weapon.magazine));ammo.reloadStart=now;ammo.reloadAt=now+duration;this.send({type:'gun-reload',playerId:p.id,weapon:weapon.id,startAt:now,endAt:ammo.reloadAt});this.economy(p);this.ensureTimer();}
- checkReload(p,now){const ammo=this.ammo.get(p.id+':'+p.equippedWeapon);if(!ammo?.reloadAt)return;if(p.speed>.15||Math.hypot(p.vx||0,p.vz||0)>.2||p.grounded===false||p.flight||p.ragdoll){ammo.reloadAt=ammo.reloadStart=0;this.send({type:'gun-reload-cancel',playerId:p.id});this.economy(p);}else if(now>=ammo.reloadAt){ammo.left=weaponById(ammo.weapon).magazine;ammo.reloadAt=ammo.reloadStart=0;this.economy(p);}}
+ advanceReload(p,now){
+  const ammo=this.ammo.get(p.id+':'+p.equippedWeapon),weapon=weaponById(p.equippedWeapon);if(!ammo?.reloadAt||!weapon)return ammo;
+  const filled=Math.min(weapon.magazine,ammo.reloadBase+Math.floor(Math.max(0,now-ammo.reloadStart)/ammo.reloadStep)),changed=filled!==ammo.left;
+  ammo.left=filled;
+  if(now>=ammo.reloadAt){ammo.left=weapon.magazine;ammo.reloadAt=ammo.reloadStart=0;}
+  if(changed||!ammo.reloadAt)this.economy(p);return ammo;
+ }
+ cancelReload(p,now){
+  const ammo=this.advanceReload(p,now);if(!ammo?.reloadAt)return;
+  ammo.reloadAt=ammo.reloadStart=0;this.send({type:'gun-reload-cancel',playerId:p.id,ammo:{...ammo}});this.economy(p);
+ }
+ reload(p,now){
+  const weapon=weaponById(p.equippedWeapon),ammo=this.ammo.get(p.id+':'+p.equippedWeapon);if(!weapon||!ammo||ammo.left>=weapon.magazine||p.ragdoll||this.members.get(p.id)?.out||this.preview)return;
+  if(ammo.reloadAt){this.cancelReload(p,now);return;}
+  ammo.reloadBase=ammo.left;ammo.reloadStep=3250/weapon.magazine;ammo.reloadStart=now;ammo.reloadAt=now+ammo.reloadStep*(weapon.magazine-ammo.left);
+  this.send({type:'gun-reload',playerId:p.id,weapon:weapon.id,startAt:now,endAt:ammo.reloadAt});this.economy(p);this.ensureTimer();
+ }
+ checkReload(p,now){if(p.ragdoll||this.members.get(p.id)?.out)this.cancelReload(p,now);else this.advanceReload(p,now);}
  ensureTimer(){if(this.timer)return;this.lastTick=Date.now();const flight=new Promise(resolve=>this.finish=resolve);this.rules.onAsyncWork(flight);this.timer=setInterval(()=>this.tick(Date.now()),40);}
  tick(now){const dt=Math.min(.2,(now-this.lastTick)/1000);this.lastTick=now;const players=this.players(),layouts=this.rules.houses.snapshots(),remaining=[];
   if(this.preview){if(now>=this.preview.message.startAt+this.preview.message.duration)this.finishPreview(now);return;}
@@ -116,14 +135,14 @@ export class GunRules{
   }this.shots=remaining;
   if(!this.members.size&&!this.shots.length&&![...this.ammo.values()].some(a=>a.reloadAt)){clearInterval(this.timer);this.timer=null;this.finish?.();this.finish=null;}
  }
- receive(entry,message,now){const p=entry.player,c=this.record(p);if(this.preview&&this.members.has(p.id))return true;
+ receive(entry,message,now){const p=entry.player,c=this.record(p);if(message.type==='gun-preview-skip'){if(this.preview&&this.members.has(p.id)&&message.id===this.preview.message.id)this.finishPreview(now);return true;}if(this.preview&&this.members.has(p.id))return true;
   if(message.type==='gun-enter'){this.enter(p);return true;}
   if(message.type==='gun-exit'){if(this.members.has(p.id)&&this.atBoard(p)){this.remove(p.id);this.move(p,{...GUN_ENTRY,z:GUN_ENTRY.z+3});}return true;}
   if(message.type==='gun-buy'){const weapon=weaponById(message.weapon),index=WEAPONS.indexOf(weapon);if(!weapon||this.phase==='active'&&this.members.has(p.id))return true;
    const previous=WEAPONS[index-1];if(c.ownedWeapons.includes(weapon.id)||c.coins<weapon.price||previous&&(!c.ownedWeapons.includes(previous.id)||(c.weaponWins[previous.id]||0)<weapon.require)){this.send({type:'gun-error',playerId:p.id,message:'コインまたは前の武器での勝利数が足りません'});return true;}
-   this.rules.onAsyncWork(this.rules.characters.change(p.skin,{coins:c.coins-weapon.price,ownedWeapons:[...c.ownedWeapons,weapon.id],equippedWeapon:weapon.id}));p.equippedWeapon=weapon.id;this.economy(p);return true;
+   this.cancelReload(p,now);this.rules.onAsyncWork(this.rules.characters.change(p.skin,{coins:c.coins-weapon.price,ownedWeapons:[...c.ownedWeapons,weapon.id],equippedWeapon:weapon.id}));p.equippedWeapon=weapon.id;this.economy(p);return true;
   }
-  if(message.type==='gun-equip'){if(this.phase==='active'&&this.members.has(p.id))return true;const id=message.weapon;if(id!==null&&!c.ownedWeapons.includes(id))return true;p.equippedWeapon=id;if(!id)this.remove(p.id);this.rules.onAsyncWork(this.rules.characters.change(p.skin,{equippedWeapon:id}));this.economy(p);return true;}
+  if(message.type==='gun-equip'){if(this.phase==='active'&&this.members.has(p.id))return true;const id=message.weapon;if(id!==null&&!c.ownedWeapons.includes(id))return true;this.cancelReload(p,now);p.equippedWeapon=id;if(!id)this.remove(p.id);this.rules.onAsyncWork(this.rules.characters.change(p.skin,{equippedWeapon:id}));this.economy(p);return true;}
   if(message.type==='gun-reload'){this.reload(p,now);return true;}
   if(message.type==='gun-fire'){this.fire(p,message,now);return true;}
   if(message.type==='gun-team'||message.type==='gun-mode'){

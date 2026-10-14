@@ -10,12 +10,18 @@ export function createBodycam(){
  if(crisp>.5){gl_FragColor=vec4(sampleAt(uv),1.);
  #include <colorspace_fragment>
  return;}
- float z=distanceAt(uv),focus=max(nearPlane,distanceAt(vec2(.5)));
+ if(optics<.001&&dot(blur,blur)<.0000000001){vec3 sharp=sampleAt(uv);float edge=1.-smoothstep(.35,1.65,dot(p,p))*.62;float grain=(fract(sin(dot(gl_FragCoord.xy+time,vec2(12.9898,78.233)))*43758.5453)-.5)*.009;gl_FragColor=vec4(sharp*edge+grain,1.);
+ #include <colorspace_fragment>
+ return;}
+ float z=optics>.001?distanceAt(uv):1.,focus=optics>.001?max(nearPlane,distanceAt(vec2(.5))):1.;
  // Focus on the exact center depth, including near objects; blur other distances.
  float distanceError=abs(z-focus)/max(focus,.35);float coc=smoothstep(.06,.65,distanceError)*optics;vec2 dof=pixel*2.2*coc;
  vec2 offsets[4];offsets[0]=blur+dof;offsets[1]=-blur-dof;offsets[2]=blur*.45+vec2(dof.x,-dof.y);offsets[3]=-blur*.45+vec2(-dof.x,dof.y);
+ if(coc<.001&&dot(blur,blur)<.0000000001){vec3 sharp=sampleAt(uv);float edge=1.-smoothstep(.35,1.65,dot(p,p))*.62;float grain=(fract(sin(dot(gl_FragCoord.xy+time,vec2(12.9898,78.233)))*43758.5453)-.5)*.009;gl_FragColor=vec4(sharp*edge+grain,1.);
+ #include <colorspace_fragment>
+ return;}
  vec3 col=sampleAt(uv)*.5;float total=.5;
- for(int i=0;i<4;i++){vec2 q=uv+offsets[i];float neighbor=distanceAt(q);float weight=.125*(1.-smoothstep(max(.5,z*.12),max(1.,z*.35),abs(neighbor-z)));col+=sampleAt(q)*weight;total+=weight;}col/=total;
+ for(int i=0;i<4;i++){vec2 q=uv+offsets[i];float neighbor=optics>.001?distanceAt(q):z;float weight=.125*(1.-smoothstep(max(.5,z*.12),max(1.,z*.35),abs(neighbor-z)));col+=sampleAt(q)*weight;total+=weight;}col/=total;
  float edge=1.-smoothstep(.35,1.65,dot(p,p))*.62;float grain=(fract(sin(dot(gl_FragCoord.xy+time,vec2(12.9898,78.233)))*43758.5453)-.5)*.009;gl_FragColor=vec4(col*edge+grain,1.);
  #include <colorspace_fragment>
  }`});

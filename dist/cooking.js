@@ -32,8 +32,8 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
  const hud=document.createElement('section');hud.id='cookingHUD';hud.hidden=true;hud.dataset.menu='false';hud.innerHTML='<div class="cook-top"><span class="cook-state"></span><button data-act="resume">操作へ戻る</button><button data-act="recover">通路へ戻る</button><button data-act="end">調理終了</button></div><span class="cook-dot"></span><div class="cook-readout"><p class="cook-carry"></p><p class="cook-prompt"></p><p class="cook-feedback" role="status"></p><p class="cook-food-state"></p><progress class="cook-progress" hidden max="1"></progress><button data-act="cancel-work" hidden>作業を中止</button></div><div class="cook-touch-actions"><button data-act="use">使う</button><button data-act="put-down" class="cook-touch-place">置く</button></div><div class="cook-timer" hidden></div>';document.body.append(hud);
  const visuals=new THREE.Group();visuals.name='Free cooking workspace';scene.add(visuals);if(!camera.parent)scene.add(camera);const held=new THREE.Group();held.position.set(.28,-.36,-.8);camera.add(held);held.visible=false;
  let zone=null,session=null,near=null,target=null,menuTarget=null,task=null,lastScan=-Infinity,lastUI=-Infinity,cache=new Map(),status='',lastVisualKey='',targetKey='',knife=null,picked=null,lastStroke=-Infinity,placeMode=false,fridgeAngle=0,fridgeRoot=null,running=false,storageRoots=[],lastSave=0,eating=null,wasConnected=false;
- let servingPhase=false,precisionWas=false,mealSeatKey='',mealSeatAt=0,autoMealKey='';
- const precisionMode=()=>!!(!running&&session&&(servingPhase||session.hand));
+ let editing=false,recheckKitchen=false,servingPhase=false,precisionWas=false,mealSeatKey='',mealSeatAt=0,autoMealKey='';
+ const precisionMode=()=>!!(!editing&&!running&&session&&(servingPhase||session.hand));
  function syncPrecision(){const current=precisionMode();if(current!==precisionWas){precisionWas=current;onPrecisionChange(current);}hud.hidden=!(running||current);document.body.dataset.handsOn=String(running||current);}
  const shared=new Map();let authoritative=null,pending=null,transactionDepth=0,transactionCue=null;
  const remoteMotions=new Map(),eatingPlayers=new Map();const remoteMotion=id=>{if(!remoteMotions.has(id))remoteMotions.set(id,createCookingMotion({scene,point:worldPoint}));return remoteMotions.get(id);};
@@ -96,7 +96,7 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
   return candidates.find(p=>state.world.canStand(p,state.shape))||null;
  }
  function renderModels(force=false){
-  if(!session)return;
+  if(editing||!session)return;
   const key=JSON.stringify([session.hand,session.cutMode,session.worktops,session.storageOpen,session.plateStationId,session.dishes,session.takenDishes,session.hands,session.itemHomes,session.appliances,session.waterOn,session.fridgeOpen,session.foodGroup,session.foodPage,placement.bodies.map(b=>b.id),Object.values(session.vessels).map(v=>({...v,cookSeconds:0,timer:null,temperature:Math.floor(v.temperature/5)*5,water:Math.round(v.water*20)/20,foods:v.foods.map(f=>({...f,progress:Math.floor(f.progress/5)*5,burn:Math.floor(f.burn/10)*10}))}))]);
   if(!force&&key===lastVisualKey)return;lastVisualKey=key;clearModels(visuals);clearModels(held);placement.refresh();clearModels(remoteHeld);held.visible=!!session.hand;
   const counter=equipment('counter'),stove=equipment('stove'),sink=equipment('sink'),fridge=equipment('fridge'),supportMeshes=[];storageRoots=[];
@@ -327,14 +327,28 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
   if(key&&meal&&!autoMealKey&&now-mealSeatAt>400&&startEating(meal))autoMealKey=automatic;
  }
  carryHUD.querySelector('button').onclick=()=>{startEating();};
+ function setEditing(value){
+  if(editing===value)return;editing=value;
+  if(value){
+   end();near=null;target=menuTarget=picked=task=null;closeMenu();
+   if(zone)hideAppliances(false);
+   if(eating&&get().connected)send({type:'cooking-eat-cancel'});eating=null;
+   motion.clear();for(const remote of remoteMotions.values())remote.clear();
+   visuals.visible=held.visible=remoteHeld.visible=diningVisual.visible=placement.root.visible=false;
+   start.hidden=hud.hidden=carryHUD.hidden=ratingHUD.hidden=true;
+   document.body.dataset.carryingMeal='false';syncPrecision();
+  }else {cache.clear();lastScan=-Infinity;lastVisualKey='';recheckKitchen=true;diningVisual.visible=true;}
+ }
  function update(dt,now){
   const state=get();
+  if(editing)return;
   if(session&&session.ownerSkin!==state.skin){if(running)end();disposeWorkspace();}
   if(!running&&now-lastScan>250){lastScan=now;scan();const display=near||[...shared.values()].map(r=>recognizeKitchens(r.state.index,state.housing.rooms[r.state.index]?.layout).zones.find(z=>z.id===r.state.kitchenId)).find(z=>z&&Math.abs(state.player.position.x-z.home.x)<ROOM.x&&Math.abs(state.player.position.z-z.home.z)<ROOM.z&&state.housing.rooms[z.index]?.group.visible);if(display&&(!session||String(zone.index)!==String(display.index)||zone.id!==display.id)&&!session?.hand){if(session)disposeWorkspace();zone=display;createSession();requestKitchen();}}
   if(!session)return;
   if(state.player&&zone&&!session.hand&&!running&&!precisionMode()&&(Math.abs(state.player.position.x-zone.home.x)>ROOM.x+4||Math.abs(state.player.position.z-zone.home.z)>ROOM.z+4)){disposeWorkspace();return;}
   const room=state.housing?.rooms[zone.index];
-  if(room&&room.layout.rev!==zone.rev){const next=recognizeKitchens(zone.index,room.layout).zones.find(z=>z.id===zone.id);if(next?.key===zone.key)zone=next;else {if(running){notify('キッチン設備の配置が変わりました。調理の途中状態を保存して戻ります');end();}if(next){hideAppliances(false);zone=next;for(const station of zone.worktops)session.worktops[station.item.id]||={foods:[],index:0,boardVisible:false};if(!zone.worktops.some(s=>s.item.id===session.activeCounterId))session.activeCounterId=zone.worktops[0].item.id;pinKitchenBoard(session,zone);hideAppliances(true);lastVisualKey='';}else {saveWorkspace(true);disposeWorkspace();return;}}}
+  if(room&&(recheckKitchen||room.layout.rev!==zone.rev)){const next=recognizeKitchens(zone.index,room.layout).zones.find(z=>z.id===zone.id);if(next?.key===zone.key){zone=next;hideAppliances(true);}else {if(running){notify('キッチン設備の配置が変わりました。調理の途中状態を保存して戻ります');end();}if(next){hideAppliances(false);zone=next;for(const station of zone.worktops)session.worktops[station.item.id]||={foods:[],index:0,boardVisible:false};if(!zone.worktops.some(s=>s.item.id===session.activeCounterId))session.activeCounterId=zone.worktops[0].item.id;pinKitchenBoard(session,zone);hideAppliances(true);lastVisualKey='';}else {saveWorkspace(true);disposeWorkspace();return;}}}
+  recheckKitchen=false;
   if(running&&(!state.inStudio||state.ragdoll||state.inBattle||state.cameraMode!=='first')){end();}
   if(!state.connected){if(task)task=null;pending=null;authoritative=null;}
   if(state.connected&&!wasConnected){pending=null;authoritative=null;requestKitchen();if(running)send({type:'cooking-start',index:zone.index,kitchenId:zone.id,recipe:'free'});}
@@ -434,7 +448,7 @@ export function createCooking({scene,camera,get,send,notify,onStart,onEnd,onRepo
   const used=directUse(ndc);if(!used){status='扉・食材・道具・つまみを直接クリックしてください';drawUI();}return used;
  }
 
- return {get eating(){return eating;},hydrate(records){shared.clear();for(const record of records||[])if(record.state)shared.set(kitchenIdentity(record.state.index,record.state.kitchenId),record);if(session){const record=shared.get(kitchenIdentity(zone.index,zone.id));pending=null;if(record)applyShared(record);else {authoritative=null;requestKitchen();}}},playerBusy(id){return [...shared.values()].some(r=>!!r.hands?.[id]);},get active(){return running;},get precision(){return precisionMode();},get handsOn(){return running||precisionMode();},get blocked(){const state=get();return state.cameraMode!=='first'||state.paused||!state.inStudio||state.ragdoll||state.inBattle;},get carryingMeal(){return !running&&session?.hand?.type==='dish';},get choosing(){return false;},update,end,interact,worldInteraction,closeMenu,alternate(){if(placeMode){placeMode=false;placement.hide();}else if(task)action('cancel-work');},constrain(position,previous){if(!running)return;const b=zone.bounds;for(const [axis,min,max]of [['x',b.minX,b.maxX],['z',b.minZ,b.maxZ]]){const before=Math.max(min-previous[axis],0,previous[axis]-max),after=Math.max(min-position[axis],0,position[axis]-max);if(after>before+.001)position[axis]=previous[axis];}},receive(message){
+ return {get eating(){return eating;},hydrate(records){shared.clear();for(const record of records||[])if(record.state)shared.set(kitchenIdentity(record.state.index,record.state.kitchenId),record);if(session){const record=shared.get(kitchenIdentity(zone.index,zone.id));pending=null;if(record)applyShared(record);else {authoritative=null;requestKitchen();}}},playerBusy(id){return [...shared.values()].some(r=>!!r.hands?.[id]);},get active(){return running;},get precision(){return precisionMode();},get handsOn(){return running||precisionMode();},get blocked(){const state=get();return editing||state.cameraMode!=='first'||state.paused||!state.inStudio||state.ragdoll||state.inBattle;},get carryingMeal(){return !running&&session?.hand?.type==='dish';},get choosing(){return false;},setEditing,update,end,interact,worldInteraction,closeMenu,alternate(){if(placeMode){placeMode=false;placement.hide();}else if(task)action('cancel-work');},constrain(position,previous){if(!running)return;const b=zone.bounds;for(const [axis,min,max]of [['x',b.minX,b.maxX],['z',b.minZ,b.maxZ]]){const before=Math.max(min-previous[axis],0,previous[axis]-max),after=Math.max(min-position[axis],0,position[axis]-max);if(after>before+.001)position[axis]=previous[axis];}},receive(message){
   if(message.type==='kitchen-state'){const id=message.state?kitchenIdentity(message.state.index,message.state.kitchenId):kitchenIdentity(message.index,message.kitchenId),old=shared.get(id);if(message.state&&(!old||message.rev>=old.rev))shared.set(id,copy(message));
    if(session&&id===kitchenIdentity(zone.index,zone.id)){const own=message.playerId===get().selfId,ack=own&&pending?.requestId===message.requestId;if(ack||own&&message.error)pending=null;if(!pending&&message.state)applyShared(shared.get(id));if(own&&message.error){notify(message.error);status=message.error;task=null;}
     if(!own&&message.cue?.stationId){const station=zone.stations.find(s=>s.item.id===message.cue.stationId);if(station)remoteMotion(message.playerId).play(message.cue.id,station,message.cue.source);}

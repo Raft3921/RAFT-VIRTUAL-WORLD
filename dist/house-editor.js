@@ -59,7 +59,7 @@ export function createHouseEditor({scene,camera,canvas,world,view,getSkin,getPla
     $('houseSelection').hidden=false;
   }
   function refresh(){
-    const layout=layouts[index];if(!layout)return;kitchenHint.textContent=index==='plaza'?'共有の広場 · 誰でも編集・自動保存 · 植物は家具に重ねて配置できます':recognizeKitchens(index,layout).reason;$('houseCount').textContent=`${layout.items.length} / ${MAX_FURNITURE} · グリッド25cm`;
+    const layout=layouts[index];if(!layout)return;kitchenHint.textContent=index==='plaza'?'共有の広場 · 誰でも編集・自動保存 · 植物は家具に重ねて配置できます':'カスタマイズ中 · 家具を自由に移動できます。終了後にキッチン条件を再確認します。現在の条件：'+recognizeKitchens(index,layout).reason;$('houseCount').textContent=`${layout.items.length} / ${MAX_FURNITURE} · グリッド25cm`;
     const list=$('housePlaced');list.replaceChildren(new Option(draft?'配置中の家具を編集中':'家具を選択',''));for(const object of layout.items)list.add(new Option(FURNITURE_BY_ID.get(object.t).name+' · '+object.id.slice(-4),object.id));list.value=selectedId||'';
     for(const key of Object.keys(FINISHES))$('houseFinish-'+key).value=layout.finish[key];$('houseUndo').disabled=!undoItem||!!pending;$('houseDelete').disabled=!!pending;drawSelection();
   }

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {createGunEffects} from './gun-effects.js?v=20261014-cinema93';
-import {createCinematicProjectile} from './cinematic-projectile.js?v=20261014-cinema93';
+import {createCinematicProjectile} from './cinematic-projectile.js?v=20261014-fps94';
 import {applyAvatarHitPose,groundAvatarHitPose} from './avatar-hit-pose.js?v=20261014-cinema93';
 import {gunEliminationState} from './hit-reaction.js?v=20261014-cinema93';
 

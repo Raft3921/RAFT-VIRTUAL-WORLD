@@ -1,4 +1,4 @@
-import {GUN_ZONE} from './gun-layout.js?v=20261014-rocket91';
+import {GUN_ZONE} from './gun-layout.js?v=20261014-fps94';
 import * as THREE from 'three';
 
 // All vegetation and terrain are geometry/shaders: no image textures or downloads.
@@ -250,6 +250,7 @@ function makeGrass(tier, uniforms) {
     color.copy(baseColor).multiplyScalar(.98 + random(i + 37) * .12);
     grass.setColorAt(i, color);
   }
+  grass.matrixAutoUpdate=false;grass.updateMatrix();
   grass.instanceMatrix.setUsage(THREE.StaticDrawUsage);
   grass.instanceMatrix.needsUpdate = true;
   grass.instanceColor.needsUpdate = true;

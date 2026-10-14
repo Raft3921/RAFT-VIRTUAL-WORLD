@@ -32,7 +32,7 @@ export function createHousingRenderer(scene,world,{environment=null}={}){
   const livingStates=new Map(),furnitureStates=new Map(),offlineNotes=new Map(),tint=new THREE.Color(),cookingHidden=new Set(),hiddenMatrix=new THREE.Matrix4().makeScale(0,0,0);for(const room of Object.values(rooms))room.runtime=new Map();
   for(const h of HOUSES.slice(0,8)){const room=rooms[h.index];room.group.userData.houseIndex=h.index;room.group.name='Furnished house '+h.index;room.group.position.set(h.x,ROOM.floor,h.z);room.group.rotation.y=h.front<0?Math.PI:0;scene.add(room.group);}
   const pose=(item)=>{const p=furniturePose(item);itemTransform.position.set(p.x,p.y,p.z);itemTransform.rotation.set(0,p.yaw,p.roll);itemTransform.scale.setScalar(1);itemTransform.updateMatrix();return p;};
-  function syncReference(ref,item,time=animationTime){ref.item=item;if(!ref.mirror&&cookingHidden.has(ref.house+':'+item.id)){ref.mesh.setMatrixAt(ref.instance,hiddenMatrix);ref.mesh.instanceMatrix.needsUpdate=true;return;}pose(item);const p=ref.part;transform.position.set(p.x,p.y,p.z);transform.rotation.set(p.rx||0,p.ry||0,p.rz||0);transform.scale.set(p.w,p.h,p.d);
+  function syncReference(ref,item,time=animationTime){ref.item=item;if(!rooms[ref.house]?.editing&&!ref.mirror&&cookingHidden.has(ref.house+':'+item.id)){ref.mesh.setMatrixAt(ref.instance,hiddenMatrix);ref.mesh.instanceMatrix.needsUpdate=true;return;}pose(item);const p=ref.part;transform.position.set(p.x,p.y,p.z);transform.rotation.set(p.rx||0,p.ry||0,p.rz||0);transform.scale.set(p.w,p.h,p.d);
     const state=furnitureStates.get(ref.house+':'+item.id),enabled=state?.enabled??ref.action?.defaultEnabled??true,age=state?time-state.at:Infinity,pulse=age>=0&&age<.8?Math.sin(age*18)*Math.exp(-age*5):0,blend=THREE.MathUtils.smoothstep(Math.max(0,age),0,.35),from=state?.fromEnabled??enabled,openness=1-(Number(from)+(Number(enabled)-Number(from))*blend);const life=livingStates.get(ref.house+':'+item.id),doorOpen=typeof life?.open==='boolean'?THREE.MathUtils.damp(ref.lifeOpen||0,life.open?1:0,10,1/30):openness;if(life)ref.lifeOpen=doorOpen;let pivot=p.pivot;
     if(p.motion==='spin'||p.motion==='orbit')transform.rotation.y=ref.isRecord&&!recordAudio.isPlaying(ref.house,item.id)?0:time*(p.rate||1);
     else if(p.motion==='propeller')transform.rotation.z=time*(p.rate||7);
@@ -93,7 +93,8 @@ export function createHousingRenderer(scene,world,{environment=null}={}){
   function setEditing(index,value,position=null){
     const room=rooms[index],h=HOUSES[index];if(!room)return;
     const worldX=position?Math.sign(position.x-h.x)||1:1,worldZ=position?Math.sign(position.z-h.z)||h.front:h.front,key=value+':'+worldX+':'+worldZ;
-    if(room.cutKey===key)return;room.cutKey=key;room.editing=value;room.sideX=worldX*h.front;room.sideZ=worldZ*h.front;world.cutawayHouse(index,value,worldX,worldZ);
+    if(room.cutKey===key)return;const changed=room.editing!==value;room.cutKey=key;room.editing=value;room.sideX=worldX*h.front;room.sideZ=worldZ*h.front;world.cutawayHouse(index,value,worldX,worldZ);
+    if(changed)for(const item of room.layout.items)for(const ref of room.references.get(item.id)||[])syncReference(ref,item);
     for(const mesh of room.meshes){mesh.frustumCulled=!value;mesh.visible=!hidden(room,mesh);}
   }
   function pick(ray,index){const room=rooms[index],hits=ray.intersectObjects([...room.meshes,...room.mirrors.map(e=>e.mesh)].filter(m=>m.visible),false);for(const hit of hits){const id=hit.object.userData.itemId||hit.object.userData.itemIds?.[hit.instanceId];if(id)return id;}return null;}

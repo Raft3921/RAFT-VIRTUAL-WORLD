@@ -5,9 +5,9 @@ import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261013-life89
 import {cleanMeal,describeDish} from './cooking-data.js?v=20261013-life89b';
 import {recognizeKitchens} from './kitchen-layout.js?v=20261013-life89b';
 import {buildDistrict} from './district.js?v=20261013-life89b';
-import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261014-rocket91';
-import {GunRules} from './gun-rules.js?v=20261014-cinema93';
-import {weaponById} from './gun-layout.js?v=20261014-rocket91';
+import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261014-fps94';
+import {GunRules} from './gun-rules.js?v=20261014-fps94';
+import {weaponById} from './gun-layout.js?v=20261014-fps94';
 import {WorldChatStore} from './world-chat-store.js?v=20261013-life89b';
 import { ARENA,insideArena } from './world-layout.js?v=20261013-life89b';
 import { ATTACKS } from './combat-motion.js?v=20261013-life89b';
@@ -22,10 +22,8 @@ import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js?v=20261013-life
 import {furnitureAction} from './furniture-actions.js?v=20261013-life89b';
 const menuBoards=[{x:6,z:11},{x:ARENA.x+3,z:ARENA.z+20},GUN_ENTRY,...GUN_EXIT_BOARDS,...HOUSES.slice(0,8).map(h=>({x:h.x-6,z:h.z+h.front*9}))];
 buildDistrict({box:()=>{},sign:()=>{},board:(x,y,z)=>menuBoards.push({x,y,z}),seats:[],clockHands:[]});
-export const SYNC_VERSION='2026-10-13-vrs-life-89b';
-// Release labels identify updates; the protocol identifies connection compatibility.
-export const SYNC_PROTOCOL=1;
-export function compatibleSync(message){if(message?.protocol!==undefined)return message.protocol===SYNC_PROTOCOL;return message?.version===SYNC_VERSION||/^2026-10-10-vrs-(entry-37|countdown-38|victory-40|feedback-41|roster-46)$/.test(message?.version||'');}
+import {SYNC_VERSION,SYNC_PROTOCOL,compatibleSync} from './sync-protocol.js?v=20261014-fps94';
+export {SYNC_VERSION,SYNC_PROTOCOL,compatibleSync};
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function cleanState(s,skin,realms){
@@ -176,6 +174,7 @@ export class GameRules{
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
+    if(m.type==='gun-preview-skip')return this.guns.receive(entry,m,now);
     if(this.guns.preview&&this.guns.members.has(p.id))return;
     if(m.type==='plaza-bounce')return this.plazaPlay.receiveBounce(entry,m,now);
     if(m.type==='plaza-play')return this.plazaPlay.receive(entry,m,now);

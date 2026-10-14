@@ -1,5 +1,5 @@
 import {rampHeight} from './plaza-surfaces.js?v=20261013-life89b';
-import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261014-rocket91';
+import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261014-fps94';
 import * as THREE from 'three';
 import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261013-life89b';
 import { buildDistrict } from './district.js?v=20261013-life89b';
@@ -212,7 +212,7 @@ export function createWorld(scene){
   for(const {color,list} of batches.values()){
     const mesh=new THREE.InstancedMesh(boxGeometry,list[0].streetLamp?lampMaterial:material(color),list.length);mesh.userData.noShadow=!!list[0].noShadow;
     for(let i=0;i<list.length;i++){const b=list[i];transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,b.rotation||0,0);transform.scale.set(b.w,b.h,b.d);transform.updateMatrix();mesh.setMatrixAt(i,transform.matrix);b.mesh=mesh;b.instance=i;}
-    mesh.receiveShadow=true;mesh.castShadow=!mesh.userData.noShadow&&color!==STONE;mesh.computeBoundingSphere();mesh.boundingSphere.radius+=4;group.add(mesh);chunks.push(mesh);
+    mesh.matrixAutoUpdate=false;mesh.updateMatrix();mesh.receiveShadow=true;mesh.castShadow=!mesh.userData.noShadow&&color!==STONE;mesh.computeBoundingSphere();mesh.boundingSphere.radius+=4;group.add(mesh);chunks.push(mesh);
   }
   // Eight softly fading ground pools in one draw; no extra realtime lights,
   // shadow maps, image downloads or day/night material replacement.

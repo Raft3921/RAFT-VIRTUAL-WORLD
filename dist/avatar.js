@@ -1,4 +1,4 @@
-import {createGunModel,triggerGunFlash,updateGunFlash} from './gun-visual.js?v=20261013-life89b';
+import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash} from './gun-visual.js?v=20261014-fps94';
 import * as THREE from 'three';
 import {withLocalLighting} from './local-lighting.js?v=20261013-life89b';
 import { sampleAttack,sampleCharge } from './combat-motion.js?v=20261013-life89b';
@@ -35,7 +35,9 @@ function faceRects(origin, width, height, depth, start, length) {
   ];
 }
 
-function skinBox(part, overlay = false, start = 0, length = part.size[1]) {
+const avatarGeometryCache=new Map();
+function skinBox(part,overlay=false,start=0,length=part.size[1]){const key='skin:'+JSON.stringify([part,overlay,start,length]);if(!avatarGeometryCache.has(key)){const geometry=makeSkinBox(part,overlay,start,length);geometry.userData.avatarShared=true;avatarGeometryCache.set(key,geometry);}return avatarGeometryCache.get(key);}
+function makeSkinBox(part, overlay = false, start = 0, length = part.size[1]) {
   const [width, fullHeight, depth] = part.size;
   const pad = overlay ? part.inflate : 0;
   // Keep a joint's touching ends in the same plane. Only the outer ends of
@@ -84,7 +86,8 @@ function skinBox(part, overlay = false, start = 0, length = part.size[1]) {
 
 // A slightly fatter cube at the elbow/knee pivot fills the inner crease
 // that two axis-aligned boxes leave when the joint bends.
-function jointBox(part, overlay = false) {
+function jointBox(part,overlay=false){const key='joint:'+JSON.stringify([part,overlay]);if(!avatarGeometryCache.has(key)){const geometry=makeJointBox(part,overlay);geometry.userData.avatarShared=true;avatarGeometryCache.set(key,geometry);}return avatarGeometryCache.get(key);}
+function makeJointBox(part, overlay = false) {
   const [width, fullHeight, depth] = part.size;
   const pad = overlay ? part.inflate + .2 : .45;
   const length = 3.4;
@@ -263,7 +266,7 @@ export async function createAvatar(url,{model=null}={}) {
   let wasGrounded = true;
   let lastVerticalSpeed = 0;
   let disposed = false;
-  let previousSpeed=0,braking=0;
+  let previousSpeed=0,braking=0,crouchBlend=0;
   let previousAttack=0,entryPose=null;
   for(const mesh of meshes)mesh.geometry.computeBoundingBox();
   const gestures = { none: 0, wave: 0, cheer: 0, pose: 0 };
@@ -288,16 +291,7 @@ export async function createAvatar(url,{model=null}={}) {
     knees[side].rotation.x = damp(knees[side].rotation.x, kneeAngle, 22, dt);
   }
 
-  let firingSkinGeometries=null;
-  function createSkinnedFiringHand({forearm=false}={}){
-    const part=parts.rightArm,length=Math.min(2,part.size[1]),start=part.size[1]-length;
-    if(!firingSkinGeometries){firingSkinGeometries={hand:[skinBox(part,false,start,length),skinBox(part,true,start,length)],arm:[skinBox(part,false,part.size[1]/2,part.size[1]/2),skinBox(part,true,part.size[1]/2,part.size[1]/2)]};geometries.push(...firingSkinGeometries.hand,...firingSkinGeometries.arm);}
-    const result=new THREE.Group();result.name='right hand with character skin';
-    const add=(source,x,y,z,w,h,d,rotation=null)=>{for(let layer=0;layer<2;layer++){const mesh=new THREE.Mesh(source[layer],layer?overlayMaterial:baseMaterial);mesh.position.set(x,y,z);mesh.scale.set(w/(part.size[0]*PX),h/(length*PX),d/(part.size[2]*PX));if(rotation)mesh.rotation.copy(rotation);result.add(mesh);}};
-    add(firingSkinGeometries.hand,0,-.115,-.012,.15,.135,.15);add(firingSkinGeometries.hand,-.083,-.11,.038,.042,.082,.077);for(let i=0;i<3;i++)add(firingSkinGeometries.hand,.073,-.077-i*.032,.035,.03,.028,.105);
-    if(forearm)for(let layer=0;layer<2;layer++){const mesh=new THREE.Mesh(firingSkinGeometries.arm[layer],layer?overlayMaterial:baseMaterial);mesh.position.set(.048,-.185,-.235);mesh.rotation.set(-Math.PI/2+.19,0,-.10);mesh.scale.set(.12/(part.size[0]*PX),.39/(part.size[1]/2*PX),.135/(part.size[2]*PX));result.add(mesh);}
-    return result;
-  }
+  function createSkinnedFiringHand({forearm=false}={}){return createFiringHand(skinColor,{forearm});}
   const weaponGrip=new THREE.Group(),gunInverse=new THREE.Quaternion(),gunAim=new THREE.Quaternion(),gunAxis=new THREE.Vector3(1,0,0);weaponGrip.name='right hand weapon grip';weaponGrip.position.set(0,-armHalf*PX+.04,0);elbows.right.add(weaponGrip);
   let gunModel=null,gunId=null;
   function update(dt, state = {}) {
@@ -321,20 +315,21 @@ export async function createAvatar(url,{model=null}={}) {
     wasGrounded = grounded;
     lastVerticalSpeed = verticalSpeed;
     phase = (phase + dt * Math.min(speed,6.5) * TAU / ((1.35 + running * .38)*motionScale)) % TAU;
-    const stride = (.24 + running * .08) * motion*motionScale;
+    crouchBlend=damp(crouchBlend,state.crouched&&!state.ragdoll&&!state.seated&&!state.sleeping?1:0,12,dt);
+    const stride = (.24 + running * .08) * motion*motionScale*(1-crouchBlend*.52);
     const breathing = Math.sin(elapsed * 1.7);
     const bob = (1 - Math.cos(phase * 2)) * .0055 * motion;
     braking=damp(braking,clamp((previousSpeed-speed)*1.6,0,.16),18,dt);previousSpeed=speed;
-    pelvis.position.set(0,(-.085 * motion + bob - landing - (state.crouched&&!state.ragdoll&&!state.seated&&!state.sleeping?.48:0))*motionScale,0);
-    pelvis.rotation.set(0,0,0);
-    torso.rotation.x = damp(torso.rotation.x, motion * (.07 + running * .10) + (state.crouched?.13:0) - braking + airborne * .05 + flying * .38, 16, dt);
+    pelvis.position.set(0,(-.085 * motion + bob - landing - (crouchBlend*.48))*motionScale,0);
+    pelvis.rotation.set(0,0,0);pelvis.position.z=-crouchBlend*.13*motionScale;
+    torso.rotation.x = damp(torso.rotation.x, motion * (.07 + running * .10) + (crouchBlend*.19) - braking + airborne * .05 + flying * .38, 16, dt);
     torso.rotation.y = Math.sin(phase) * .035 * motion;
     torso.rotation.z = Math.sin(phase) * .012 * motion;
     // Breathing is limited to the upper body so the feet never bounce at rest.
     torso.scale.y = 1 + breathing * .002;
     const hipHeight = legHeight * PX + pelvis.position.y;
     for (const [side, offset, sign] of [['right', 0, -1], ['left', Math.PI, 1]]) {
-      hips[side].position.x=damp(hips[side].position.x,sign*(.125+.045*motion),16,dt);
+      hips[side].position.x=damp(hips[side].position.x,(custom?parts[`${side}Leg`].center[0]*PX:sign*.125)+sign*(.045*motion+.018*crouchBlend),16,dt);
       hips[side].rotation.y=0;hips[side].rotation.z=sign*.12*motion*(1-airborne);knees[side].rotation.y=knees[side].rotation.z=0;
       const legPhase = phase + offset;
       const legSwing = Math.cos(legPhase);
@@ -343,7 +338,7 @@ export async function createAvatar(url,{model=null}={}) {
       // the sin < 0 return stroke, when it travels forward for the next step.
       const lift = Math.pow(Math.max(0, -Math.sin(legPhase)), 1.5) * (.11 + running * .045) * motion;
       if (airborne < .02) {
-        solveLeg(side, legSwing * stride, lift, hipHeight, dt);
+        solveLeg(side,legSwing*stride+crouchBlend*.13*motionScale,lift*(1-crouchBlend*.45),hipHeight,dt);
       } else {
         hips[side].rotation.x = damp(hips[side].rotation.x, -.22 + sign * .10 * motion, 10, dt);
         knees[side].rotation.x = damp(knees[side].rotation.x, .42 + clamp(-verticalSpeed * .035, 0, .22), 10, dt);
@@ -446,7 +441,7 @@ export async function createAvatar(url,{model=null}={}) {
     if(gunModel){gunModel.visible=!state.ragdoll&&!state.sleeping&&!state.seated;if(gunModel.visible){
       const aim=clamp(-(state.lookPitch||0),-.75,.75);
       shoulders.right.rotation.set(-1.20-aim*.82,0,-.035);elbows.right.rotation.set(-.22,0,0);
-      shoulders.left.rotation.set(Math.sin(phase)*.15*motion,.015,.065);elbows.left.rotation.set(-.10,0,0);
+      shoulders.left.rotation.set(-1.05-aim*.7,.03,.13);elbows.left.rotation.set(-.48,0,0);
       torso.rotation.y=.015;torso.rotation.z=Math.sin(phase)*.006*motion;
       gunInverse.copy(shoulders.right.quaternion).multiply(elbows.right.quaternion).invert();const recoil=Math.max(0,gunModel.userData.flashUntil-performance.now())/65;gunAim.setFromAxisAngle(gunAxis,-aim-torso.rotation.x-recoil*.035);
       gunModel.quaternion.copy(gunInverse).multiply(gunAim);gunModel.position.set(0,.115,.025).applyQuaternion(gunModel.quaternion);updateGunFlash(gunModel);
@@ -465,7 +460,7 @@ export async function createAvatar(url,{model=null}={}) {
 
   function applyPlayPose(pose){
     if(disposed||!pose)return;const kind=pose.kind,phase=pose.phase||0,wave=Math.sin(phase*7),seated=['swing','seesaw','spring','slide'].includes(kind);
-    pelvis.rotation.set(0,0,0);torso.rotation.set(0,0,0);pelvis.position.y=(kind==='slide'?-legHeight*PX:seated?-.34*motionScale:0);
+    pelvis.rotation.set(0,0,0);pelvis.position.z=-crouchBlend*.13*motionScale;torso.rotation.set(0,0,0);pelvis.position.y=(kind==='slide'?-legHeight*PX:seated?-.34*motionScale:0);
     for(const [side,sign]of [['left',1],['right',-1]]){
       hips[side].rotation.set(seated?-Math.PI/2:0,0,sign*.035);knees[side].rotation.set(seated?Math.PI/2:.08,0,0);shoulders[side].rotation.set(-.45,0,sign*.12);elbows[side].rotation.set(-.25,0,0);
       if(kind==='swing'){shoulders[side].rotation.set(-1.7,0,sign*.18);elbows[side].rotation.x=-.8;hips[side].rotation.x=-1.25+(pose.angle||0)*.25;knees[side].rotation.x=.9-(pose.angle||0)*.3;torso.rotation.x=-(pose.angle||0)*.5;}
@@ -485,7 +480,7 @@ export async function createAvatar(url,{model=null}={}) {
     if (disposed) return;
     disposed = true;
     root.removeFromParent();
-    geometries.forEach(geometry => geometry.dispose());
+    geometries.forEach(geometry => {if(!geometry.userData.avatarShared)geometry.dispose();});
     baseMaterial.dispose();
     overlayMaterial.dispose();
     texture.dispose();headMaterials.forEach(m=>m.dispose());crownGeometry.dispose();gold.dispose();

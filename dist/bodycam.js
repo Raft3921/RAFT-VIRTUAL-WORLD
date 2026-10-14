@@ -32,10 +32,10 @@ export function createBodycam(){
   const samples=['high','ultra'].includes(state.video?.quality)?4:0;if(target.samples!==samples){target.dispose();target.samples=samples;}
   view.getWorldDirection(forward);const yaw=Math.atan2(forward.x,forward.z),pitch=Math.asin(THREE.MathUtils.clamp(forward.y,-1,1)),dt=Math.max(.008,Math.min(.05,state.time-lastTime)),yawDelta=primed?Math.atan2(Math.sin(yaw-lastYaw),Math.cos(yaw-lastYaw)):0,pitchDelta=primed?pitch-lastPitch:0;
   lastYaw=yaw;lastPitch=pitch;lastTime=state.time;primed=true;const walking=state.grounded?state.speed:0;
-  blur.set(THREE.MathUtils.clamp(yawDelta/dt*.0025,-.005,.005)+walking*.000035,THREE.MathUtils.clamp(pitchDelta/dt*.002,-.003,.003));if(state.scoped)blur.multiplyScalar(.3);if(state.video?.motionBlur===false)blur.set(0,0);
+  blur.set(THREE.MathUtils.clamp(yawDelta/dt*.0025,-.005,.005)+walking*.000035,THREE.MathUtils.clamp(pitchDelta/dt*.002,-.003,.003));blur.multiplyScalar(1-(state.scopeBlend||0)*.7);if(state.video?.motionBlur===false)blur.set(0,0);
   material.uniforms.crisp.value=state.living?1:0;
   const filter=state.living?THREE.NearestFilter:THREE.LinearFilter;if(target.texture.magFilter!==filter){target.texture.magFilter=target.texture.minFilter=filter;target.texture.needsUpdate=true;}
-  material.uniforms.pixel.value.set(1/w,1/h);material.uniforms.time.value=state.time;material.uniforms.warp.value=state.scoped?0:THREE.MathUtils.clamp(state.character.fisheye??1,0,2);material.uniforms.optics.value=state.character.depthOfField===false||state.video?.depthOfField===false?0:state.scoped?.3:1;material.uniforms.nearPlane.value=view.near;material.uniforms.farPlane.value=view.far;
+  material.uniforms.pixel.value.set(1/w,1/h);material.uniforms.time.value=state.time;material.uniforms.warp.value=state.scopeFromThird?0:(1-(state.scopeBlend||0))*THREE.MathUtils.clamp(state.character.fisheye??1,0,2);material.uniforms.optics.value=state.character.depthOfField===false||state.video?.depthOfField===false?0:1-(state.scopeBlend||0);material.uniforms.nearPlane.value=view.near;material.uniforms.farPlane.value=view.far;
   const previous=renderer.getRenderTarget();renderer.setRenderTarget(target);renderer.render(world,view);renderer.setRenderTarget(previous);renderer.render(scene,camera);
  }};
 }

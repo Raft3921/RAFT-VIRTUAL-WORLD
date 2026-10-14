@@ -1,4 +1,4 @@
-import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash} from './gun-visual.js?v=20261014-fps94';
+import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash} from './gun-visual.js?v=20261014-optics95';
 import * as THREE from 'three';
 import {withLocalLighting} from './local-lighting.js?v=20261013-life89b';
 import { sampleAttack,sampleCharge } from './combat-motion.js?v=20261013-life89b';
@@ -291,7 +291,20 @@ export async function createAvatar(url,{model=null}={}) {
     knees[side].rotation.x = damp(knees[side].rotation.x, kneeAngle, 22, dt);
   }
 
-  function createSkinnedFiringHand({forearm=false}={}){return createFiringHand(skinColor,{forearm});}
+  function createSkinnedFiringHand({forearm=false,side='right',weapon='pistol'}={}){
+    const arm=parts[side+'Arm']||parts.rightArm,full=arm.size[1],length=full/2,start=full-length;
+    const handRect=faceRects(arm.base,...arm.size,Math.max(0,full-2),2)[4],factor=image.width/64;
+    const handPixel=skinContext.getImageData(Math.min(image.width-1,Math.max(0,Math.floor((handRect[0]+handRect[2]*.5)*factor))),Math.min(image.height-1,Math.max(0,Math.floor((handRect[1]+1)*factor))),1,1).data;
+    const color=new THREE.Color().setRGB(handPixel[0]/255,handPixel[1]/255,handPixel[2]/255,THREE.SRGBColorSpace),root=new THREE.Group(),grip=createFiringHand(color,{forearm:false,support:side==='left'});
+    root.name=side+' textured firing arm';if(side==='left')grip.scale.x=-1;root.add(grip);
+    if(forearm){
+      // The sleeve uses this character's actual left/right arm atlas, including its overlay.
+      const wrist=new THREE.Vector3(0,-.17,-.065),elbow=new THREE.Vector3(side==='right'?-.22:.29,side==='right'?-.31:-.32,side==='right'?-.53:weapon==='pistol'?-.49:-.73),vector=elbow.clone().sub(wrist),center=wrist.clone().add(elbow).multiplyScalar(.5);
+      for(const overlay of [false,true]){const geometry=skinBox(arm,overlay,start,length),mesh=new THREE.Mesh(geometry,overlay?overlayMaterial:baseMaterial);mesh.name=side+' character sleeve '+(overlay?'overlay':'base');mesh.position.copy(center);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),vector.clone().normalize());mesh.scale.set(.117/(arm.size[0]*PX),vector.length()/(length*PX),.125/(arm.size[2]*PX));root.add(mesh);}
+    }
+    return root;
+  }
+
   const weaponGrip=new THREE.Group(),gunInverse=new THREE.Quaternion(),gunAim=new THREE.Quaternion(),gunAxis=new THREE.Vector3(1,0,0);weaponGrip.name='right hand weapon grip';weaponGrip.position.set(0,-armHalf*PX+.04,0);elbows.right.add(weaponGrip);
   let gunModel=null,gunId=null;
   function update(dt, state = {}) {
@@ -489,7 +502,7 @@ export async function createAvatar(url,{model=null}={}) {
   root.traverse(object=>{if(object.isMesh)withLocalLighting(object.material);});
   return {
     animation,
-    root, update, applyPlayPose, dispose, head, setAppearance,gripColor:skinColor,createFirstPersonHand:()=>createSkinnedFiringHand({forearm:true}),
+    root, update, applyPlayPose, dispose, head, setAppearance,gripColor:skinColor,createFirstPersonHand:options=>createSkinnedFiringHand({forearm:true,...options}),
     getGunMuzzle(target=new THREE.Vector3()){if(!gunModel?.visible)return null;root.updateMatrixWorld(true);return gunModel.userData.muzzle.getWorldPosition(target);},fireGun(){triggerGunFlash(gunModel);},
     reactHit(serial,strength=.2,age=0){if(!Number.isFinite(serial)||serial<=flinchSerial)return;flinchSerial=serial;if(age>=.24)return;flinchStart=elapsed-Math.max(0,age);flinchStrength=clamp(strength,0,1);},
     resetHitReaction(){flinchSerial=0;flinchStart=-Infinity;},

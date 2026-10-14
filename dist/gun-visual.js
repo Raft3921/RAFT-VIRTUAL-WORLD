@@ -3,6 +3,7 @@ import {WEAPON_DIMENSIONS} from './weapon-dimensions.js?v=20261014-fps94';
 import {cuboidGeometry} from './model-batching.js?v=20261014-fps94';
 const steel='#59636e',silver='#88939d',black='#252c32',rubber='#111820',wood='#815539',cache=new Map(),handCache=new Map();
 const gunMaterial=new THREE.MeshStandardMaterial({vertexColors:true,metalness:.48,roughness:.39}),skinMaterial=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.83}),flashMaterial=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,opacity:.88,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+const scopeLensGeometry=new THREE.PlaneGeometry(.112,.112),scopeGlass=new THREE.MeshBasicMaterial({color:'#17313d'});
 const flashGeometry=cuboidGeometry([{x:0,y:0,z:.065,w:.055,h:.055,d:.13,c:'#fff7d7'},{x:0,y:0,z:.14,w:.1,h:.025,d:.18,c:'#ffbd55',rz:.6},{x:0,y:0,z:.14,w:.025,h:.1,d:.18,c:'#ffd987',rz:.6}]);
 function build(id){
  const staticParts=[],reloadParts=[];let target=staticParts;
@@ -25,7 +26,7 @@ function build(id){
   part(0,.013,.56,.15,.145,.34,shotgun?wood:black);barrel(0,.025,(.68+tip)/2,shotgun?.039:.031,tip-.68,steel);barrel(0,.025,tip,.048,.06,black);
   for(let i=0;i<8;i++)part(0,.105,.36+i*.04,.16,.012,.012,silver);
   for(const side of [-1,1])for(let i=0;i<5;i++)part(side*.079,.027,.44+i*.048,.008,.045,.018,steel);
-  if(sniper){barrel(0,.224,.23,.066,.47,black);barrel(0,.224,.46,.078,.04,steel);part(0,.224,.485,.103,.103,.008,'#79a5b4');for(const z of [.05,.34])part(0,.14,z,.052,.12,.035,steel);part(.06,.25,.22,.043,.065,.061,silver);target=reloadParts;part(.125,.021,.1,.095,.022,.04,steel);part(.171,-.02,.1,.039,.085,.048,black);}
+  if(sniper){barrel(0,.224,.23,.066,.47,black);barrel(0,.224,-.026,.085,.10,rubber);barrel(0,.224,.46,.078,.04,steel);part(0,.224,.485,.103,.103,.008,'#79a5b4');for(const z of [.05,.34])part(0,.14,z,.052,.12,.035,steel);part(.06,.25,.22,.043,.065,.061,silver);target=reloadParts;part(.125,.021,.1,.095,.022,.04,steel);part(.171,-.02,.1,.039,.085,.048,black);}
   else if(shotgun){barrel(0,-.04,.7,.026,.65,black);target=reloadParts;part(0,-.021,.63,.17,.12,.24,wood);for(let i=0;i<5;i++)part(0,-.021,.535+i*.04,.176,.126,.008,black);}
   else{part(.084,.045,.07,.065,.025,.08,silver);part(0,.158,.34,.08,.095,.095,rubber);target=reloadParts;part(0,-.19,.22,.099,.3,.17,black,.1);for(let i=0;i<5;i++)part(.052,-.285+i*.038,.222,.01,.016,.168,steel);part(0,-.35,.21,.118,.029,.186,steel);}
  }
@@ -35,7 +36,7 @@ export function createGunModel(id){
  if(!cache.has(id))cache.set(id,build(id));const geometry=cache.get(id),root=new THREE.Group();root.name='handheld-'+id;root.userData.weapon=id;
  const body=new THREE.Mesh(geometry.geometry,gunMaterial),reloadPart=new THREE.Mesh(geometry.reloadGeometry,gunMaterial);body.castShadow=reloadPart.castShadow=true;body.receiveShadow=reloadPart.receiveShadow=true;root.add(body,reloadPart);root.userData.reloadPart=reloadPart;root.userData.reloadBase=new THREE.Vector3();
  const muzzle=new THREE.Object3D();muzzle.name='barrel muzzle';muzzle.position.fromArray(WEAPON_DIMENSIONS[id]?.muzzle||WEAPON_DIMENSIONS.pistol.muzzle);root.add(muzzle);
- const flash=new THREE.Mesh(flashGeometry,flashMaterial);flash.visible=false;flash.renderOrder=4;muzzle.add(flash);root.userData.muzzle=muzzle;root.userData.flash=flash;root.userData.flashUntil=0;return root;
+ const flash=new THREE.Mesh(flashGeometry,flashMaterial);flash.visible=false;flash.renderOrder=4;muzzle.add(flash);root.userData.muzzle=muzzle;root.userData.flash=flash;root.userData.flashUntil=0;if(id==='sniper'){const lens=new THREE.Mesh(scopeLensGeometry,scopeGlass);lens.name='optical ocular lens';lens.position.set(0,.224,-.079);lens.rotation.y=Math.PI;root.add(lens);root.scopeLens=lens;}return root;
 }
 export function triggerGunFlash(model,now=performance.now()){if(!model)return;model.userData.flashUntil=now+65;model.userData.flash.visible=true;model.userData.flash.rotation.z=Math.random()*Math.PI;}
 export function updateGunFlash(model,now=performance.now()){if(!model)return;const remaining=model.userData.flashUntil-now,flash=model.userData.flash;flash.visible=remaining>0;if(flash.visible)flash.scale.setScalar(.65+remaining/65*.65);}

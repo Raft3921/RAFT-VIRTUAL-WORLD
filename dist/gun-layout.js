@@ -8,7 +8,7 @@ export const WEAPONS=[
  {id:'machine',name:'マシンガン',price:3,magazine:30,interval:100,speed:1900,pellets:1,spread:.013,range:420,require:1},
  {id:'sniper',name:'スナイパー',price:5,magazine:5,interval:1000,speed:2600,pellets:1,spread:0,range:800,require:5},
  {id:'shotgun',name:'ショットガン',price:7,magazine:8,interval:850,speed:1600,pellets:4,spread:.055,range:180,require:10},
- {id:'rocket',name:'ロケットランチャー',price:10,magazine:1,interval:1200,speed:24,pellets:1,spread:0,range:320,radius:6,require:15}
+ {id:'rocket',name:'ロケットランチャー',price:10,magazine:1,interval:1200,speed:24,pellets:1,spread:0,range:320,radius:12,damage:3,require:15}
 ];
 export const weaponById=id=>WEAPONS.find(w=>w.id===id);
 export function buildGunTown({box,board=()=>{},sign=()=>{}}){

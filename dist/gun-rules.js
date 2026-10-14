@@ -1,5 +1,5 @@
 import {fallbackMuzzle} from './weapon-dimensions.js?v=20261013-life89b';
-import {WEAPONS,weaponById,inGunZone,GUN_SPAWNS,GUN_SOLIDS,GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261014-rocket90';
+import {WEAPONS,weaponById,inGunZone,GUN_SPAWNS,GUN_SOLIDS,GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261014-rocket91';
 import {segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261013-life89b';
 import {buildDistrict} from './district.js?v=20261013-life89b';
 const district=[];buildDistrict({box:(x,y,z,w,h,d,color,solid=true)=>{if(solid)district.push({x,y,z,w,h,d});},board:()=>{},sign:()=>{},seats:[],clockHands:[]});
@@ -38,14 +38,14 @@ export class GunRules{
   this.phase='waiting';this.startAt=0;this.nextRoundAt=0;this.publish();
  }
  damage(owner,victim,shot,now,{deferResolve=false}={}){
-  const attacker=this.members.get(owner.id),target=this.members.get(victim.id);
+  const attacker=this.members.get(owner.id),target=this.members.get(victim.id),damage=weaponById(shot.weapon)?.damage||1;
   if(inGunZone(owner)||inGunZone(victim)){
    if(this.phase!=='active'||!attacker||!target||attacker.out||target.out||attacker.team===target.team)return;
-   target.damage=shot.weapon==='rocket'?3:target.damage+1;target.out=target.damage>=3;if(target.out){target.outAt=now;target.outPosition={x:victim.x,y:victim.y,z:victim.z};Object.assign(victim,{ragdoll:true,hitPhase:'down',hitTime:0,hitDownTime:0,hitRecovery:0,hitStrength:.55,grounded:true,vx:0,vy:0,vz:0});this.send({type:'gun-eliminated',playerId:victim.id,position:target.outPosition,at:now});}
+   target.damage=Math.min(3,target.damage+damage);target.out=target.damage>=3;if(target.out){target.outAt=now;target.outPosition={x:victim.x,y:victim.y,z:victim.z};Object.assign(victim,{ragdoll:true,hitPhase:'down',hitTime:0,hitDownTime:0,hitRecovery:0,hitStrength:.55,grounded:true,vx:0,vy:0,vz:0});this.send({type:'gun-eliminated',playerId:victim.id,position:target.outPosition,at:now});}
   }else if(this.rules.duel?.ids.includes(owner.id)||this.rules.duel?.ids.includes(victim.id))return;
   // Reuse light punch reaction; each pellet scores independently, without stun immunity.
-  this.rules.hit(owner,victim,1,now,{kind:0,held:0});
-  this.send({type:'gun-damage',playerId:victim.id,remaining:target?Math.max(0,3-target.damage):null});
+  this.rules.hit(owner,victim,damage,now,{kind:0,held:0});
+  this.send({type:'gun-damage',playerId:victim.id,damage,weapon:shot.weapon,remaining:target?Math.max(0,3-target.damage):null});
   if(target&&!deferResolve){this.publish();this.resolve();}
  }
  blocked(a,b,layouts,radius=.025){let first=projectileWallFraction(a,b,layouts,radius);const candidates=new Set(),steps=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/6));for(let i=0;i<=steps;i++){const point=interpolate(a,b,i/steps);for(const box of this.buckets.get(Math.floor(point.x/12)+','+Math.floor(point.z/12))||[])candidates.add(box);}for(const box of candidates){
@@ -84,8 +84,9 @@ export class GunRules{
     if(weapon.radius){
      // Resolve the entire blast before declaring a winner or teleporting players.
      for(const q of players){if(q.id===owner.id)continue;
-      const center={x:q.x,y:q.y+(q.crouched?.64:.9),z:q.z};
-      if(Math.hypot(center.x-point.x,center.y-point.y,center.z-point.z)<=weapon.radius)this.damage(owner,q,shot,now,{deferResolve:true});
+      // Include any part of the player's body touched by the blast sphere.
+      const height=q.crouched?1.28:1.8,dx=Math.max(0,Math.abs(q.x-point.x)-.325),dz=Math.max(0,Math.abs(q.z-point.z)-.325),dy=Math.max(q.y-point.y,point.y-q.y-height,0);
+      if(Math.hypot(dx,dy,dz)<=weapon.radius)this.damage(owner,q,shot,now,{deferResolve:true});
      }
      this.publish();this.resolve();
     }

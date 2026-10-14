@@ -181,7 +181,6 @@ export async function createAvatar(url,{model=null}={}) {
       }
       const mesh = new THREE.Mesh(geometry, partMaterial);
       mesh.name = `${name}-${start}-${overlay ? 'overlay' : 'base'}`;
-      mesh.userData.avatarPart=name;
       mesh.position.set(x * PX, y * PX, 0);
       mesh.updateMatrix();mesh.matrixAutoUpdate=false;
       mesh.castShadow = true;
@@ -198,7 +197,6 @@ export async function createAvatar(url,{model=null}={}) {
       const geometry = custom?skinBox(definition,overlay,definition.size[1]*.4,definition.size[1]*.2):jointBox(definition,overlay);
       const mesh = new THREE.Mesh(geometry, overlay ? overlayMaterial : baseMaterial);
       mesh.name = `${name}-joint-${overlay ? 'overlay' : 'base'}`;
-      mesh.userData.avatarPart=name;
       mesh.position.set(x * PX, y * PX, 0);
       mesh.updateMatrix();mesh.matrixAutoUpdate=false;
       mesh.castShadow = true;
@@ -258,14 +256,6 @@ export async function createAvatar(url,{model=null}={}) {
     crownTips.forEach(t=>{t.position.y=crownFloor+height+.07;t.updateMatrix();t.matrixAutoUpdate=false;});
   }
   setAppearance();
-  // Keep the torso transform as the shoulder parent; only hide its skin meshes.
-  // Physics and the shared elimination pose retain the complete skeleton.
-  let armsOnly=false;
-  function setArmsOnly(value){
-    value=!!value;if(armsOnly===value)return;armsOnly=value;root.userData.avatarArmsOnly=value;
-    head.visible=!value;hips.left.visible=hips.right.visible=!value;
-    for(const mesh of meshes)if(mesh.userData.avatarPart==='torso')mesh.visible=!value;
-  }
   let sitWeight=0,sleepWeight=0,flinchStart=-Infinity,flinchStrength=0,flinchSerial=0;
   let phase = 0;
   let elapsed = 0;
@@ -466,12 +456,12 @@ export async function createAvatar(url,{model=null}={}) {
     if(gunModel){gunModel.visible=!state.ragdoll&&!state.sleeping&&!state.seated;if(gunModel.visible){
       const aim=clamp(-(state.lookPitch||0),-.75,.75);
       shoulders.right.rotation.set(-1.20-aim*.82,0,-.035);elbows.right.rotation.set(-.22,0,0);
-      shoulders.left.rotation.set(-1.05-aim*.7,.03,.13);elbows.left.rotation.set(-.48,0,0);
+      // The world avatar holds the gun with its right hand. Keep the left arm's
+      // normal idle/walk pose; the separate first-person rig has its own grip.
       torso.rotation.y=.015;torso.rotation.z=Math.sin(phase)*.006*motion;
       gunInverse.copy(shoulders.right.quaternion).multiply(elbows.right.quaternion).invert();const recoil=Math.max(0,gunModel.userData.flashUntil-performance.now())/65;gunAim.setFromAxisAngle(gunAxis,-aim-torso.rotation.x-recoil*.035);
       gunModel.quaternion.copy(gunInverse).multiply(gunAim);gunModel.position.set(0,.115,.025).applyQuaternion(gunModel.quaternion);updateGunFlash(gunModel);
     }}
-    setArmsOnly(!!gunModel?.visible);
     // Keep the supporting foot planted after the combat pose has been blended.
     if(grounded&&airborne<.02&&sitWeight<.01&&sleepWeight<.01&&ragdollWeight<.01){
       let sole=Infinity;for(const side of ['right','left']){const a=hips[side].rotation.x,b=a+knees[side].rotation.x,z=hips[side].rotation.z;const y=legHeight*PX+pelvis.position.y-(legHalf*PX*Math.cos(a)+legHalf*PX*Math.cos(b))*Math.cos(z)-.125*Math.abs(Math.sin(b));sole=Math.min(sole,y);}
@@ -515,7 +505,7 @@ export async function createAvatar(url,{model=null}={}) {
   root.traverse(object=>{if(object.isMesh)withLocalLighting(object.material);});
   return {
     animation,
-    root, update, applyPlayPose, dispose, head, setAppearance,setArmsOnly,gripColor:skinColor,createFirstPersonHand:options=>createSkinnedFiringHand({forearm:true,...options}),
+    root, update, applyPlayPose, dispose, head, setAppearance,gripColor:skinColor,createFirstPersonHand:options=>createSkinnedFiringHand({forearm:true,...options}),
     getGunMuzzle(target=new THREE.Vector3()){if(!gunModel?.visible)return null;root.updateMatrixWorld(true);return gunModel.userData.muzzle.getWorldPosition(target);},fireGun(){triggerGunFlash(gunModel);},
     reactHit(serial,strength=.2,age=0){if(!Number.isFinite(serial)||serial<=flinchSerial)return;flinchSerial=serial;if(age>=.24)return;flinchStart=elapsed-Math.max(0,age);flinchStrength=clamp(strength,0,1);},
     resetHitReaction(){flinchSerial=0;flinchStart=-Infinity;},

@@ -51,9 +51,6 @@ export function createGunCinematic({scene,camera,get,audio}){
  }
  function duplicate(source){
   const root=source.clone(true),base=[],meshes=[],guns=[];root.traverse(node=>{
-   // The cinematic uses the existing full-body fall animation, independently
-   // of the live shoulder-and-arm silhouette.
-   if(root.userData.avatarArmsOnly&&(node.userData.avatarPart==='torso'||['neck','left-hip','right-hip'].includes(node.name)))node.visible=true;
    base.push({node,position:node.position.clone(),rotation:node.rotation.clone(),scale:node.scale.clone(),visible:node.visible});if(node.isMesh&&/-(base|overlay)$/.test(node.name))meshes.push(node);if(node.name.startsWith('handheld-'))guns.push(node);
   });
   const joints={pelvis:root.getObjectByName('pelvis'),torso:root.getObjectByName('waist'),head:root.getObjectByName('neck'),shoulders:{},elbows:{},hips:{},knees:{}};

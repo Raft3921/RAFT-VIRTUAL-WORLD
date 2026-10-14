@@ -16,6 +16,7 @@ jobs:
   deploy:
     permissions:
       contents: read
+      actions: read
       pages: write
       id-token: write
     environment:
@@ -40,6 +41,32 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+          name: pages-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Wait for uploaded Pages artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_API: ${{ github.api_url }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_RUN_ID: ${{ github.run_id }}
+          PAGES_ARTIFACT: pages-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          python3 - <<'PYARTIFACT'
+          import json, os, time, urllib.request
+          url = os.environ['GH_API']+'/repos/'+os.environ['GH_REPOSITORY']+'/actions/runs/'+os.environ['GH_RUN_ID']+'/artifacts?per_page=100'
+          for attempt in range(20):
+              request = urllib.request.Request(url, headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'], 'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(request) as response:
+                  artifacts = json.load(response)['artifacts']
+              matches = [artifact for artifact in artifacts if artifact['name']==os.environ['PAGES_ARTIFACT'] and not artifact['expired']]
+              if len(matches)==1:
+                  print('Pages artifact is ready')
+                  break
+              time.sleep(3)
+          else:
+              raise SystemExit('Pages artifact metadata did not become available')
+          PYARTIFACT
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: pages-${{ github.run_id }}-${{ github.run_attempt }}

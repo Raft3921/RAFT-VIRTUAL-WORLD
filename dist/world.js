@@ -1,6 +1,6 @@
 import {createCollisionWorld} from './world-collision.js?v=20261015-physics101';
 import {sandTexture} from './sand-texture.js?v=20261015-tactics99';
-import {createGunMapVisual} from './gun-map-visual.js?v=20261015-tactics99';
+import {createGunMapVisual} from './gun-map-visual.js?v=20261015-round102';
 import {rampHeight} from './plaza-surfaces.js?v=20261013-life89b';
 import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261015-tactics99';
 import * as THREE from './vendor/three.module.js';

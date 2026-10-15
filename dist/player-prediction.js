@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import {stepPlayer} from './player-physics.js?v=20261015-physics101';
+import {stepPlayer} from './player-physics.js?v=20261015-round102';
 export class PlayerPrediction{
  constructor(){this.epoch=1;this.seq=0;this.ack=0;this.pending=[];this.active=false;this.offset=new THREE.Vector3();this.last=null;this.resetPending=false;}
  reset(){this.epoch++;this.seq=0;this.ack=0;this.pending=[];this.active=false;this.last=null;this.offset.set(0,0,0);}

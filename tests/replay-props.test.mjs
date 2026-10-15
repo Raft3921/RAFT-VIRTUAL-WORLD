@@ -46,3 +46,21 @@ test('all four replay cuts run with finite transforms and only plan at cut bound
  }
  cinematic.stop();assert.equal(camera.fov,55);assert(!cinematic.active);
 });
+test('round reset closes doors and restores their collision and original instance transforms',()=>{
+ const {visual,mesh,b}=fixture('door'),at=10000;visual.apply([{id:'test',mode:'open',normal:[0,0,1],at}],at+3000);assert(b.disabled);
+ visual.reset();visual.update(at+6000);assert(!b.disabled);assert.equal(visual.changed.size,0);
+ const m=new THREE.Matrix4(),position=new THREE.Vector3(),rotation=new THREE.Quaternion(),scale=new THREE.Vector3();mesh.getMatrixAt(0,m);m.decompose(position,rotation,scale);
+ assert(position.distanceTo(new THREE.Vector3(b.x,b.y,b.z))<1e-6);assert(Math.abs(rotation.y)<1e-6);assert(scale.distanceTo(new THREE.Vector3(b.w,b.h,b.d))<1e-6);
+});
+test('round reset removes both falling and baked fragments and lets the prop break again',()=>{
+ for(const age of [100,3000]){const {root,visual,b}=fixture('bars'),at=10000;visual.apply([{id:'test',mode:'broken',normal:[1,0,0],at}],at+age);
+  visual.reset();visual.update(at+10000);assert(!b.disabled);assert.equal(root.children.length,2);const debris=root.children.find(c=>c.name==='permanent cut traces');assert(!debris.visible);assert(!debris.geometry.attributes.position);
+  visual.apply([{id:'test',mode:'cut',normal:[1,0,0],at:at+11000}],at+11000);assert(b.disabled);assert(root.children.length>2);
+ }
+});
+test('an authoritative empty snapshot restores old local destruction even if a reset event was missed',()=>{
+ const {visual,b,root}=fixture('bars'),trace={id:'test',mode:'broken',normal:[1,0,0],at:10000};visual.apply([trace],13000);
+ visual.replace([],14000);assert(!b.disabled);assert.equal(visual.changed.size,0);assert(!root.children.find(c=>c.name==='permanent cut traces').visible);
+ visual.replace([trace],14000);assert(b.disabled);const debris=root.children.find(c=>c.name==='permanent cut traces'),count=debris.geometry.attributes.position.count;
+ visual.replace([trace],15000);assert.equal(debris.geometry.attributes.position.count,count);
+});

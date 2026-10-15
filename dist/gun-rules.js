@@ -1,6 +1,6 @@
 import {solidExtents,segmentGunSolid} from './gun-solid.js?v=20261015-tactics99';
 import {gunDamage,gunHitBox} from './gun-posture.js?v=20261015-tactics99';
-import {GUN_PROP_DEFS,cleanGunTraces} from './gun-map-state.js?v=20261015-tactics99';
+import {GUN_PROP_DEFS} from './gun-map-state.js?v=20261015-tactics99';
 import {GUN_SPAWNS,GUN_SOLIDS} from './gun-collision.js?v=20261015-tactics99';
 import {gunEliminationState} from './hit-reaction.js?v=20261014-cinema93';
 import {fallbackMuzzle} from './weapon-dimensions.js?v=20261015-tactics99';
@@ -10,26 +10,27 @@ import {buildDistrict} from './district.js?v=20261013-life89b';
 const district=[];buildDistrict({box:(x,y,z,w,h,d,color,solid=true)=>{if(solid)district.push({x,y,z,w,h,d});},board:()=>{},sign:()=>{},seats:[],clockHands:[]});
 const interpolate=(a,b,t)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,z:a.z+(b.z-a.z)*t});
 export class GunRules{
- constructor(rules){this.rules=rules;this.members=new Map();this.mode='auto';this.phase='waiting';this.startAt=0;this.round=0;this.shots=[];this.sequence=0;this.marks=[];this.timer=null;this.lastTick=Date.now();this.ammo=new Map();this.nextRoundAt=0;this.preview=null;const life=Number(rules.settings?.gunLife);this.maxLife=Number.isInteger(life)?Math.max(3,Math.min(100,life)):3;this.traces=new Map(cleanGunTraces(rules.settings?.gunTraces).map(t=>[t.id,t]));this.charges=new Map();this.slashes=new Map();this.solids=[...GUN_SOLIDS,...district];this.buckets=new Map();for(const box of this.solids){const extent=solidExtents(box);for(let x=Math.floor((box.x-extent.x)/12);x<=Math.floor((box.x+extent.x)/12);x++)for(let z=Math.floor((box.z-extent.z)/12);z<=Math.floor((box.z+extent.z)/12);z++){const key=x+','+z;if(!this.buckets.has(key))this.buckets.set(key,[]);this.buckets.get(key).push(box);}}}
+ constructor(rules){this.rules=rules;this.members=new Map();this.mode='auto';this.phase='waiting';this.startAt=0;this.round=0;this.shots=[];this.sequence=0;this.marks=[];this.timer=null;this.lastTick=Date.now();this.ammo=new Map();this.nextRoundAt=0;this.preview=null;const life=Number(rules.settings?.gunLife);this.maxLife=Number.isInteger(life)?Math.max(3,Math.min(100,life)):3;this.traces=new Map();this.mapRevision=0;this.charges=new Map();this.slashes=new Map();this.solids=[...GUN_SOLIDS,...district];this.buckets=new Map();for(const box of this.solids){const extent=solidExtents(box);for(let x=Math.floor((box.x-extent.x)/12);x<=Math.floor((box.x+extent.x)/12);x++)for(let z=Math.floor((box.z-extent.z)/12);z<=Math.floor((box.z+extent.z)/12);z++){const key=x+','+z;if(!this.buckets.has(key))this.buckets.set(key,[]);this.buckets.get(key).push(box);}}}
  impact(message){const now=Date.now();this.marks=this.marks.filter(m=>now-m.at<20000);if(message.wall){this.marks.push({...message,at:now});if(this.marks.length>128)this.marks.shift();}this.send({...message,at:now});}
  players(){return this.rules.entries().map(e=>e.player);}
  send(message){this.rules.broadcast(message);}
  record(p){return this.rules.characters.get(p.skin);}
  economy(p){this.send({type:'gun-inventory',playerId:p.id,character:this.record(p),ammo:this.ammo.get(p.id+':'+p.equippedWeapon)||null});}
  reward(p,{coins=0,weapon=null}={}){const c=this.record(p),weaponWins={...c.weaponWins};if(weapon)weaponWins[weapon]=(weaponWins[weapon]||0)+1;return this.rules.characters.change(p.skin,{coins:c.coins+coins,weaponWins});}
- snapshot(){return {maxLife:this.maxLife,traces:[...this.traces.values()],preview:this.preview?.message||null,phase:this.phase,mode:this.mode,startAt:this.startAt,round:this.round,members:[...this.members.values()].map(m=>({id:m.id,team:m.team,damage:m.damage,out:m.out,manual:m.manual,weapon:m.weapon,skin:this.players().find(p=>p.id===m.id)?.skin??8}))};}
+ snapshot(){return {maxLife:this.maxLife,mapRevision:this.mapRevision,traces:[...this.traces.values()],preview:this.preview?.message||null,phase:this.phase,mode:this.mode,startAt:this.startAt,round:this.round,members:[...this.members.values()].map(m=>({id:m.id,team:m.team,damage:m.damage,out:m.out,manual:m.manual,weapon:m.weapon,skin:this.players().find(p=>p.id===m.id)?.skin??8}))};}
  publish(){this.send({type:'gun-battle',battle:this.snapshot()});}
  assign(){if(this.phase==='active'||this.phase==='preview')return;const members=[...this.members.values()],pairs=this.mode==='teams'||this.mode==='auto'&&members.length===4;members.forEach((m,i)=>{if(!m.manual)m.team=pairs?Math.floor(i/Math.ceil(members.length/2)):i;});}
  teleport(p,team){const occupied=this.players().filter(q=>q.id!==p.id&&this.members.has(q.id));let points=GUN_SPAWNS.filter(s=>occupied.every(q=>Math.hypot(q.x-s.x,q.z-s.z)>8));if(!points.length)points=GUN_SPAWNS;const spawn={...points[Math.floor(Math.random()*points.length)],yaw:Math.random()*Math.PI*2};this.move(p,spawn);}
  move(p,position){p.gunTeleportSerial=(p.gunTeleportSerial||0)+1;Object.assign(p,position,{flight:false,prone:false,crouched:false,seated:false,sleeping:false,ragdoll:false,vx:0,vy:0,vz:0});this.send({type:'gun-teleport',playerId:p.id,position,serial:p.gunTeleportSerial});}
  atBoard(p){return GUN_EXIT_BOARDS.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<5&&p.y<4);}
  enter(p){if(this.members.has(p.id))return;if(this.phase==='active'||this.phase==='preview'||Math.hypot(p.x-GUN_ENTRY.x,p.z-GUN_ENTRY.z)>6||p.y>4)return;const c=this.record(p),weapon=c.ownedWeapons.includes(p.equippedWeapon)?p.equippedWeapon:c.ownedWeapons.at(-1);if(!weapon){this.send({type:'gun-error',playerId:p.id,message:'武器を持っていないため入場できません。PCのストアで購入してください'});return;}
+  if(!this.members.size)this.resetMap();
   const previousWeapon=p.equippedWeapon||null;this.members.set(p.id,{id:p.id,skin:p.skin,team:0,damage:0,out:false,manual:false,weapon,previousWeapon});if(previousWeapon!==weapon){p.equippedWeapon=weapon;this.rules.onAsyncWork(this.rules.characters.change(p.skin,{equippedWeapon:weapon}));}this.economy(p);this.assign();this.teleport(p,this.members.get(p.id).team);this.phase='waiting';this.startAt=this.members.size>=2?Date.now()+3000:0;this.publish();this.ensureTimer();
  }
  state(p){if(p.equippedWeapon!=='katana')this.charges.delete(p.id);const frozen=this.preview?.message.players.find(q=>q.id===p.id);if(frozen){Object.assign(p,frozen,{speed:0,vx:0,vy:0,vz:0,verticalSpeed:0});return;}this.checkReload(p,Date.now());const m=this.members.get(p.id);if(m){if(!inGunZone(p)){if(m.lastPosition)this.move(p,m.lastPosition);else this.teleport(p,m.team);}p.flight=false;p.seated=false;p.sleeping=false;this.ram(p);if(m.wasProne&&!p.prone&&this.solids.some(b=>!this.traces.has(b.gunPropId)&&b.y-b.h/2<p.y+1.8&&b.y+b.h/2>p.y+.05&&Math.abs(p.x-b.x)<b.w/2+.32&&Math.abs(p.z-b.z)<b.d/2+.32))p.prone=true;m.wasProne=!!p.prone;m.lastPosition={x:p.x,y:p.y,z:p.z,yaw:p.yaw};if(m.out&&this.phase==='active'){p.speed=0;Object.assign(p,m.outPosition||m.lastPosition);Object.assign(p,gunEliminationState((Date.now()-(m.outAt||Date.now()))/1000));p.vx=p.vy=p.vz=0;}}else if(inGunZone(p)){this.move(p,{...GUN_ENTRY,z:GUN_ENTRY.z+3});}}
- remove(id,{publish=true,reassign=true}={}){this.charges.delete(id);this.slashes.delete(id);if(this.preview&&this.members.has(id))return;const m=this.members.get(id);if(!m)return;this.members.delete(id);const p=this.players().find(p=>p.id===id);if(p)p.equippedWeapon=m.previousWeapon;this.rules.onAsyncWork(this.rules.characters.change(m.skin,{equippedWeapon:m.previousWeapon}));if(p)this.economy(p);for(const key of this.ammo.keys())if(key.startsWith(id+':'))this.ammo.delete(key);if(this.phase==='active'){this.phase='finished';this.nextRoundAt=Date.now()+8000;this.send({type:'gun-result',winner:null,round:this.round});}else if(reassign){this.assign();this.startAt=this.members.size>=2?Date.now()+3000:0;}if(publish)this.publish();}
+ remove(id,{publish=true,reassign=true}={}){this.charges.delete(id);this.slashes.delete(id);if(this.preview&&this.members.has(id))return;const m=this.members.get(id);if(!m)return;this.members.delete(id);const p=this.players().find(p=>p.id===id);if(p)p.equippedWeapon=m.previousWeapon;this.rules.onAsyncWork(this.rules.characters.change(m.skin,{equippedWeapon:m.previousWeapon}));if(p)this.economy(p);for(const key of this.ammo.keys())if(key.startsWith(id+':'))this.ammo.delete(key);if(this.phase==='active'){this.phase='finished';this.nextRoundAt=Date.now()+8000;this.send({type:'gun-result',winner:null,round:this.round});this.resetMap();}else if(reassign){this.assign();this.startAt=this.members.size>=2?Date.now()+3000:0;}if(publish)this.publish();}
  begin(now){if(this.members.size<2||new Set([...this.members.values()].map(m=>m.team)).size<2){this.startAt=0;this.publish();return;}
-  this.phase='active';this.round++;this.shots=[];this.startAt=0;
+  this.resetMap();this.phase='active';this.round++;this.shots=[];this.startAt=0;
   for(const m of this.members.values()){const p=this.players().find(p=>p.id===m.id);if(!p)continue;m.damage=0;m.out=false;m.weapon=p.equippedWeapon||'pistol';this.teleport(p,m.team);for(const key of this.ammo.keys())if(key.startsWith(p.id+':'))this.ammo.delete(key);this.economy(p);}
   this.publish();
  }
@@ -40,7 +41,7 @@ export class GunRules{
   // Finish rewards first, then restore every participant's entry equipment.
   const participants=[...this.members.values()];this.shots=[];
   participants.forEach((m,index)=>{const p=this.players().find(p=>p.id===m.id);this.remove(m.id,{publish:false,reassign:false});if(p)this.move(p,{...GUN_ENTRY,x:GUN_ENTRY.x-2+(index%3)*1.3,z:GUN_ENTRY.z+3+Math.floor(index/3)*1.5});});
-  this.phase='waiting';this.startAt=0;this.nextRoundAt=0;this.publish();
+  this.phase='waiting';this.startAt=0;this.nextRoundAt=0;this.resetMap();this.publish();
  }
  damage(owner,victim,shot,now,{deferResolve=false}={}){
   const attacker=this.members.get(owner.id),target=this.members.get(victim.id),damage=gunDamage(shot.weapon,shot.charge);
@@ -125,7 +126,7 @@ export class GunRules{
   if(this.preview){if(now>=this.preview.message.startAt+this.preview.message.duration)this.finishPreview(now);return;}
   for(const p of players)this.checkReload(p,now);
   if(this.phase==='waiting'&&this.startAt&&now>=this.startAt)this.begin(now);
-  if(this.phase==='finished'&&now>=this.nextRoundAt){this.phase='waiting';this.assign();this.startAt=this.members.size>=2?now+3000:0;this.publish();}
+  if(this.phase==='finished'&&now>=this.nextRoundAt){this.phase='waiting';this.resetMap();this.assign();this.startAt=this.members.size>=2?now+3000:0;this.publish();}
   for(const shot of this.shots){const owner=players.find(p=>p.id===shot.owner);if(!owner||shot.round!==null&&(this.phase!=='active'||shot.round!==this.round))continue;
    const shotDt=Math.max(0,Math.min(.2,(now-(shot.lastAt||shot.born))/1000,shot.life-((shot.lastAt||shot.born)-shot.born)/1000));shot.lastAt=now;const a=shot.position,b={x:a.x+shot.vx*shotDt,y:a.y+shot.vy*shotDt,z:a.z+shot.vz*shotDt},weapon=weaponById(shot.weapon),radius=weapon.radius ? .18 : .025;let first=this.blocked(a,b,layouts,radius),victim=null;
    for(const q of players){if(q.id===owner.id)continue;const own=this.members.get(owner.id),target=this.members.get(q.id);if(shot.round!==null&&(!target||target.out||target.team===own?.team))continue;if(shot.round===null&&inGunZone(q))continue;
@@ -140,16 +141,20 @@ export class GunRules{
   }this.shots=remaining;
   if(!this.members.size&&!this.shots.length&&![...this.ammo.values()].some(a=>a.reloadAt)){clearInterval(this.timer);this.timer=null;this.finish?.();this.finish=null;}
  }
+ resetMap(){
+  this.traces.clear();this.marks=[];this.shots=[];this.charges.clear();this.slashes.clear();this.mapRevision++;
+  this.send({type:'gun-map',reset:true,mapRevision:this.mapRevision,traces:[]});this.persistMap();
+ }
  persistMap(){
   const rules=this.rules;if(!rules.saveSettings)return;
-  rules.settingsQueue=(rules.settingsQueue||Promise.resolve()).then(async()=>{const settings={...rules.settings,gunLife:this.maxLife,gunTraces:[...this.traces.values()]};await rules.saveSettings(settings);rules.settings=settings;}).catch(()=>this.send({type:'gun-map-error',message:'マップの痕跡を保存できませんでした'}));rules.onAsyncWork(rules.settingsQueue);
+  rules.settingsQueue=(rules.settingsQueue||Promise.resolve()).then(async()=>{const settings={...rules.settings,gunLife:this.maxLife,gunTraces:[]};await rules.saveSettings(settings);rules.settings=settings;}).catch(()=>this.send({type:'gun-map-error',message:'マップの痕跡を保存できませんでした'}));rules.onAsyncWork(rules.settingsQueue);
  }
  changeProp(id,mode,normal=[.65,.75,0],now=Date.now()){
-  if(!GUN_PROP_DEFS.has(id)||this.traces.has(id)&&!(this.traces.get(id).mode==='open'&&mode==='cut'))return false;
-  const trace={id,mode,normal,at:now};this.traces.set(id,trace);this.send({type:'gun-map',traces:[trace]});this.persistMap();return true;
+  if(this.phase!=='active'||!GUN_PROP_DEFS.has(id)||this.traces.has(id)&&!(this.traces.get(id).mode==='open'&&mode==='cut'))return false;
+  const trace={id,mode,normal,at:now};this.traces.set(id,trace);this.send({type:'gun-map',mapRevision:this.mapRevision,traces:[trace]});return true;
  }
  ram(p){
-  if(this.phase==='preview'||this.phase==='active'&&this.members.get(p.id)?.out||p.ragdoll)return;
+  if(this.phase!=='active'||this.members.get(p.id)?.out||p.ragdoll)return;
   for(const def of GUN_PROP_DEFS.values()){
    if(this.traces.has(def.id)||def.kind==='crate'||p.y+1.5<def.y-def.h/2||p.y>def.y+def.h/2)continue;
    const dx=Math.abs(p.x-def.x),dz=Math.abs(p.z-def.z);

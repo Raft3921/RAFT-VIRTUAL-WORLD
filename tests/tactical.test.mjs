@@ -42,7 +42,7 @@ test('every stair route reaches its roof, including switchback landings and para
  }
 });
 test('gun-zone jumping has a ballistic apex and tent height is three times trampoline height',()=>{
- const apex=GUN_JUMP_SPEED**2/(2*GUN_GRAVITY);assert(apex>.55&&apex<.65);
+ const apex=GUN_JUMP_SPEED**2/(2*GUN_GRAVITY);assert(apex>.75&&apex<.85);
  let y=0,v=GUN_JUMP_SPEED,max=0;for(let i=0;i<400;i++){v-=GUN_GRAVITY/240;y+=v/240;max=Math.max(max,y);}assert(Math.abs(max-apex)<.025);
  for(const incoming of [-2,-8,-20]){const trampoline=bounceSpeed(incoming)**2/(2*GUN_GRAVITY),tent=tentBounceSpeed(incoming)**2/(2*GUN_GRAVITY);assert(Math.abs(tent/trampoline-3)<1e-10);}
  assert(world.bodies.filter(b=>b.gunTent).length>=18);
@@ -60,9 +60,9 @@ test('life settings reject active-round, remote-board and out-of-range changes',
  for(const life of [2,101,3.5])gun.receive({player:p},{type:'gun-life',life},1100);assert.equal(gun.maxLife,3);
  gun.receive({player:p},{type:'gun-life',life:100},1200);await rules.settingsQueue;assert.equal(gun.maxLife,100);assert.equal(saved.at(-1).gunLife,100);
 });
-test('broken doors and bars are monotonic, shared and survive a server reconstruction',async()=>{
+test('broken doors and bars are shared during a round and not restored after server restart',async()=>{
  const {gun,rules,messages,saved}=fixture(),id='door-0-1';assert(gun.changeProp(id,'open'));assert(!gun.changeProp(id,'open'));await rules.settingsQueue;
- assert.equal(messages.filter(m=>m.type==='gun-map').length,1);const restored=new GunRules({...rules,settings:saved.at(-1)});assert.equal(restored.traces.get(id).mode,'open');assert.equal(restored.snapshot().traces.length,1);
+ assert.equal(messages.filter(m=>m.type==='gun-map').length,1);const restored=new GunRules({...rules,settings:{gunTraces:[...gun.traces.values()]}});assert.equal(restored.traces.size,0);assert.equal(restored.snapshot().traces.length,0);
 });
 test('katana damage comes from server-measured charge; one release cannot hit twice',()=>{
  const {gun,players,hits}=fixture();gun.maxLife=100;gun.blocked=()=>null;const p=players[0],aim={x:0,y:0,z:1};

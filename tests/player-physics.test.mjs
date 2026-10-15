@@ -10,11 +10,11 @@ import {PlayerPrediction} from '../dist/player-prediction.js';
 const body=(x=0,y=0,z=0)=>({p:new THREE.Vector3(x,y,z),vy:0,grounded:true,standingOn:null});
 const input=(dt=1/60)=>({dt,vx:0,vz:0,shape:{width:.32,depth:.32,height:1.9,yaw:0}});
 
-test('ordinary jumps peak at 60 cm, fall within half a second, consistently at 20/60/144 fps',()=>{
+test('ordinary jumps peak at 80 cm, land in about half a second, consistently at 20/60/144 fps',()=>{
  for(const fps of [20,60,144]){const w=createCollisionWorld([]),b=body();let peak=0,landed=0;
   for(let i=0;i<fps;i++){stepPlayer(w,b,{...input(1/fps),jump:i===0});peak=Math.max(peak,b.p.y);if(i>0&&b.grounded){landed=(i+1)/fps;break;}}
-  assert(peak>.56&&peak<.62,`peak at ${fps}: ${peak}`);assert(landed>=.43&&landed<=.5);}
- assert(PLAYER_GRAVITY>=24);assert(PLAYER_JUMP_SPEED**2/(2*PLAYER_GRAVITY)<.65);
+  assert(peak>.75&&peak<.81,`peak at ${fps}: ${peak}`);assert(landed>=.5&&landed<=.56);}
+ assert(PLAYER_GRAVITY>=24);assert(PLAYER_JUMP_SPEED**2/(2*PLAYER_GRAVITY)<.85);
 });
 test('airborne crossing of a low ledge does not step or warp onto it',()=>{
  for(const ramp of [undefined,{base:0,back:.24,front:.24}]){
@@ -47,10 +47,10 @@ function fixture(){const replies=[],players=new Map(),rules={players,houses:{sna
 test('room owns jump velocity and height, ignores claimed coordinates, duplicate inputs and repeated airborne jumps',()=>{
  const f=fixture();try{let state={x:100,y:50,z:100,grounded:true,verticalSpeed:100};
   f.physics.receive(f.entry,state,{active:true,epoch:1,inputs:[{...input(.05),seq:1,jump:true}]},1000);
-  assert.equal(state.x,0);assert(state.y>.2&&state.y<.25);assert(state.verticalSpeed<PLAYER_JUMP_SPEED);
+  assert.equal(state.x,0);assert(state.y>.26&&state.y<.30);assert(state.verticalSpeed<PLAYER_JUMP_SPEED);
   Object.assign(f.entry.player,state);const first=state.y;
   f.physics.receive(f.entry,state,{active:true,epoch:1,inputs:[{...input(.05),seq:1,jump:true},{...input(.05),seq:2,jump:true}]},1050);
-  assert(state.y>first);assert(state.verticalSpeed<3.1);assert.equal(f.entry.motion.seq,2);
+  assert(state.y>first);assert(state.verticalSpeed<4.0);assert.equal(f.entry.motion.seq,2);
   f.physics.reply(f.entry);assert.equal(f.replies.at(-1).seq,2);
  }finally{f.close();}
 });

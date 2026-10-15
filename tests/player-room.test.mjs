@@ -17,7 +17,7 @@ test('LAN room acknowledges authoritative jump inputs and broadcasts the same co
  const state={...a.joined.self,x:100,y:40,z:100,grounded:true,verticalSpeed:200};
  a.ws.send(JSON.stringify({type:'state',state,motion:{active:true,epoch:1,inputs:[{seq:1,dt:.05,vx:2,vz:0,jump:true,shape:{width:.32,depth:.32,height:1.9}}]}}));
  const ack=await a.wait(m=>m.type==='motion'&&m.seq===1),remote=await peer.wait(m=>m.type==='state'&&m.player.id===a.joined.self.id);
- assert(ack.x<1);assert(ack.y>.35&&ack.y<.45);assert(ack.vy>3&&ack.vy<5);assert(!ack.grounded);
+ assert(ack.x<1);assert(ack.y>.35&&ack.y<.45);assert(ack.vy>4.5&&ack.vy<5.1);assert(!ack.grounded);
  for(const axis of ['x','y','z'])assert.equal(remote.player[axis],ack[axis]);
  await new Promise(r=>setTimeout(r,60));a.ws.send(JSON.stringify({type:'state',state,motion:{active:true,epoch:1,inputs:[{seq:1,dt:.05,vx:2,vz:0,jump:true},{seq:2,dt:.05,vx:2,vz:0,jump:true}]}}));
  const second=await a.wait(m=>m.type==='motion'&&m.seq===2);assert(second.vy<ack.vy);assert(second.y>ack.y);assert(second.x<.21);

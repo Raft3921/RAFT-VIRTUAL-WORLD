@@ -41,7 +41,18 @@ export function createGunMapVisual(group,bodies){
   }
   if(dirty)rebuild();
  }
- return {apply(traces,now=Date.now()){
+ function reset(){
+  for(const f of active){f.mesh.removeFromParent();f.mesh.geometry.dispose();}active.length=0;doors.clear();
+  positions.length=normals.length=colors.length=0;debris.geometry.dispose();debris.geometry=new THREE.BufferGeometry();debris.visible=false;
+  for(const id of changed.keys())for(const b of byId.get(id)||[]){b.disabled=false;write(b,new THREE.Vector3(b.x,b.y,b.z),new THREE.Vector3(0,b.rotation||0,0));}
+  changed.clear();
+ }
+ function replace(traces=[],now=Date.now()){
+  const next=new Map(traces.map(t=>[t.id,t]));
+  if([...changed].some(([id,old])=>!next.has(id)||next.get(id).mode!==old.mode||next.get(id).at!==old.at))reset();
+  apply(traces,now);
+ }
+ function apply(traces,now=Date.now()){
   for(const trace of traces||[]){if(changed.has(trace.id)&&!(changed.get(trace.id).mode==='open'&&trace.mode==='cut'))continue;const list=byId.get(trace.id);if(!list)continue;changed.set(trace.id,trace);doors.delete(trace.id);
    if(trace.mode==='open'&&list[0].gunPropKind==='door'){
     const sign=(trace.normal?.[2]||1)>0?-1:1;for(const b of list)b.disabled=true;doors.set(trace.id,{list,trace,sign});continue;
@@ -56,5 +67,6 @@ export function createGunMapVisual(group,bodies){
    }
   }
   update(now);
- },update,get changed(){return changed;}};
+ }
+ return {apply,replace,reset,update,get changed(){return changed;}};
 }

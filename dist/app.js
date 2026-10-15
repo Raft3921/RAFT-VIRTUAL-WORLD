@@ -1,7 +1,6 @@
-import {GUN_GRAVITY,GUN_JUMP_SPEED,tentBounceSpeed} from './gun-locomotion.js?v=20261015-tactics99';
+import {PlayerPrediction} from './player-prediction.js?v=20261015-physics101';
 import {proneShape} from './gun-posture.js?v=20261015-tactics99';
 import {createVideoSettings} from './video-settings.js?v=20261014-cinema92';
-import {bounceSpeed} from './plaza-surfaces.js?v=20261013-life89b';
 import {createPlazaPlay} from './plaza-play.js?v=20261015-tactics99';
 import {furniturePose} from './housing-data.js?v=20261013-life89b';
 import {createLiving} from './living.js?v=20261013-life89b';
@@ -17,17 +16,17 @@ import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261015-tactics99';
 import { createEnvironment } from './environment.js?v=20261014-fps94';
-import { createWorld } from './world.js?v=20261015-tactics99';
+import { createWorld } from './world.js?v=20261015-physics101';
 import { ARENA,insideArena } from './world-layout.js?v=20261013-life89b';
 import { SYNC_ENDPOINT } from './sync-config.js?v=20261013-life89b';
 import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261013-life89b';
 import { createHit,stepHit,hitShape,proneWeight } from './hit-reaction.js?v=20261014-cinema93';
 import { createCombatEffects } from './combat-effects.js?v=20261014-world96';
 import { createBrownProjectiles } from './brown-projectiles.js?v=20261014-world96';
-import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261015-tactics99';
+import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261015-physics101';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261013-life89b';
 import { cleanCharacter } from './character-store.js?v=20261013-life89b';
-import { createHousingRenderer } from './housing-renderer.js?v=20261014-world96';
+import { createHousingRenderer } from './housing-renderer.js?v=20261015-physics101';
 // Versioned URL prevents a previously cached editor module from blocking startup.
 import { createHouseEditor } from './house-editor.js?v=20261014-kitchen94';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261013-life89b';
@@ -106,6 +105,7 @@ let attackKind=0,attackStrength=0,attackSerial=0,comboIndex=0,lastComboAt=-Infin
 let attackDuration=.34,attackYaw=0;
 let targetLock=null,attackRushing=false,rushTime=0,chainRemaining=0;
 const lockMarker=new THREE.Mesh(new THREE.RingGeometry(.62,.70,16),new THREE.MeshBasicMaterial({color:'#96ffdc',transparent:true,opacity:.8,side:THREE.DoubleSide,depthWrite:false}));lockMarker.rotation.x=-Math.PI/2;lockMarker.visible=false;scene.add(lockMarker);
+const playerPrediction=new PlayerPrediction();
 let roomSocket=null,roomCode='',roomSelfId='',lastRoomStateAt=0,roomFailure='';
 const remoteActors=new Map(),remoteLoading=new Map();
 let airWalk=false,lastJumpTapAt=-Infinity,flightAscend=false,flightDescend=false,crouchWanted=false,crouched=false,proneWanted=false,prone=false,crouchView=0,sprintWanted=false,lastForwardPress=-Infinity;
@@ -474,7 +474,13 @@ function handleRoomMessage(socket,event){
       particleOrigin.copy(p.position);particleOrigin.y+=1;combatEffects.impact(particleOrigin,localHit.strength);
     }return;
   }
+  if(message.type==='motion'){
+    if(!world||!actors[selected]||airWalk||localRagdoll||seated||sleeping)return;
+    const body={p:actors[selected].root.position,vy:verticalSpeed,grounded,standingOn};
+    if(playerPrediction.reconcile(world,body,message,localGunTeleportSerial)){verticalSpeed=body.vy;grounded=body.grounded;standingOn=body.standingOn;}return;
+  }
   if(message.type==='joined'){
+    playerPrediction.reset();
     if(!compatibleSync(message)){updateNotice.show();roomFailure='通信方式の更新が必要です';notify('通信方式が更新されています。「再読み込み」から最新ページを開いてください。',12000);roomSocket?.close(1000,'update server');updateRoomStatus(roomFailure);return;}
     roomSelfId=message.self.id;actors[selected]?.resetHitReaction();localHitSerial=message.self.hitSerial||0;localGunTeleportSerial=message.self.gunTeleportSerial||0;if(flashlightPending&&selected!==GUEST_SKIN)roomSocket.send(JSON.stringify({type:'flashlight-toggle',enabled:flashlightEnabled}));else flashlightEnabled=message.self.flashlightEnabled!==false;updateClockControls();
     housingEditor?.hydrate(message.houses);worldChat?.hydrate(message.chat);cooking?.hydrate(message.kitchens);
@@ -529,7 +535,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
   if(p){
     if(!inStudio){p.position.set(0,0,0);p.rotation.y=lobbyYaw;velocity.set(0,0,0);grounded=true}
     else{
-      world.update(time,p.position,dayPhase(dayCycle,serverNow()));
+      world.update(serverNow()/1000,p.position,dayPhase(dayCycle,serverNow()));
       const enabled=!paused()&&!localRagdoll&&!localImpact&&!experience?.eliminated;updateCrouch(enabled,dt);
       const mx=enabled?((keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+stick.x):0;
       const my=enabled?((keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-stick.y):0;
@@ -557,18 +563,20 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
           p.position.set(seat.x,seat.y-actors[selected].seatOffset,seat.z);p.rotation.y=seat.yaw;verticalSpeed=0;grounded=true;
         }else{
           const oldY=p.position.y;
-          if(standingOn&&grounded&&!standingOn.disabled){p.position.x+=standingOn.deltaX||0;p.position.y+=standingOn.deltaY||0;p.position.z+=standingOn.deltaZ||0;}
-          if(jumpRequested&&enabled&&grounded&&!prone){verticalSpeed=(inGunZone(p.position)?GUN_JUMP_SPEED:5.3)*(athleticActive?1.5:1);grounded=false;standingOn=null;}
+          const physicsJump=jumpRequested&&enabled&&grounded&&!prone;
           jumpRequested=false;
           const dash=ATTACKS[attackKind].dash||0;if(!targetLock&&punchSwing>.08&&punchSwing<.60&&dash&&!localRagdoll){const forward=Math.min(dash,athleticActive?moveSpeed*1.65:6)*Math.sin((punchSwing-.08)/.52*Math.PI);velocity.x=Math.sin(attackYaw)*forward+movement.x*.25;velocity.z=Math.cos(attackYaw)*forward+movement.z*.25;}
           if(airWalk){
             verticalSpeed=((flightAscend||keys.has('Space')?1:0)-(flightDescend||keys.has('ShiftLeft')||keys.has('ShiftRight')?1:0))*moveSpeed*2.4;
             physicsVelocity.set(velocity.x,verticalSpeed,velocity.z);world.move(p.position,physicsVelocity,dt,{lockedInArena:duelActive,shape:actorShape(actors[selected])});p.position.y=clamp(p.position.y,0,510);grounded=false;
           }else{
-            if(localRagdoll){localImpulse.y-=PUNCH.gravity*dt;physicsVelocity.copy(localImpulse);}
-            else{verticalSpeed=Math.max(-55,verticalSpeed-(inGunZone(p.position)?GUN_GRAVITY:15)*dt);physicsVelocity.set(velocity.x,verticalSpeed,velocity.z);}
-            const incomingVy=physicsVelocity.y;const result=world.move(p.position,physicsVelocity,dt,{ragdoll:localRagdoll,insideArena:knockbackInArena,lockedInArena:duelActive,shape:actorShape(actors[selected],localRagdoll?localHit:null,p.rotation.y)});
-            grounded=result.grounded;standingOn=result.body;verticalSpeed=physicsVelocity.y;if(grounded&&standingOn?.bounce&&!localRagdoll){verticalSpeed=standingOn.gunTent?tentBounceSpeed(incomingVy,keys.has('Space')):bounceSpeed(incomingVy,keys.has('Space'));grounded=false;if(!standingOn.gunTent)plazaPlay?.bounce(standingOn,verticalSpeed);standingOn=null;}
+            let result;
+            if(localRagdoll){localImpulse.y-=PUNCH.gravity*dt;physicsVelocity.copy(localImpulse);result=world.move(p.position,physicsVelocity,dt,{ragdoll:true,insideArena:knockbackInArena,lockedInArena:duelActive,shape:actorShape(actors[selected],localHit,p.rotation.y)});grounded=result.grounded;standingOn=result.body;verticalSpeed=physicsVelocity.y;}
+            else{
+              const body={p:p.position,vy:verticalSpeed,grounded,standingOn},input={dt,vx:velocity.x,vz:velocity.z,jump:physicsJump,prone,pump:keys.has('Space'),shape:actorShape(actors[selected]),lockedInArena:duelActive};
+              result=playerPrediction.step(world,body,input,roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId);
+              grounded=body.grounded;standingOn=body.standingOn;verticalSpeed=body.vy;if(result.bounceBody&&!result.bounceBody.gunTent)plazaPlay?.bounce(result.bounceBody,body.vy);physicsVelocity.set(velocity.x,verticalSpeed,velocity.z);
+            }
             if(localRagdoll){
               localImpulse.copy(physicsVelocity);
               const event=stepHit(localHit,dt,grounded,localImpulse);if(event==='spring'){grounded=false;standingOn=null;}else if(event==='done'){localRagdoll=false;localHit=null;localImpulse.set(0,0,0);if(restoreHitCamera){setCameraMode(restoreHitCamera);restoreHitCamera=null;}}
@@ -601,7 +609,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
     if(cooking?.active)cooking.constrain(p.position,portalStart);
     if(inStudio&&!cooking?.active&&!paused()&&!localRagdoll&&!localImpact&&!duelActive&&!athleticActive&&!seated&&!sleeping&&!charging&&punchSwing===0&&['follow','first'].includes(cameraMode)){
       const travel=housingView?.portals.step(p.position,movement,actor.collisionShape?.height||1.9,time,portalStart);
-      if(travel){p.position.copy(travel.position);if(travel.classic){const yawShift=angleDelta(p.rotation.y,travel.yaw);p.rotation.y=travel.yaw;yaw+=yawShift;velocity.set(0,0,0);localImpulse.set(0,0,0);movement.set(0,0,0);focus.copy(p.position);freePosition.copy(p.position);orbitTarget.copy(p.position);}else{p.rotation.y+=travel.yawDelta;yaw+=travel.yawDelta;velocity.applyMatrix3(travel.rotation);localImpulse.applyMatrix3(travel.rotation);movement.applyMatrix3(travel.rotation);focus.applyMatrix4(travel.matrix);camera.position.applyMatrix4(travel.matrix);freePosition.applyMatrix4(travel.matrix);orbitTarget.applyMatrix4(travel.matrix);}standingOn=null;targetLock=null;attackRushing=false;chainRemaining=0;queuedAttack=null;lastRoomStateAt=0;}
+      if(travel){playerPrediction.reset();playerPrediction.resetPending=true;p.position.copy(travel.position);if(travel.classic){const yawShift=angleDelta(p.rotation.y,travel.yaw);p.rotation.y=travel.yaw;yaw+=yawShift;velocity.set(0,0,0);localImpulse.set(0,0,0);movement.set(0,0,0);focus.copy(p.position);freePosition.copy(p.position);orbitTarget.copy(p.position);}else{p.rotation.y+=travel.yawDelta;yaw+=travel.yawDelta;velocity.applyMatrix3(travel.rotation);localImpulse.applyMatrix3(travel.rotation);movement.applyMatrix3(travel.rotation);focus.applyMatrix4(travel.matrix);camera.position.applyMatrix4(travel.matrix);freePosition.applyMatrix4(travel.matrix);orbitTarget.applyMatrix4(travel.matrix);}standingOn=null;targetLock=null;attackRushing=false;chainRemaining=0;queuedAttack=null;lastRoomStateAt=0;}
     }
     if(inStudio&&now-lastDashEffectAt>100){if(airWalk&&speed>.25){lastDashEffectAt=now;particleOrigin.copy(p.position);particleOrigin.y+=.9;particleOrigin.x-=velocity.x*.06;particleOrigin.z-=velocity.z*.06;emitParticles(particleOrigin,'#c9f0ff',2,.45,0)}else if(run&&speed>moveSpeed*1.2){lastDashEffectAt=now;particleOrigin.copy(p.position);emitParticles(particleOrigin,'#d8e7bc',2,.8,5)}}
     for(let i=0;i<actors.length;i++){const a=actors[i];if(!a||(!a.root.visible&&i!==selected))continue;const active=i===selected,body=bodies[i],fly=Math.hypot(body.vel.x,body.vel.z);a.update((active?localImpact:body.impact)?0:dt,{equippedWeapon:active&&!cooking?.handsOn&&!living?.active&&!plazaPlay?.active?cachedCharacter().equippedWeapon:null,impactTime:(active?localImpact:body.impact)?.time||0,impactDuration:(active?localImpact:body.impact)?.duration||0,impactStrength:(active?localImpact:body.impact)?.strength||0,prone:active&&prone,crouched:active&&crouched,seated:active&&seated&&living?.bathing?.def.design!=='shower',sleeping:active&&sleeping,speed:active?speed:fly,run:active&&(run||attackRushing),grounded:active?grounded:body.grounded,verticalSpeed:active?verticalSpeed:body.vel.y,flight:active&&airWalk,ragdoll:active?localRagdoll:body.ragdoll,hitPhase:(active?localHit:body.hit)?.phase,hitTime:(active?localHit:body.hit)?.elapsed,hitDownTime:(active?localHit:body.hit)?.downTime,hitRecovery:(active?localHit:body.hit)?.recovery,hitStrength:(active?localHit:body.hit)?.strength,lookYaw:active&&punchSwing===0&&inStudio&&(cameraMode==='follow'||cameraMode==='first')?angleDelta(p.rotation.y,yaw):0,lookPitch:active&&inStudio&&(cameraMode==='follow'||cameraMode==='first')?-pitch:0,gesture:active?gesture:'none',attackRushing:active&&attackRushing,attackKind:active?attackKind:0,punchCharge:active&&charging&&punchSwing===0?chargeTime/PUNCH.maxCharge:0,punchSwing:active?punchSwing:0,time:time+i*.7})}
@@ -618,7 +626,8 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
   experience?.cameraOverride(dt);
   if(sleeping&&bed&&inStudio&&!housingEditor?.active){camera.position.set(bed.x,bed.y+.26,bed.z);camera.up.set(Math.sin(bed.yaw),0,Math.cos(bed.yaw));camera.lookAt(camera.position.clone().add(new THREE.Vector3(0,1,0)));camera.updateMatrixWorld();}else camera.up.set(0,1,0);
   if(inStudio&&!housingEditor?.active&&!experience?.watching)housingView?.portals.adjustCamera(camera);
-  if(roomSocket?.readyState===WebSocket.OPEN&&p&&inStudio&&now-lastRoomStateAt>=(living?.inside?66:50)){lastRoomStateAt=now;roomSocket.send(JSON.stringify({type:'state',state:{gunTeleportSerial:localGunTeleportSerial,equippedWeapon:cachedCharacter().equippedWeapon,mirrorRealm:housingView?.portals.realm||null,x:p.position.x,y:p.position.y,z:p.position.z,yaw:p.rotation.y,headYaw:clamp(angleDelta(p.rotation.y,yaw),-.95,.95),headPitch:clamp(-pitch,-.65,.7),vx:localImpact?0:localRagdoll?localImpulse.x:velocity.x,vy:localImpact?0:localRagdoll?localImpulse.y:verticalSpeed,vz:localImpact?0:localRagdoll?localImpulse.z:velocity.z,skin:playableSkin(selected),gesture,speed:velocity.length(),grounded,verticalSpeed,flight:airWalk,prone,crouched,ragdoll:localRagdoll,seated,sleeping,crownEnabled,hitSerial:localHitSerial,hitPhase:localHit?.phase||'none',hitTime:localHit?.elapsed||0,hitDownTime:localHit?.downTime||0,hitRecovery:localHit?.recovery||0,hitStrength:localHit?.strength||0,punchCharge:charging?chargeTime/PUNCH.maxCharge:0,attackDuration,attackRushing,attackKind,attackProgress:punchSwing,attackStrength,attackSerial}}))}
+  if(playerPrediction.active&&(airWalk||localRagdoll||localImpact||seated||sleeping||plazaPlay?.active||living?.exercise||punchSwing>0||!inStudio)){playerPrediction.reset();}
+  if(roomSocket?.readyState===WebSocket.OPEN&&p&&inStudio&&now-lastRoomStateAt>=(living?.inside?66:50)){lastRoomStateAt=now;roomSocket.send(JSON.stringify({type:'state',motion:playerPrediction.packet(),state:{gunTeleportSerial:localGunTeleportSerial,equippedWeapon:cachedCharacter().equippedWeapon,mirrorRealm:housingView?.portals.realm||null,x:p.position.x,y:p.position.y,z:p.position.z,yaw:p.rotation.y,headYaw:clamp(angleDelta(p.rotation.y,yaw),-.95,.95),headPitch:clamp(-pitch,-.65,.7),vx:localImpact?0:localRagdoll?localImpulse.x:velocity.x,vy:localImpact?0:localRagdoll?localImpulse.y:verticalSpeed,vz:localImpact?0:localRagdoll?localImpulse.z:velocity.z,skin:playableSkin(selected),gesture,speed:velocity.length(),grounded,verticalSpeed,flight:airWalk,prone,crouched,ragdoll:localRagdoll,seated,sleeping,crownEnabled,hitSerial:localHitSerial,hitPhase:localHit?.phase||'none',hitTime:localHit?.elapsed||0,hitDownTime:localHit?.downTime||0,hitRecovery:localHit?.recovery||0,hitStrength:localHit?.strength||0,punchCharge:charging?chargeTime/PUNCH.maxCharge:0,attackDuration,attackRushing,attackKind,attackProgress:punchSwing,attackStrength,attackSerial}}))}
   if(document.hidden)return;
   if(p&&inStudio&&!duelIds.length){const own={x:p.position.x,y:p.position.y,z:p.position.z,flight:airWalk,seated};const inRing=insideArena(own);$('duelHud').hidden=!inRing;if(inRing){const count=1+[...remoteActors.values()].filter(r=>insideArena({x:r.target.x,y:r.target.y,z:r.target.z,flight:r.flight,seated:r.seated})).length;$('duelHud').textContent=count===2?'対戦エリア · 2人 · 1秒以内に両者パンチで開始':`対戦エリア · ${count}人 / 2人で開始 · 金色の輪の内側`;}}
   remoteActors.forEach((remote,remoteId)=>{
@@ -635,9 +644,10 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
   });
   const locked=attackTarget(targetLock),showLock=locked&&p&&inStudio&&!clean&&performance.now()-lastComboAt<3000;lockMarker.visible=!!showLock;if(showLock){lockMarker.position.copy(locked).y+=.04;const index=targetLock.startsWith('cast:')?Number(targetLock.slice(5)):remoteActors.get(targetLock)?.skin;$('targetHud').textContent='LOCK ON · '+(skinDefs[index]?.[0]||'PLAYER')+' · '+p.position.distanceTo(locked).toFixed(1)+'m';}$('targetHud').hidden=!showLock;
   if(p&&inStudio)combatEffects.attack(actors[selected],attackKind,localRagdoll?0:punchSwing,attackSerial,attackStrength,attackRushing,dt);
-  cooking?.update(dt,now);living?.update(dt,now);plazaMap?.update(now);experience?.update(dt);combatEffects.update(dt);brownProjectiles.update();updateParticles(dt);updateShockwaves(dt);if(now>=lightweightUpdateAt){lightweightUpdateAt=now+100;world.cull(camera.position);housingView?.cull(camera.position,touch);}const phase=dayPhase(dayCycle,serverNow());environment.update(time,inStudio?(cameraMode==='free'||experience?.cinematic?camera.position:p?.position||focus):focus.set(0,0,0),phase);world.setNight(environment.settings.night);housingView?.update(dt,time,camera,renderer,inStudio?p?.position:null,touch,actors[selected]?.root,phase,serverNow);flashlight.intensity=inStudio&&flashlightEnabled&&p?38*(environment.settings.night||0):0;if(flashlight.intensity>0&&p){camera.getWorldDirection(flashlightDirection);flashlight.position.copy(p.position).y+=actors[selected].eyeHeight-.12;flashlight.position.addScaledVector(flashlightDirection,.35);flashlight.target.position.copy(flashlight.position).addScaledVector(flashlightDirection,20);}if(now-clockHudAt>200&&!$('worldMenu').hidden){clockHudAt=now;$('gameClock').textContent='ゲーム内時刻 '+clockLabel(phase)+' · '+(dayCycle.enabled?'1日 '+dayCycle.duration/60+'分':'ずっと昼');}plazaPlay?.animate(now);living?.renderScreens(now);experience?.beforeRender(renderer);if(!experience?.renderBodycam(renderer,scene,camera))renderer.render(scene,camera);experience?.afterRender();if(inStudio&&!housingEditor?.active&&!experience?.watching&&!experience?.bodycamActive)housingView?.portals.renderViews(renderer,camera,{mobile:touch,roots:[actors[selected]?.root,...[...remoteActors.values()].map(remote=>remote.actor.root)]});
+  cooking?.update(dt,now);living?.update(dt,now);plazaMap?.update(now);experience?.update(dt);combatEffects.update(dt);brownProjectiles.update();updateParticles(dt);updateShockwaves(dt);if(now>=lightweightUpdateAt){lightweightUpdateAt=now+100;world.cull(camera.position);housingView?.cull(camera.position,touch);}const phase=dayPhase(dayCycle,serverNow());environment.update(time,inStudio?(cameraMode==='free'||experience?.cinematic?camera.position:p?.position||focus):focus.set(0,0,0),phase);world.setNight(environment.settings.night);housingView?.update(dt,time,camera,renderer,inStudio?p?.position:null,touch,actors[selected]?.root,phase,serverNow);flashlight.intensity=inStudio&&flashlightEnabled&&p?38*(environment.settings.night||0):0;if(flashlight.intensity>0&&p){camera.getWorldDirection(flashlightDirection);flashlight.position.copy(p.position).y+=actors[selected].eyeHeight-.12;flashlight.position.addScaledVector(flashlightDirection,.35);flashlight.target.position.copy(flashlight.position).addScaledVector(flashlightDirection,20);}if(now-clockHudAt>200&&!$('worldMenu').hidden){clockHudAt=now;$('gameClock').textContent='ゲーム内時刻 '+clockLabel(phase)+' · '+(dayCycle.enabled?'1日 '+dayCycle.duration/60+'分':'ずっと昼');}plazaPlay?.animate(now);living?.renderScreens(now);playerPrediction.offset.multiplyScalar(Math.exp(-dt*18));const visualOffset=p&&playerPrediction.active?world.cameraPosition(p.position,p.position.clone().add(playerPrediction.offset),.32).sub(p.position):new THREE.Vector3();if(p){p.position.add(visualOffset);camera.position.add(visualOffset);camera.updateMatrixWorld();}experience?.beforeRender(renderer);if(!experience?.renderBodycam(renderer,scene,camera))renderer.render(scene,camera);experience?.afterRender();if(inStudio&&!housingEditor?.active&&!experience?.watching&&!experience?.bodycamActive)housingView?.portals.renderViews(renderer,camera,{mobile:touch,roots:[actors[selected]?.root,...[...remoteActors.values()].map(remote=>remote.actor.root)]});
+  if(p){p.position.sub(visualOffset);camera.position.sub(visualOffset);camera.updateMatrixWorld();}
   if(now-metricsAt>=1000){fps=fpsFrames*1000/Math.max(1,now-metricsAt);fpsFrames=0;metricsAt=now;$('performance').textContent=`${Math.round(fps)} fps · ${activeQuality==='ultra'?'最高画質':activeQuality==='high'?'高画質':activeQuality==='medium'?'標準':'軽量'} · 描画 ${renderer.info.render.calls} 回`;if(qualityChoice==='auto'&&fps<Math.min(34,(videoSettings?.settings.fps||60)*.8)){slowSeconds++;if(slowSeconds>=5&&activeQuality!=='low'){quality(activeQuality==='high'?'medium':'low');slowSeconds=0}}else slowSeconds=0;
-    canvas.dataset.telemetry=JSON.stringify({selected,screen:inStudio?'studio':'lobby',touch,clean,cameraMode,athleticActive,checkpoint:athleticCheckpoint?.id,seated,duelActive,duelDamage,hitPhase:localHit?.phase||'none',hitRecovery:localHit?.recovery||0,attackRushing,targetLock,chainRemaining,attackKind,attackProgress:punchSwing,attackSerial,attackStrength,crownScore,crownEnabled,position:p?.position.toArray(),bodyYaw:p?.rotation.y,yaw,pitch,speed,grounded,camera:camera.position.toArray(),room:roomCode,roomPlayers:roomSelfId?remoteActors.size+1:remoteActors.size,remotePositions:[...remoteActors.values()].map(remote=>remote.target.toArray()),fps:Math.round(fps),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,quality:activeQuality});
+    canvas.dataset.telemetry=JSON.stringify({selected,screen:inStudio?'studio':'lobby',touch,clean,cameraMode,athleticActive,checkpoint:athleticCheckpoint?.id,seated,duelActive,duelDamage,hitPhase:localHit?.phase||'none',hitRecovery:localHit?.recovery||0,attackRushing,targetLock,chainRemaining,attackKind,attackProgress:punchSwing,attackSerial,attackStrength,crownScore,crownEnabled,position:p?.position.toArray(),bodyYaw:p?.rotation.y,yaw,pitch,speed,grounded,camera:camera.position.toArray(),room:roomCode,roomPlayers:roomSelfId?remoteActors.size+1:remoteActors.size,motion:{active:playerPrediction.active,seq:playerPrediction.seq,ack:playerPrediction.ack||0,pending:playerPrediction.pending.length,correction:playerPrediction.offset.length()},remotePositions:[...remoteActors.values()].map(remote=>remote.target.toArray()),fps:Math.round(fps),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,quality:activeQuality});
   }
 }
 function shareSource(){const query=new URLSearchParams(location.search);const hash=location.hash.replace(/^#/,'');if(hash.includes('='))new URLSearchParams(hash).forEach((value,key)=>{if(!query.has(key))query.set(key,value)});return query}

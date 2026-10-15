@@ -1,2 +1,2 @@
-export const BUILD_ID='vrs-replay100';
-export const RELEASE_ID='vrs-replay100';
+export const BUILD_ID='vrs-physics101';
+export const RELEASE_ID='vrs-physics101';

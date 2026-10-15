@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from './vendor/three.module.js';
 import {houseDescriptor,ROOM,furnitureDefinition,furniturePose} from './housing-data.js?v=20261013-life89b';
 import {furnitureParts} from './furniture-models.js?v=20261013-life89b';
 

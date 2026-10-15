@@ -42,9 +42,9 @@ test('every stair route reaches its roof, including switchback landings and para
  }
 });
 test('gun-zone jumping has a ballistic apex and tent height is three times trampoline height',()=>{
- const apex=GUN_JUMP_SPEED**2/(2*GUN_GRAVITY);assert(apex>2.5&&apex<2.8);
+ const apex=GUN_JUMP_SPEED**2/(2*GUN_GRAVITY);assert(apex>.55&&apex<.65);
  let y=0,v=GUN_JUMP_SPEED,max=0;for(let i=0;i<400;i++){v-=GUN_GRAVITY/240;y+=v/240;max=Math.max(max,y);}assert(Math.abs(max-apex)<.025);
- for(const incoming of [-2,-8,-20]){const trampoline=bounceSpeed(incoming)**2/(2*15),tent=tentBounceSpeed(incoming)**2/(2*GUN_GRAVITY);assert(Math.abs(tent/trampoline-3)<1e-10);}
+ for(const incoming of [-2,-8,-20]){const trampoline=bounceSpeed(incoming)**2/(2*GUN_GRAVITY),tent=tentBounceSpeed(incoming)**2/(2*GUN_GRAVITY);assert(Math.abs(tent/trampoline-3)<1e-10);}
  assert(world.bodies.filter(b=>b.gunTent).length>=18);
 });
 test('fractional weapon damage and a 100-life battle use the configured maximum',()=>{

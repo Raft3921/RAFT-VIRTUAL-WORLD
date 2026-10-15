@@ -1,3 +1,4 @@
+import {ServerPlayerPhysics} from '../../dist/server-player-physics.js';
 import { DurableObject } from 'cloudflare:workers';
 import { cleanState, GameRules,applyPlayerState,SYNC_VERSION,SYNC_PROTOCOL } from '../../dist/game-rules.js';
 import {GUEST_SKIN,MAX_PLAYERS,playableSkin} from '../../dist/player-types.js';
@@ -32,7 +33,7 @@ export class Room extends DurableObject {
     this.roomContext=ctx;
     this.players = new Map();
     this.scores={};this.ready=ctx.blockConcurrencyWhile(async()=>{this.scores=await ctx.storage.get('scores')||{};const settings=await ctx.storage.get('settings')||{},characters=await ctx.storage.get('characters')||{},houses=await ctx.storage.get('houses')||{},kitchens=Object.fromEntries([...(await ctx.storage.list({prefix:'kitchen:',limit:1000}))].map(([id,record])=>[id.slice(8),record]));const living={};let livingCursor;while(true){const batch=await ctx.storage.list({prefix:'living:',limit:1000,...(livingCursor?{startAfter:livingCursor}:{})});for(const [key,record]of batch)living[key.slice(7)]=record;if(batch.size<1000)break;livingCursor=[...batch.keys()].at(-1);}let persistedKitchens=kitchens;const chat=[];let startAfter;while(true){const batch=await ctx.storage.list({prefix:'chat:',limit:1000,...(startAfter?{startAfter}:{})});chat.push(...batch.values());if(batch.size<1000)break;startAfter=[...batch.keys()].at(-1);}
-this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.storage.put('scores',s),settings,s=>ctx.storage.put('settings',s),characters,s=>ctx.storage.put('characters',s),houses,s=>ctx.storage.put('houses',s),promise=>ctx.waitUntil(promise),chat,(message,removed)=>ctx.storage.transaction(async storage=>{await storage.put('chat:'+message.id,message);if(removed.length)await storage.delete(removed.map(old=>'chat:'+old.id));}),kitchens,async records=>{await ctx.storage.transaction(async storage=>{for(const [id,record]of Object.entries(records))if(record!==persistedKitchens[id])await storage.put('kitchen:'+id,record);});persistedKitchens=records;const busy=Object.values(records).some(record=>this.rules.cooking.recordBusy(record));if(busy)await ctx.storage.setAlarm(Date.now()+1000).catch(()=>{});else await ctx.storage.deleteAlarm().catch(()=>{});},living,(key,record,extra={})=>ctx.storage.transaction(async storage=>{await storage.put('living:'+key,record);for(const [id,value]of Object.entries(extra))await storage.put('living:'+id,value);}));const keep=new Set(this.rules.chat.records.map(message=>message.id));const obsolete=chat.filter(message=>!keep.has(message.id));for(let i=0;i<obsolete.length;i+=100)await ctx.storage.delete(obsolete.slice(i,i+100).map(message=>'chat:'+message.id));});
+this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.storage.put('scores',s),settings,s=>ctx.storage.put('settings',s),characters,s=>ctx.storage.put('characters',s),houses,s=>ctx.storage.put('houses',s),promise=>ctx.waitUntil(promise),chat,(message,removed)=>ctx.storage.transaction(async storage=>{await storage.put('chat:'+message.id,message);if(removed.length)await storage.delete(removed.map(old=>'chat:'+old.id));}),kitchens,async records=>{await ctx.storage.transaction(async storage=>{for(const [id,record]of Object.entries(records))if(record!==persistedKitchens[id])await storage.put('kitchen:'+id,record);});persistedKitchens=records;const busy=Object.values(records).some(record=>this.rules.cooking.recordBusy(record));if(busy)await ctx.storage.setAlarm(Date.now()+1000).catch(()=>{});else await ctx.storage.deleteAlarm().catch(()=>{});},living,(key,record,extra={})=>ctx.storage.transaction(async storage=>{await storage.put('living:'+key,record);for(const [id,value]of Object.entries(extra))await storage.put('living:'+id,value);}));this.playerPhysics=new ServerPlayerPhysics(this.rules);const keep=new Set(this.rules.chat.records.map(message=>message.id));const obsolete=chat.filter(message=>!keep.has(message.id));for(let i=0;i<obsolete.length;i+=100)await ctx.storage.delete(obsolete.slice(i,i+100).map(message=>'chat:'+message.id));});
   }
 
   async alarm(){await this.ready;await this.rules.cooking.advanceNow();}
@@ -89,8 +90,10 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
     if (!state) return;
     if(state.skin!==entry.player.skin){if(!this.rules.selectCharacter(entry,state.skin))state.skin=entry.player.skin;this.roomContext.waitUntil(this.rules.characters.pending);}
     entry.lastStateAt = Date.now();
+    this.playerPhysics.receive(entry,state,message.motion);
     applyPlayerState(entry.player,state);
     this.rules.state(entry);
+    this.playerPhysics.reply(entry);
     this.broadcast({ type: 'state', player: entry.player }, socket);
   }
 

@@ -1,8 +1,9 @@
+import {createCollisionWorld} from './world-collision.js?v=20261015-physics101';
 import {sandTexture} from './sand-texture.js?v=20261015-tactics99';
 import {createGunMapVisual} from './gun-map-visual.js?v=20261015-tactics99';
 import {rampHeight} from './plaza-surfaces.js?v=20261013-life89b';
 import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261015-tactics99';
-import * as THREE from 'three';
+import * as THREE from './vendor/three.module.js';
 import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261013-life89b';
 import { buildDistrict } from './district.js?v=20261013-life89b';
 import { HOUSES,HOUSE_COLORS } from './housing-data.js?v=20261013-life89b';
@@ -23,10 +24,10 @@ function material(color){if(!materials.has(color)){const mat=withLocalLighting(n
  diffuseColor*=texture2D(map,tile*.5);
  #endif`);};const cache=mat.customProgramCacheKey.bind(mat);mat.customProgramCacheKey=()=>cache()+'|sand-world-uv';}materials.set(color,mat);}return materials.get(color);}
 const WHITE='#faf8f1',TRIM='#d4d7d5',WOOD='#bd8d60',STONE='#c9c4b7';
-export function createWorld(scene){
+export function createWorld(scene,{physicsOnly=false}={}){
   const group=new THREE.Group();scene.add(group);group.name='RAFT World';
   const batches=new Map(),bodies=[],boards=[],seats=[],moving=[],hazards=[],pulsing=[],falling=[],balls=[],chunks=[],clockHands=[];
-  let worldTime=0,currentHouse=null;const movementBounds=new Map();
+  let worldTime=0,currentHouse=null;
   const houses=HOUSES.map(h=>({...h,parts:[]}));
   const lampMaterial=withLocalLighting(new THREE.MeshStandardMaterial({color:'#ffe4a6',emissive:'#ffe4a6',emissiveIntensity:0,roughness:.6}));
   const transform=new THREE.Object3D(),previous=new THREE.Vector3();
@@ -35,13 +36,14 @@ export function createWorld(scene){
     const body={x,y,z,w,h,d,...extra};
     if(currentHouse){body.houseIndex=currentHouse.index;currentHouse.parts.push(body);}
     if(solid)bodies.push(body);
-    if(extra.noRender)return body;
+    if(extra.noRender||physicsOnly)return body;
     // Spatial and vertical batches keep elevated/far-away parts independently culled.
     const key=color+':'+!!extra.noShadow+':'+!!extra.streetLamp+':'+Math.floor(x/48)+','+Math.floor(y/24)+','+Math.floor(z/48);
     if(!batches.has(key))batches.set(key,{color,list:[]});
     batches.get(key).list.push(body);return body;
   }
   function sign(text,x,y,z,width=3,yaw=0){
+    if(physicsOnly)return;
     const c=document.createElement('canvas');c.width=512;c.height=128;const ctx=c.getContext('2d');
     ctx.fillStyle='#172c35';ctx.fillRect(0,0,512,128);ctx.fillStyle='#eafbf4';ctx.font='bold 46px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,256,64);
     const mesh=new THREE.Mesh(new THREE.PlaneGeometry(width,width/4),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),side:THREE.DoubleSide}));
@@ -59,6 +61,7 @@ export function createWorld(scene){
     boardPart(x,floor+1.15,z,.18,2,.18,'#344c57');
     boardPart(x,floor+1.45,z,.9,1.8,.16,'#243945');
     box(x,floor+1.49,z+face*.096,.75,1.5,.04,'#87d8d3',false);
+    if(physicsOnly){const b={boardId,x,y:floor+1.45,z,kind,checkpoint};boards.push(b);return b;}
     const c=document.createElement('canvas');c.width=128;c.height=256;const ctx=c.getContext('2d');
     ctx.fillStyle='#142d3c';ctx.fillRect(0,0,128,256);ctx.fillStyle='#80e8db';ctx.fillRect(10,12,108,24);
     ctx.fillStyle='#152d3a';ctx.font='16px DotGothic16,monospace';ctx.textAlign='center';ctx.fillText('RAFT',64,30);
@@ -123,9 +126,11 @@ export function createWorld(scene){
   // Colosseum: sunken combat floor, four accessible terraces, radial seats,
   // open entrance aisles, exterior piers and a continuous upper cornice.
   const arena={center:{x:ARENA.x,z:ARENA.z},radius:ARENA.radius};
+  if(!physicsOnly){
   const apron=new THREE.Mesh(new THREE.CylinderGeometry(33.1,33.1,.12,64),material(STONE));apron.position.set(ARENA.x,.06,ARENA.z);apron.receiveShadow=true;group.add(apron);
   const floor=new THREE.Mesh(new THREE.CylinderGeometry(ARENA.radius,ARENA.radius,.24,64),material('#dce0df'));floor.position.set(ARENA.x,.12,ARENA.z);floor.receiveShadow=true;group.add(floor);
   const ring=new THREE.Mesh(new THREE.RingGeometry(ARENA.fightRadius-.2,ARENA.fightRadius,64),material('#c8a761'));ring.rotation.x=-Math.PI/2;ring.position.set(ARENA.x,.245,ARENA.z);ring.name='Duel start boundary';group.add(ring);
+  }
   for(let i=0;i<64;i++){
     const a=i/64*Math.PI*2,aisle=i%16===0;
     const radial=(r,y,w,h,d,c=STONE,solid=true)=>box(ARENA.x+Math.sin(a)*r,y,ARENA.z+Math.cos(a)*r,w,h,d,c,solid,{rotation:a});
@@ -206,6 +211,7 @@ export function createWorld(scene){
   buildDistrict({box,board,sign,seats,clockHands});
   buildGunTown({box,board,sign});
   // Keep the white sky lining well below the solid slab to avoid depth fighting.
+  if(physicsOnly)return createCollisionWorld(bodies,{moving,falling,pulsing});
   const skyCanvas=document.createElement('canvas');skyCanvas.width=skyCanvas.height=512;const skyContext=skyCanvas.getContext('2d');skyContext.fillStyle='#f6f7f7';skyContext.fillRect(0,0,512,512);
   for(const [x,y,r]of [[90,110,200],[370,80,180],[280,360,230],[500,480,190]]){const veil=skyContext.createRadialGradient(x,y,0,x,y,r);veil.addColorStop(0,'rgba(210,218,222,.25)');veil.addColorStop(1,'rgba(210,218,222,0)');skyContext.fillStyle=veil;skyContext.fillRect(0,0,512,512);}
   const cloudTexture=new THREE.CanvasTexture(skyCanvas);cloudTexture.colorSpace=THREE.SRGBColorSpace;cloudTexture.magFilter=THREE.LinearFilter;cloudTexture.minFilter=THREE.LinearMipmapLinearFilter;
@@ -234,15 +240,9 @@ export function createWorld(scene){
   for(const h of hazards){h.mesh.material.emissive.set('#ff0018');h.mesh.material.emissiveIntensity=2;}
   const ballMaterial=new THREE.MeshStandardMaterial({color:'#ffd05e',emissive:'#fa6839',emissiveIntensity:.6,roughness:.6});
   const ballMesh=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0),ballMaterial,balls.length);ballMesh.frustumCulled=false;group.add(ballMesh);
-  // Broad-phase buckets avoid scanning the 600 platforms during every physics substep.
-  const buckets=new Map();
-  for(const b of bodies){const extent=Math.hypot(b.w,b.d)/2+1+(b.motionMargin||0);for(let x=Math.floor((b.x-extent)/12);x<=Math.floor((b.x+extent)/12);x++)for(let z=Math.floor((b.z-extent)/12);z<=Math.floor((b.z+extent)/12);z++){const k=x+','+z;if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(b);}}
-  const housingBodies=new Map(),housingBuckets=new Map(),nearbyCache=new Map(),housingSeatLists=new Map(),housingBedLists=new Map();let housingSeats=[],housingBeds=[];
-  function setHouseBodies(index,list,roomSeats=[],roomBeds=[]){
-    housingBodies.set(index,list);housingSeatLists.set(index,roomSeats);housingBedLists.set(index,roomBeds);housingSeats=[...housingSeatLists.values()].flat();housingBeds=[...housingBedLists.values()].flat();housingBuckets.clear();nearbyCache.clear();
-    for(const records of housingBodies.values())for(const b of records){const extent=Math.hypot(b.w,b.d)/2+1;for(let x=Math.floor((b.x-extent)/12);x<=Math.floor((b.x+extent)/12);x++)for(let z=Math.floor((b.z-extent)/12);z<=Math.floor((b.z+extent)/12);z++){const key=x+','+z;if(!housingBuckets.has(key))housingBuckets.set(key,[]);housingBuckets.get(key).push(b);}}
-  }
-  function nearby(p){const key=Math.floor(p.x/12)+','+Math.floor(p.z/12);if(!nearbyCache.has(key))nearbyCache.set(key,(buckets.get(key)||[]).concat(housingBuckets.get(key)||[]));return nearbyCache.get(key);}
+  const collision=createCollisionWorld(bodies,{moving,falling,pulsing});
+  const {move,floorAt,canStand,nearby,setHouseBodies}=collision;
+  function localPoint(p,b){const c=Math.cos(b.rotation||0),s=Math.sin(b.rotation||0),x=p.x-b.x,z=p.z-b.z;return {x:c*x-s*z,z:s*x+c*z,c,s};}
   function cutawayHouse(index,enabled,sideX=1,sideZ=null){
     const h=houses[index];if(!h)return;sideZ??=h.front;
     h.board.editorHidden=enabled;h.board.label.visible=!enabled;h.board.pick.visible=!enabled;
@@ -255,59 +255,9 @@ export function createWorld(scene){
     }
   }
   function inAthletic(p){return p.x>COURSE.minX&&p.x<COURSE.maxX&&p.z>COURSE.minZ&&p.z<COURSE.maxZ;}
-  function localPoint(p,b){const c=Math.cos(b.rotation||0),s=Math.sin(b.rotation||0),x=p.x-b.x,z=p.z-b.z;return {x:c*x-s*z,z:s*x+c*z,c,s};}
-  function terrainHeight(p){const distance=Math.hypot(p.x-ARENA.x,p.z-ARENA.z);return distance<ARENA.radius?.24:distance<33.1?.12:0;}
-  function floorAt(p,limit=p.y+.48){
-    let floor=terrainHeight(p),body=null;
-    for(const b of nearby(p)){const q=localPoint(p,b),top=b.ramp?rampHeight(b,q.z):b.y+b.h/2;if(!b.disabled&&Math.abs(q.x)<b.w/2+.12&&Math.abs(q.z)<b.d/2+.12&&top<=limit&&top>=floor){floor=top;body=b;}}
-    return {y:floor,body};
-  }
-  // Read-only occupancy query for entering activities at an unobstructed spot.
-  function canStand(p,shape=null){
-    const height=shape?.height||1.9,width=shape?.width||.32,depth=shape?.depth||.32,angle=shape?.yaw||0;
-    for(const b of nearby(p)){
-      if(b.disabled||b.y+b.h/2<=p.y+.04||b.y-b.h/2>=p.y+height)continue;
-      const q=localPoint(p,b),relative=angle-(b.rotation||0),rx=Math.abs(Math.cos(relative))*width+Math.abs(Math.sin(relative))*depth,rz=Math.abs(Math.sin(relative))*width+Math.abs(Math.cos(relative))*depth;
-      if(Math.abs(q.x)<b.w/2+rx+.04&&Math.abs(q.z)<b.d/2+rz+.04)return false;
-    }
-    return true;
-  }
-  function move(p,vel,dt,{ragdoll=false,insideArena=false,lockedInArena=false,shape=null}={}){
-    const height=shape?.height||1.9,width=shape?.width||.32,depth=shape?.depth||.32,angle=shape?.yaw||0,offset=shape?.offset||0;
-    const offsetX=-Math.sin(angle)*offset,offsetZ=-Math.cos(angle)*offset;
-    const slices=Math.max(1,Math.ceil(vel.length()*dt/.18)),step=dt/slices;
-    let grounded=false,landed=null;
-    for(let s=0;s<slices;s++){
-      previous.copy(p);p.addScaledVector(vel,step);
-      const center={x:p.x+offsetX,z:p.z+offsetZ};
-      for(const b of nearby(center)){
-        if(b.disabled||api.portalPassage?.(b,p,previous,height))continue;
-        const q=localPoint({x:p.x+offsetX,z:p.z+offsetZ},b),relative=angle-(b.rotation||0),rxExtent=shape?Math.abs(Math.cos(relative))*width+Math.abs(Math.sin(relative))*depth:.32,rzExtent=shape?Math.abs(Math.sin(relative))*width+Math.abs(Math.cos(relative))*depth:.32;
-        const bottom=b.y-b.h/2,top=b.ramp?rampHeight(b,q.z):b.y+b.h/2;
-        if(Math.abs(q.x)>=b.w/2+rxExtent||Math.abs(q.z)>=b.d/2+rzExtent)continue;
-        if(b.ramp){const prior=localPoint(previous,b),priorHeight=rampHeight(b,prior.z);if(vel.y<=.5&&previous.y>=priorHeight-.3&&p.y>=top-.35){p.y=top;vel.y=0;grounded=true;landed=b;continue;}if(p.y<top-.35)continue;}
-        if(vel.y<=0&&previous.y>=top-.025&&p.y<=top){p.y=top;vel.y=0;grounded=true;landed=b;if(b.activatedAt===null)b.activatedAt=worldTime;continue;}
-        if(vel.y>0&&previous.y+height<=bottom+.025&&p.y+height>=bottom){p.y=bottom-height;vel.y=0;continue;}
-        if(p.y>=top-.02||p.y+height-.05<=bottom)continue;
-        if(top-p.y<=(b.kind==='snake'?.14:.28)&&vel.y<=0&&(!b.course||b.kind==='snake')&&!ragdoll){p.y=top;grounded=true;landed=b;continue;}
-        const rx=b.w/2+rxExtent-Math.abs(q.x),rz=b.d/2+rzExtent-Math.abs(q.z);
-        const nx=rx<rz?Math.sign(q.x||1)*q.c:Math.sign(q.z||1)*q.s,nz=rx<rz?-Math.sign(q.x||1)*q.s:Math.sign(q.z||1)*q.c;
-        const penetration=Math.min(rx,rz);p.x+=nx*penetration;p.z+=nz*penetration;
-        const speed=vel.x*nx+vel.z*nz;if(speed<0){vel.x-=speed*nx*(ragdoll?1.08:1);vel.z-=speed*nz*(ragdoll?1.08:1);}
-      }
-      if(lockedInArena||ragdoll&&insideArena){
-        const dx=p.x+offsetX-ARENA.x,dy=Math.max(0,p.y+height/2-.24),dz=p.z+offsetZ-ARENA.z,r=ARENA.radius-Math.max(.65,depth*.75),len=Math.hypot(dx,dy,dz);
-        if(len>r){const nx=dx/len,ny=dy/len,nz=dz/len;p.set(ARENA.x+nx*r-offsetX,Math.max(.24,.24+ny*r-height/2),ARENA.z+nz*r-offsetZ);const dot=vel.x*nx+vel.y*ny+vel.z*nz;if(dot>0){const restitution=ragdoll?1.10:1,damping=ragdoll?.68:1;vel.x=(vel.x-dot*nx*restitution)*damping;vel.y=(vel.y-dot*ny*restitution)*damping;vel.z=(vel.z-dot*nz*restitution)*damping;}}
-      }
-      for(const bound of movementBounds.values())if(Math.abs(previous.x-bound.x)<70&&Math.abs(previous.z-(bound.z-62.5))<55&&!bound.allowed(p.x,p.z)){p.x=previous.x;p.z=previous.z;vel.x=0;vel.z=0;break;}
-      const ground=terrainHeight(p);
-      if(p.y<=ground){p.y=ground;vel.y=0;grounded=true;}
-    }
-    return {grounded,body:landed};
-  }
-  function seatAt(p,oldY,vy){if(vy>0)return null;const match=s=>Math.hypot(p.x-s.x,p.z-s.z)<.64&&oldY>s.y+.001&&p.y<=s.y+.12;return seats.find(match)||housingSeats.find(match)||null;}
-  function bedAt(p,oldY,vy){if(vy>0)return null;return housingBeds.find(b=>{const dx=p.x-b.x,dz=p.z-b.z,x=Math.cos(b.yaw)*dx-Math.sin(b.yaw)*dz,z=Math.sin(b.yaw)*dx+Math.cos(b.yaw)*dz;return Math.abs(x)<b.w/2&&Math.abs(z)<b.d/2&&oldY>=b.y-.03&&p.y<=b.y+.12&&p.y>=b.y-.08;})||null;}
-  function bedById(id){return housingBeds.find(b=>b.id===id)||null;}
+  function seatAt(p,oldY,vy){if(vy>0)return null;const match=s=>Math.hypot(p.x-s.x,p.z-s.z)<.64&&oldY>s.y+.001&&p.y<=s.y+.12;return seats.find(match)||collision.housingSeats.find(match)||null;}
+  function bedAt(p,oldY,vy){if(vy>0)return null;return collision.housingBeds.find(b=>{const dx=p.x-b.x,dz=p.z-b.z,x=Math.cos(b.yaw)*dx-Math.sin(b.yaw)*dz,z=Math.sin(b.yaw)*dx+Math.cos(b.yaw)*dz;return Math.abs(x)<b.w/2&&Math.abs(z)<b.d/2&&oldY>=b.y-.03&&p.y<=b.y+.12&&p.y>=b.y-.08;})||null;}
+  function bedById(id){return collision.housingBeds.find(b=>b.id===id)||null;}
   function checkpointAt(p){return athletic.checkpoints.find(cp=>Math.abs(p.x-cp.x)<cp.size/2&&Math.abs(p.z-cp.z)<cp.size/2&&Math.abs(p.y-cp.y)<.12);}
   function lethal(p){return hazards.some(h=>{const q=localPoint(p,h);return Math.abs(q.x)<h.w/2+.27&&Math.abs(q.z)<h.d/2+.27&&p.y<h.y+.2&&p.y+1.85>h.y-.2;})||balls.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<b.radius+.3&&p.y<b.y+b.radius&&p.y+1.85>b.y-b.radius);}
   function boardHit(o,f){let best=null,dist=4;for(const b of boards){if(b.kind==='house')continue;const dx=b.x-o.x,dy=b.y-o.y,dz=b.z-o.z,d=Math.hypot(dx,dy,dz);if(d<dist&&(dx*f.x+dz*f.z)/Math.max(.01,Math.hypot(dx,dz))>.45){best=b;dist=d;}}return best;}
@@ -345,12 +295,12 @@ export function createWorld(scene){
     for(let i=0;i<balls.length;i++){const b=balls[i],visible=Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<130;transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,worldTime,worldTime*.8);transform.scale.setScalar(visible?b.radius:0);transform.updateMatrix();ballMesh.setMatrixAt(i,transform.matrix);}ballMesh.instanceMatrix.needsUpdate=true;
   }
   function update(t,p,clockPhase=.5){
-    worldTime=t;
+    worldTime=t;collision.setTime(t);
     for(const hand of clockHands){if(!hand.mesh.visible||hand.renderedPhase===clockPhase)continue;hand.renderedPhase=clockPhase;const angle=hand.clockSide*(hand.clockHand==='hour'?Math.PI/2-clockPhase*Math.PI*4:-clockPhase*Math.PI*48);transform.position.set(hand.clockX+Math.cos(angle)*hand.clockDX-Math.sin(angle)*hand.clockDY,hand.clockY+Math.sin(angle)*hand.clockDX+Math.cos(angle)*hand.clockDY,hand.z);transform.rotation.set(0,0,angle);transform.scale.set(hand.w,hand.h,hand.d);transform.updateMatrix();hand.mesh.setMatrixAt(hand.instance,transform.matrix);hand.mesh.instanceMatrix.needsUpdate=true;}
     transform.rotation.set(0,0,0);
     barrierMaterial.uniforms.uPlayer.value.copy(p).y+=1;barrierMaterial.uniforms.uTime.value=t;
     const sync=b=>{transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,b.rotation||0,0);transform.scale.set(b.w,b.disabled?.025:b.warning?.18:b.h,b.d);transform.updateMatrix();b.mesh.setMatrixAt(b.instance,transform.matrix);b.mesh.instanceMatrix.needsUpdate=true;};
-    for(const b of moving){const oldX=b.x,oldY=b.y,oldZ=b.z;if(b.lift)b.y=b.originY+Math.sin(t*.9+b.phase)*b.amplitude;else if(b.forward)b.x=b.originX+Math.sin(t*.9+b.phase)*b.amplitude;else b.z=b.originZ+Math.sin(t*.9+b.phase)*b.amplitude;b.deltaX=b.x-oldX;b.deltaY=b.y-oldY;b.deltaZ=b.z-oldZ;if(b.mesh.visible)sync(b);}
+    for(const b of moving){b.motionTime=t;const oldX=b.x,oldY=b.y,oldZ=b.z;if(b.lift)b.y=b.originY+Math.sin(t*.9+b.phase)*b.amplitude;else if(b.forward)b.x=b.originX+Math.sin(t*.9+b.phase)*b.amplitude;else b.z=b.originZ+Math.sin(t*.9+b.phase)*b.amplitude;b.deltaX=b.x-oldX;b.deltaY=b.y-oldY;b.deltaZ=b.z-oldZ;if(b.mesh.visible)sync(b);}
     for(const b of falling){const age=b.activatedAt===null?0:t-b.activatedAt;b.warning=age>.2&&age<.65;b.disabled=age>=.65;if(age>4){b.activatedAt=null;b.disabled=false;b.y=b.originY;}else if(b.disabled)b.y=b.originY-Math.min(8,(age-.65)**2*6);if(b.mesh.visible)sync(b);}
     for(const b of pulsing){const phase=(t+b.phase)%5;b.disabled=phase>4;b.warning=phase>3.3&&phase<=4;if(b.mesh.visible)sync(b);}
     for(const h of hazards){if(h.spinner)h.rotation=t*.8+h.phase;else h.z=h.originZ+Math.sin(t*1.2+h.phase)*1.05;if(h.mesh.visible)sync(h);}
@@ -361,5 +311,5 @@ export function createWorld(scene){
   // so its shader is not first compiled when night begins.
   function setNight(value){const night=THREE.MathUtils.clamp(value||0,0,1);if(nightLight.value===night&&lampMaterial.emissiveIntensity===night*1.8)return;nightLight.value=night;lampMaterial.emissiveIntensity=night*1.8;}
   const gunMap=createGunMapVisual(group,bodies);
-  const api={gunMap,cameraClear,canStand,setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);},group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
+  const api={set portalPassage(fn){collision.portalPassage=fn;},get portalPassage(){return collision.portalPassage;},gunMap,cameraClear,canStand,setMovementBounds:collision.setMovementBounds,group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
 }

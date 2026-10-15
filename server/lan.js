@@ -1,3 +1,4 @@
+import {ServerPlayerPhysics} from '../dist/server-player-physics.js';
 import { createReadStream, existsSync, statSync, readFileSync, writeFileSync,renameSync,appendFileSync } from 'node:fs';
 import { cleanState, GameRules,applyPlayerState,SYNC_VERSION,SYNC_PROTOCOL } from '../dist/game-rules.js';
 import {BUILD_ID} from '../dist/build-info.js';
@@ -43,6 +44,7 @@ const rules=new GameRules(players,broadcast,scores,s=>writeFileSync('.room-score
 
 writeFileSync('.room-chat.jsonl.tmp',rules.chat.records.map(record=>JSON.stringify(record)).join('\n')+'\n');renameSync('.room-chat.jsonl.tmp','.room-chat.jsonl');
 
+const playerPhysics=new ServerPlayerPhysics(rules);
 rules.disconnectPlayer=id=>{const match=[...players].find(([,e])=>e.player.id===id);if(!match)return;const [socket]=match;send(socket,{type:'room-removed',reason:'メニューボードから退出しました'});remove(socket);socket.close(1000,'removed from menu board');};
 
 function remove(socket) {
@@ -135,8 +137,10 @@ sockets.on('connection', (socket, request) => {
     const state = cleanState(message.state, requestedSkin, rules.houses.realms);
     if (!state) return;
     if(state.skin!==entry.player.skin&&!rules.selectCharacter(entry,state.skin))state.skin=entry.player.skin;
+    playerPhysics.receive(entry,state,message.motion);
     applyPlayerState(entry.player,state);
     rules.state(entry);
+    playerPhysics.reply(entry);
     entry.lastStateAt = Date.now();
     broadcast({ type: 'state', player: entry.player }, socket);
   });

@@ -1,3 +1,4 @@
+import {mirrorAvenueColliders} from './housing-collision.js?v=20261015-physics101';
 import * as THREE from 'three';
 import {createPortalViews,portalFrame,passageTransform} from './portal-view.js?v=20261013-life89b';
 import {HOUSES,ROOM,mirrorRealmKey,mirrorRealm,mirrorHouseKey,houseDescriptor} from './housing-data.js?v=20261013-life89b';
@@ -35,7 +36,7 @@ export function createHousingMirrors(scene,world){
     const realm=mirrorRealm(key);if(!realm)return null;
     const group=new THREE.Group();group.name='Mirror avenue '+key;scene.add(group);
     const space={...realm,group,gates:new Map(),shells:[],signature:null};spaces.set(key,space);
-    const solidSources=new Set(world.bodies),batches=new Map(),bodies=[];
+    const batches=new Map();
     for(const source of world.houses.slice(0,8)){
       const index=mirrorHouseKey(key,source.index),home=houseDescriptor(index);renderer?.ensure(index);
       for(const p of source.parts){
@@ -44,26 +45,21 @@ export function createHousingMirrors(scene,world){
         if(p.y===1.1)continue;
         const part={...p,x:realm.x+p.x,z:realm.z-p.z,rotation:-(p.rotation||0),houseIndex:index,...(p.boardId!==undefined?{boardId:'mirror-board:'+index}:{})};
         const mat=p.mesh?.material;if(!mat)continue;if(!batches.has(mat))batches.set(mat,[]);batches.get(mat).push(part);
-        if(solidSources.has(p)&&!(p.y>5.5||Math.abs(p.x-source.x)>7.4&&Math.abs(p.z-source.z)<7.4||Math.abs(p.z-source.z)>6.8&&Math.abs(p.z-source.z)<7.5))bodies.push(part);
       }
       const label=new THREE.Mesh(planeGeometry,new THREE.MeshBasicMaterial({color:source.color,fog:false,toneMapped:false,side:THREE.DoubleSide}));label.position.set(home.x-6,1.7,home.z+home.front*9.13);label.rotation.y=home.front<0?Math.PI:0;label.scale.set(.9,1.8,1);group.add(label);
       const canvas=document.createElement('canvas');canvas.width=128;canvas.height=256;const ctx=canvas.getContext('2d');ctx.fillStyle='#142d3c';ctx.fillRect(0,0,128,256);ctx.fillStyle=source.color;ctx.fillRect(12,18,104,18);ctx.fillStyle='#ffffff';ctx.font='bold 20px system-ui';ctx.textAlign='center';ctx.fillText('MIRROR',64,84);ctx.fillText('MENU',64,116);ctx.fillText('OPEN',64,210);label.material.map=new THREE.CanvasTexture(canvas);label.material.needsUpdate=true;
       const board={boardId:'mirror-board:'+index,houseIndex:index,owner:source.owner,kind:'world',x:label.position.x,y:label.position.y,z:label.position.z,label,pick:label};world.boards.push(board);space.shells.push({index,board});
     }
     for(const [mat,parts]of batches){const mesh=new THREE.InstancedMesh(boxGeometry,mat,parts.length);for(let i=0;i<parts.length;i++){const p=parts[i];transform.position.set(p.x,p.y,p.z);transform.rotation.set(0,p.rotation,0);transform.scale.set(p.w,p.h,p.d);transform.updateMatrix();mesh.setMatrixAt(i,transform.matrix);}mesh.computeBoundingSphere();mesh.receiveShadow=true;group.add(mesh);space.shells.push({mesh,parts});}
-    function box(x,y,z,w,h,d,mat,solid=true){const mesh=new THREE.Mesh(boxGeometry,mat);mesh.position.set(realm.x+x,y,realm.z-z);mesh.scale.set(w,h,d);group.add(mesh);if(solid)bodies.push({x:mesh.position.x,y,z:mesh.position.z,w,h,d});}
+    function box(x,y,z,w,h,d,mat,solid=true){const mesh=new THREE.Mesh(boxGeometry,mat);mesh.position.set(realm.x+x,y,realm.z-z);mesh.scale.set(w,h,d);group.add(mesh);}
     const road=new THREE.MeshStandardMaterial({color:'#c9c4b7',roughness:.9});
     box(0,.045,62,92,.09,9,road);
     for(const h of HOUSES.slice(0,8))box(h.x,.09,h.index<4?54.7:70,5,.18,h.index<4?12:13,road);
     // The void is a background colour, never wall geometry. A single outer
     // boundary encloses the whole neighbourhood without hiding any facade.
     const halfX=54,halfZ=29,centerZ=realm.z-62.5;
-    for(const sign of [-1,1]){
-      bodies.push({x:realm.x+sign*halfX,y:256,z:centerZ,w:.5,h:1024,d:halfZ*2});
-      bodies.push({x:realm.x,y:256,z:centerZ+sign*halfZ,w:halfX*2,h:1024,d:.5});
-    }
     world.setMovementBounds?.(key,{...realm,allowed:(x,z)=>Math.abs(x-realm.x)<halfX-.4&&Math.abs(z-centerZ)<halfZ-.4});
-    world.setHouseBodies('mirror-avenue:'+key,bodies);refreshGateways(space);return space;
+    world.setHouseBodies('mirror-avenue:'+key,mirrorAvenueColliders(world.bodies,realm,HOUSES));refreshGateways(space);return space;
   }
   const previousCutaway=world.cutawayHouse;
   world.cutawayHouse=(index,enabled,sideX=1,sideZ=1)=>{

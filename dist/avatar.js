@@ -271,7 +271,7 @@ export async function createAvatar(url,{model=null}={}) {
   let wasGrounded = true;
   let lastVerticalSpeed = 0;
   let disposed = false;
-  let previousSpeed=0,braking=0,crouchBlend=0;
+  let previousSpeed=0,braking=0,crouchBlend=0,mantleBlend=0;
   let previousAttack=0,entryPose=null;
   for(const mesh of meshes)mesh.geometry.computeBoundingBox();
   const gestures = { none: 0, wave: 0, cheer: 0, pose: 0 };
@@ -483,6 +483,15 @@ export async function createAvatar(url,{model=null}={}) {
        if(ghost.visible){const pose=sampleKatanaPose(0,age);gunEuler.set(-aim+pose.rotation[0],look+pose.rotation[1],pose.rotation[2],'YXZ');gunAim.setFromEuler(gunEuler);ghost.quaternion.copy(gunInverse).multiply(gunAim);ghost.position.set(0,.115,.025).applyQuaternion(ghost.quaternion);}
       }
     }}
+    mantleBlend=damp(mantleBlend,state.mantling&&!state.ragdoll&&!state.seated&&!state.sleeping?1:0,18,dt);
+    if(mantleBlend>.001){
+      torso.rotation.x=THREE.MathUtils.lerp(torso.rotation.x,.22,mantleBlend);
+      for(const [side,sign]of [['right',-1],['left',1]]){
+        gestureJoint(shoulders[side],-2.65,0,sign*.12,mantleBlend);gestureJoint(elbows[side],-.65,0,0,mantleBlend);
+        gestureJoint(hips[side],-.72,0,sign*.08,mantleBlend);gestureJoint(knees[side],1.05,0,0,mantleBlend);
+      }
+      if(gunModel&&mantleBlend>.1)gunModel.visible=false;
+    }
     // Keep the supporting foot planted after the combat pose has been blended.
     if(!state.prone&&grounded&&airborne<.02&&sitWeight<.01&&sleepWeight<.01&&ragdollWeight<.01){
       let sole=Infinity;for(const side of ['right','left']){const a=hips[side].rotation.x,b=a+knees[side].rotation.x,z=hips[side].rotation.z;const y=legHeight*PX+pelvis.position.y-(legHalf*PX*Math.cos(a)+legHalf*PX*Math.cos(b))*Math.cos(z)-.125*Math.abs(Math.sin(b));sole=Math.min(sole,y);}
@@ -492,7 +501,7 @@ export async function createAvatar(url,{model=null}={}) {
     head.rotation.y = damp(head.rotation.y, state.ragdoll||state.sleeping?0:clamp(state.lookYaw || 0, -.95, .95) - torso.rotation.y * .6, 12, dt);
     head.rotation.x = damp(head.rotation.x, state.ragdoll||state.sleeping?0:clamp(state.lookPitch || 0, -.65, .7) - torso.rotation.x * .65, 12, dt);
     head.rotation.z = -torso.rotation.z * .4;
-    Object.assign(animation, { speed, motion, running, grounded, phase, gesture: gestureName });
+    Object.assign(animation, { speed, motion, running, grounded, phase, gesture: gestureName,mantling:mantleBlend>.1 });
   }
 
   function applyPlayPose(pose){

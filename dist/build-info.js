@@ -1,2 +1,2 @@
-export const BUILD_ID='vrs-round102';
-export const RELEASE_ID='vrs-round102';
+export const BUILD_ID='vrs-mantle103';
+export const RELEASE_ID='vrs-mantle103';

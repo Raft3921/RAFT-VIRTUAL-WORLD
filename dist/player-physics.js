@@ -1,3 +1,4 @@
+import {startMantle,stepMantle} from './player-mantle.js?v=20261015-mantle103';
 import * as THREE from './vendor/three.module.js';
 import {COURSE} from './world-layout.js';
 import {bounceSpeed} from './plaza-surfaces.js';
@@ -8,6 +9,8 @@ export const PLAYER_GRAVITY=24,PLAYER_JUMP_SPEED=6.2;
 export function jumpParameters(world,p){return p.x>COURSE.minX&&p.x<COURSE.maxX&&p.z>COURSE.minZ&&p.z<COURSE.maxZ?{gravity:15,jump:7.95}:{gravity:PLAYER_GRAVITY,jump:PLAYER_JUMP_SPEED};}
 export function stepPlayer(world,body,input){
  const dt=Math.max(0,Math.min(.05,input.dt)),params=jumpParameters(world,body.p);
+ if(input.jump&&!body.grounded&&!body.mantle)startMantle(world,body,input);
+ if(body.mantle&&stepMantle(world,body,input,dt))return {grounded:body.grounded,body:body.standingOn,bounceBody:null};
  if(body.standingOn&&body.grounded&&!body.standingOn.disabled){
   const b=body.standingOn;
   if(Number.isFinite(b.motionTime)&&b.motionMargin){const delta=(Math.sin(b.motionTime*.9+b.phase)-Math.sin((b.motionTime-dt)*.9+b.phase))*b.amplitude;if(b.lift)body.p.y+=delta;else if(b.forward)body.p.x+=delta;else body.p.z+=delta;}

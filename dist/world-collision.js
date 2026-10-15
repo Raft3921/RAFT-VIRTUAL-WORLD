@@ -22,13 +22,14 @@ export function createCollisionWorld(bodies,{moving=[],falling=[],pulsing=[]}={}
     return {y:floor,body};
   }
   // Read-only occupancy query for entering activities at an unobstructed spot.
-  function canStand(p,shape=null){
+  function canStand(p,shape=null,margin=.04){
+    for(const bound of movementBounds.values())if(Math.abs(p.x-bound.x)<70&&Math.abs(p.z-(bound.z-62.5))<55&&!bound.allowed(p.x,p.z))return false;
     const height=shape?.height||1.9,width=shape?.width||.32,depth=shape?.depth||.32,angle=shape?.yaw||0;
     for(const b of nearby(p)){
       const q=localPoint(p,b);
       if(b.disabled||(b.ramp?rampHeight(b,q.z):b.y+b.h/2)<=p.y+.04||b.y-b.h/2>=p.y+height)continue;
       const relative=angle-(b.rotation||0),rx=Math.abs(Math.cos(relative))*width+Math.abs(Math.sin(relative))*depth,rz=Math.abs(Math.sin(relative))*width+Math.abs(Math.cos(relative))*depth;
-      if(Math.abs(q.x)<b.w/2+rx+.04&&Math.abs(q.z)<b.d/2+rz+.04)return false;
+      if(Math.abs(q.x)<b.w/2+rx+margin&&Math.abs(q.z)<b.d/2+rz+margin)return false;
     }
     return true;
   }

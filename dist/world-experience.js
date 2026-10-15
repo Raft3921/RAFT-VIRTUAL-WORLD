@@ -81,7 +81,7 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
    if(s.cameraMode==='first'){const bob=s.grounded&&!s.seated&&!s.ragdoll&&!scoped?Math.sin((s.avatar?.animation.phase||0)*2)*Math.min(.0045,s.speed*.001):0;camera.position.copy(eye);camera.position.y+=bob;camera.lookAt(camera.position.clone().add(direction));}
    else{const right=new THREE.Vector3(-Math.cos(s.yaw),0,Math.sin(s.yaw)),target=eye.clone().addScaledVector(direction,80),desired=eye.clone().addScaledVector(right,.62).addScaledVector(direction,-2.15);camera.position.copy(s.world.cameraPosition(eye,desired,.18));camera.lookAt(target);}
    if(scopeBlend>.001&&s.cameraMode!=='first'){camera.position.lerp(eye,THREE.MathUtils.smoothstep(scopeBlend,0,1));camera.lookAt(camera.position.clone().add(direction));}
-   camera.fov=THREE.MathUtils.lerp(s.cameraMode==='first'?92:s.fov,58,THREE.MathUtils.smoothstep(scopeBlend,0,1));firstRig.visible=s.cameraMode==='first'||scopeBlend>.005;
+   camera.fov=THREE.MathUtils.lerp(s.cameraMode==='first'?92:s.fov,58,THREE.MathUtils.smoothstep(scopeBlend,0,1));firstRig.visible=!s.mantling&&(s.cameraMode==='first'||scopeBlend>.005);
   }else{firstRig.visible=false;}
   const leanDelta=lastLeanYaw===null?0:Math.atan2(Math.sin(s.yaw-lastLeanYaw),Math.cos(s.yaw-lastLeanYaw));lastLeanYaw=s.yaw;turnLean=THREE.MathUtils.damp(turnLean,THREE.MathUtils.clamp(-leanDelta/Math.max(.001,dt)*.014,-.038,.038),10,dt);
   const canLean=bodycamActive&&!watching&&!s.ragdoll&&!s.seated&&s.grounded;

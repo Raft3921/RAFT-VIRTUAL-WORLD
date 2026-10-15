@@ -1,4 +1,4 @@
-import {createCollisionWorld} from './world-collision.js?v=20261015-physics101';
+import {createCollisionWorld} from './world-collision.js?v=20261015-mantle103';
 import {sandTexture} from './sand-texture.js?v=20261015-tactics99';
 import {createGunMapVisual} from './gun-map-visual.js?v=20261015-round102';
 import {rampHeight} from './plaza-surfaces.js?v=20261013-life89b';
@@ -311,5 +311,5 @@ export function createWorld(scene,{physicsOnly=false}={}){
   // so its shader is not first compiled when night begins.
   function setNight(value){const night=THREE.MathUtils.clamp(value||0,0,1);if(nightLight.value===night&&lampMaterial.emissiveIntensity===night*1.8)return;nightLight.value=night;lampMaterial.emissiveIntensity=night*1.8;}
   const gunMap=createGunMapVisual(group,bodies);
-  const api={set portalPassage(fn){collision.portalPassage=fn;},get portalPassage(){return collision.portalPassage;},gunMap,cameraClear,canStand,setMovementBounds:collision.setMovementBounds,group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
+  const api={set portalPassage(fn){collision.portalPassage=fn;},get portalPassage(){return collision.portalPassage;},gunMap,cameraClear,canStand,nearby,setMovementBounds:collision.setMovementBounds,group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
 }

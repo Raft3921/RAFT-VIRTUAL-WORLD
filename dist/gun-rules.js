@@ -2,7 +2,7 @@ import {solidExtents,segmentGunSolid} from './gun-solid.js?v=20261015-tactics99'
 import {gunDamage,gunHitBox} from './gun-posture.js?v=20261015-tactics99';
 import {GUN_PROP_DEFS} from './gun-map-state.js?v=20261015-tactics99';
 import {GUN_SPAWNS,GUN_SOLIDS} from './gun-collision.js?v=20261015-tactics99';
-import {gunEliminationState} from './hit-reaction.js?v=20261014-cinema93';
+import {gunEliminationState} from './hit-reaction.js?v=20261015-spectacle104';
 import {fallbackMuzzle} from './weapon-dimensions.js?v=20261015-tactics99';
 import {WEAPONS,weaponById,inGunZone,GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261015-tactics99';
 import {segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261013-life89b';
@@ -21,7 +21,7 @@ export class GunRules{
  publish(){this.send({type:'gun-battle',battle:this.snapshot()});}
  assign(){if(this.phase==='active'||this.phase==='preview')return;const members=[...this.members.values()],pairs=this.mode==='teams'||this.mode==='auto'&&members.length===4;members.forEach((m,i)=>{if(!m.manual)m.team=pairs?Math.floor(i/Math.ceil(members.length/2)):i;});}
  teleport(p,team){const occupied=this.players().filter(q=>q.id!==p.id&&this.members.has(q.id));let points=GUN_SPAWNS.filter(s=>occupied.every(q=>Math.hypot(q.x-s.x,q.z-s.z)>8));if(!points.length)points=GUN_SPAWNS;const spawn={...points[Math.floor(Math.random()*points.length)],yaw:Math.random()*Math.PI*2};this.move(p,spawn);}
- move(p,position){p.gunTeleportSerial=(p.gunTeleportSerial||0)+1;Object.assign(p,position,{flight:false,prone:false,crouched:false,seated:false,sleeping:false,ragdoll:false,vx:0,vy:0,vz:0});this.send({type:'gun-teleport',playerId:p.id,position,serial:p.gunTeleportSerial});}
+ move(p,position){p.gunTeleportSerial=(p.gunTeleportSerial||0)+1;Object.assign(p,position,{flight:false,prone:false,crouched:false,seated:false,sleeping:false,ragdoll:false,gunEliminated:false,vx:0,vy:0,vz:0});this.send({type:'gun-teleport',playerId:p.id,position,serial:p.gunTeleportSerial});}
  atBoard(p){return GUN_EXIT_BOARDS.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<5&&p.y<4);}
  enter(p){if(this.members.has(p.id))return;if(this.phase==='active'||this.phase==='preview'||Math.hypot(p.x-GUN_ENTRY.x,p.z-GUN_ENTRY.z)>6||p.y>4)return;const c=this.record(p),weapon=c.ownedWeapons.includes(p.equippedWeapon)?p.equippedWeapon:c.ownedWeapons.at(-1);if(!weapon){this.send({type:'gun-error',playerId:p.id,message:'武器を持っていないため入場できません。PCのストアで購入してください'});return;}
   if(!this.members.size)this.resetMap();
@@ -47,11 +47,11 @@ export class GunRules{
   const attacker=this.members.get(owner.id),target=this.members.get(victim.id),damage=gunDamage(shot.weapon,shot.charge);
   if(inGunZone(owner)||inGunZone(victim)){
    if(this.phase!=='active'||!attacker||!target||attacker.out||target.out||attacker.team===target.team)return;
-   target.damage=Math.min(this.maxLife,target.damage+damage);target.out=target.damage>=this.maxLife;if(target.out){this.cancelReload(victim,now);target.outAt=now;target.outPosition={x:victim.x,y:victim.y,z:victim.z};Object.assign(victim,{ragdoll:true,hitPhase:'down',hitTime:0,hitDownTime:0,hitRecovery:0,hitStrength:.55,grounded:true,vx:0,vy:0,vz:0});this.send({type:'gun-eliminated',playerId:victim.id,position:target.outPosition,at:now});}
+   target.damage=Math.min(this.maxLife,target.damage+damage);target.out=target.damage>=this.maxLife;if(target.out){this.cancelReload(victim,now);target.outAt=now;target.outPosition={x:victim.x,y:victim.y,z:victim.z};Object.assign(victim,gunEliminationState(0),{vx:0,vy:0,vz:0});const length=Math.hypot(shot.vx||victim.x-owner.x,shot.vz||victim.z-owner.z)||1;this.send({type:'gun-eliminated',playerId:victim.id,attacker:owner.id,weapon:shot.weapon,position:target.outPosition,direction:{x:(shot.vx||victim.x-owner.x)/length,z:(shot.vz||victim.z-owner.z)/length},at:now});}
   }else if(this.rules.duel?.ids.includes(owner.id)||this.rules.duel?.ids.includes(victim.id))return;
   // Reuse light punch reaction; each pellet scores independently, without stun immunity.
   this.rules.hit(owner,victim,damage,now,{kind:0,held:0});
-  this.send({type:'gun-damage',playerId:victim.id,damage,weapon:shot.weapon,remaining:target?Math.max(0,this.maxLife-target.damage):null});
+  this.send({type:'gun-damage',playerId:victim.id,attacker:owner.id,damage,weapon:shot.weapon,remaining:target?Math.max(0,this.maxLife-target.damage):null});
   if(target&&!deferResolve){this.publish();this.resolve();}
  }
  inBlast(q,point,radius){const box=gunHitBox(q),c=Math.cos(box.yaw),s=Math.sin(box.yaw),x=point.x-box.x,z=point.z-box.z,dx=Math.max(0,Math.abs(c*x-s*z)-box.w/2),dz=Math.max(0,Math.abs(s*x+c*z)-box.d/2),dy=Math.max(0,Math.abs(point.y-box.y)-box.h/2);return Math.hypot(dx,dy,dz)<=radius;}

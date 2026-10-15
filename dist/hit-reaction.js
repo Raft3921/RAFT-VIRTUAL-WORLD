@@ -20,6 +20,13 @@ export function stepHit(hit,dt,grounded,velocity){
 }
 export function sampleHit(hit){
   const phase=hit?.phase||'none',t=hit?.elapsed||0,strength=hit?.strength||.5;
+  if(hit?.gunEliminated){
+    if(phase==='air'){const u=smooth(t/.85),flail=Math.sin(u*Math.PI),twist=Math.sin(u*Math.PI*1.4)*(1-u*.65);
+      return {weight:1,tilt:-.15-1.30*u,height:.06+.24*u+.22*flail,hips:[-.22+.07*u-.65*flail,.10-.18*u+.25*flail],knees:[.55-.31*u+.75*flail,.4-.22*u+.45*flail],arms:[-1.1+.75*u-.85*flail,-.65+.47*u+.25*flail],elbows:[-.85+.20*u-.3*flail,-.65+.20*u],roll:twist*.38,spread:.18-.02*u+flail*.2};
+    }
+    const d=hit.downTime||0,settle=Math.exp(-d*9),bounce=Math.abs(Math.sin(d*19))*settle;
+    return {weight:1,tilt:-Math.PI/2+.12*settle,height:.30+bounce*.12,hips:[-.15-bounce*.2,-.08],knees:[.24+bounce*.3,.18],arms:[-.35-bounce*.3,-.18],elbows:[-.65,-.45],roll:Math.sin(d*14)*settle*.14,spread:.16};
+  }
   if(phase==='impact')return {weight:1,tilt:-.1,height:0,hips:[-.15,-.12],knees:[.25,.2],arms:[-.5,-.55],elbows:[-.75,-.8],roll:0,spread:.14};
   // Bounded, damped limb inertia keeps the old loose ragdoll character without
   // random joint jitter or limbs folding through the torso. Shared hit time
@@ -40,4 +47,4 @@ export function sampleHit(hit){
 }
 
 // Gun eliminations settle on the floor and never enter the get-up phase.
-export function gunEliminationState(age){const t=Math.max(0,age);return {ragdoll:true,hitPhase:t<.55?'air':'down',hitTime:Math.min(.55,t),hitDownTime:Math.min(.65,Math.max(0,t-.55)),hitRecovery:0,hitStrength:.55,grounded:true};}
+export function gunEliminationState(age){const t=Math.max(0,age);return {ragdoll:true,gunEliminated:true,hitPhase:t<.85?'air':'down',hitTime:Math.min(.85,t),hitDownTime:Math.min(1.2,Math.max(0,t-.85)),hitRecovery:0,hitStrength:.95,grounded:true};}

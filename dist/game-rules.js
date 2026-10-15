@@ -6,7 +6,7 @@ import {cleanMeal,describeDish} from './cooking-data.js?v=20261013-life89b';
 import {recognizeKitchens} from './kitchen-layout.js?v=20261013-life89b';
 import {buildDistrict} from './district.js?v=20261013-life89b';
 import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261015-tactics99';
-import {GunRules} from './gun-rules.js?v=20261015-round102';
+import {GunRules} from './gun-rules.js?v=20261015-spectacle104';
 import {weaponById} from './gun-layout.js?v=20261015-tactics99';
 import {WorldChatStore} from './world-chat-store.js?v=20261013-life89b';
 import { ARENA,insideArena } from './world-layout.js?v=20261013-life89b';
@@ -15,14 +15,14 @@ import { CharacterStore,cleanCharacter } from './character-store.js?v=20261013-l
 import { GYOZA_SKIN,GUEST_SKIN,playableSkin } from './player-types.js?v=20261013-life89b';
 import { HousingStore } from './housing-store.js?v=20261013-life89b';
 import {BROWN_PROJECTILE,projectileAt,segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261013-life89b';
-import {hitShape} from './hit-reaction.js?v=20261014-cinema93';
+import {hitShape} from './hit-reaction.js?v=20261015-spectacle104';
 import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} from './housing-data.js?v=20261013-life89b';
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261013-life89b';
 import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js?v=20261013-life89b';
 import {furnitureAction} from './furniture-actions.js?v=20261013-life89b';
 const menuBoards=[{x:6,z:11},{x:ARENA.x+3,z:ARENA.z+20},GUN_ENTRY,...GUN_EXIT_BOARDS,...HOUSES.slice(0,8).map(h=>({x:h.x-6,z:h.z+h.front*9}))];
 buildDistrict({box:()=>{},sign:()=>{},board:(x,y,z)=>menuBoards.push({x,y,z}),seats:[],clockHands:[]});
-import {SYNC_VERSION,SYNC_PROTOCOL,compatibleSync} from './sync-protocol.js?v=20261015-mantle103';
+import {SYNC_VERSION,SYNC_PROTOCOL,compatibleSync} from './sync-protocol.js?v=20261015-spectacle104';
 export {SYNC_VERSION,SYNC_PROTOCOL,compatibleSync};
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -33,7 +33,7 @@ export function cleanState(s,skin,realms){
   const n=(key,a,b)=>Number.isFinite(s[key])?clamp(s[key],a,b):0;
   return {gunTeleportSerial:Math.floor(n('gunTeleportSerial',0,1e9)),equippedWeapon:weaponById(s.equippedWeapon)?.id||null,mirrorRealm:realm?.key||null,x:s.x,y:s.y,z:s.z,yaw:s.yaw,skin:playableSkin(skin),
     headYaw:n('headYaw',-1,1),headPitch:n('headPitch',-.7,.7),vx:n('vx',-200,200),vy:n('vy',-200,200),vz:n('vz',-200,200),
-    speed:n('speed',0,20),verticalSpeed:n('verticalSpeed',-200,200),grounded:s.grounded!==false,mantling:false,flight:s.flight===true,
+    speed:n('speed',0,20),verticalSpeed:n('verticalSpeed',-200,200),grounded:s.grounded!==false,mantling:false,gunEliminated:false,flight:s.flight===true,
     prone:s.prone===true&&s.flight!==true&&s.ragdoll!==true&&s.seated!==true&&s.sleeping!==true,
     crouched:s.crouched===true&&s.flight!==true&&s.ragdoll!==true&&s.seated!==true&&s.sleeping!==true,ragdoll:s.ragdoll===true,seated:s.seated===true,sleeping:s.sleeping===true&&s.ragdoll!==true,crownEnabled:s.crownEnabled===true,
     attackKind:Math.floor(n('attackKind',0,12)),attackProgress:n('attackProgress',0,1),attackDuration:n('attackDuration',0,2),attackStrength:n('attackStrength',0,1),attackSerial:Math.floor(n('attackSerial',0,1e9)),

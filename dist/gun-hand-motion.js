@@ -11,9 +11,9 @@ function track(t,frames){
 }
 export function supportGrip(id){return id==='pistol'?[.082,-.008,-.016]:[.045,-.012,id==='rocket'?.46:.42];}
 export function sampleGunReload(id,progress=null){
- const home=supportGrip(id),pose={weight:0,hand:home,rotation:[0,0,0],part:[0,0,0],partRotation:[0,0,0],dip:0,tilt:0,roll:0};
+ const home=supportGrip(id),pose={weight:0,hand:home,rotation:[0,0,0],part:[0,0,0],partRotation:[0,0,0],dip:0,tilt:0,roll:0,clack:0};
  if(progress===null||progress<=0||progress>=1)return pose;
- const t=clamp(progress),weight=ease(t/.16)*(1-ease((t-.84)/.16));pose.weight=weight;pose.dip=-weight*.22;pose.tilt=weight*(id==='sniper'?.20:.32);pose.roll=weight*(id==='pistol'?-.30:-.16);
+ const t=clamp(progress),weight=ease(t/.16)*(1-ease((t-.84)/.16));pose.weight=weight;pose.dip=-weight*.32;pose.tilt=weight*(id==='sniper'?.32:.46);pose.roll=weight*(id==='pistol'?-.46:-.27);
  let frames;
  if(id==='pistol'||id==='machine'){
   const z=id==='pistol'?-.015:.22;
@@ -30,7 +30,7 @@ export function sampleGunReload(id,progress=null){
   const pull=track(t,[[0,0],[.24,0],[.42,-.46],[.58,-.46],[.8,0],[1,0]])[0];pose.part=[0,0,pull];
   frames=[[0,...home],[.24,.12,-.04,-.40],[.42,.12,-.04,-.86],[.58,.12,-.04,-.86],[.8,.12,-.04,-.40],[1,...home]];
  }
- pose.hand=track(t,frames);pose.rotation=[weight*.18,weight*(id==='rocket'?-.25:.20),weight*.38];return pose;
+ const insert=id==='shotgun'?.89:id==='rocket'?.8:id==='sniper'?.82:.69;pose.clack=Math.sin(Math.PI*clamp((t-insert+.025)/.09))*(1-clamp((t-insert+.025)/.09));pose.tilt+=pose.clack*.16;pose.roll+=pose.clack*.09;pose.hand=track(t,frames);pose.rotation=[weight*.18,weight*(id==='rocket'?-.25:.20),weight*.38];return pose;
 }
 export function shotHandKick(id,age){
  if(age<0||age>.65)return 0;

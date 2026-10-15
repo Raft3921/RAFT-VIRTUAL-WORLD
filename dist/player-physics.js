@@ -2,10 +2,10 @@ import {startMantle,stepMantle} from './player-mantle.js?v=20261015-mantle103';
 import * as THREE from './vendor/three.module.js';
 import {COURSE} from './world-layout.js';
 import {bounceSpeed} from './plaza-surfaces.js';
-import {tentBounceSpeed} from './gun-locomotion.js?v=20261015-round102';
-export const PLAYER_GRAVITY=24,PLAYER_JUMP_SPEED=6.2;
+import {tentBounceSpeed} from './gun-locomotion.js?v=20261015-spectacle104';
+export const PLAYER_GRAVITY=24,PLAYER_JUMP_SPEED=8.4;
 // The course deliberately retains its reachable jump arc. Ordinary movement
-// reaches 80 cm in 258 ms, then accelerates down under the same gravity.
+// reaches 147 cm in 350 ms, then accelerates down under the same gravity.
 export function jumpParameters(world,p){return p.x>COURSE.minX&&p.x<COURSE.maxX&&p.z>COURSE.minZ&&p.z<COURSE.maxZ?{gravity:15,jump:7.95}:{gravity:PLAYER_GRAVITY,jump:PLAYER_JUMP_SPEED};}
 export function stepPlayer(world,body,input){
  const dt=Math.max(0,Math.min(.05,input.dt)),params=jumpParameters(world,body.p);

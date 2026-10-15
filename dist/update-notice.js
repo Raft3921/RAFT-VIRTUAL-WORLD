@@ -1,5 +1,5 @@
-import {compatibleSync} from './sync-protocol.js?v=20261015-mantle103';
-import {BUILD_ID,RELEASE_ID} from './build-info.js?v=20261015-tactics99';
+import {compatibleSync} from './sync-protocol.js?v=20261015-spectacle104';
+import {BUILD_ID,RELEASE_ID} from './build-info.js?v=20261015-spectacle104';
 export function startUpdateNotice({endpoint,version}){
  const notice=document.getElementById('updateNotice');let busy=false,clientUpdate=false,incompatible=false,explicit=false;
  const draw=()=>{notice.hidden=!(explicit||clientUpdate||incompatible);};

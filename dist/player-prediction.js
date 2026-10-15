@@ -1,6 +1,6 @@
 import {cloneMantle} from './player-mantle.js?v=20261015-mantle103';
 import * as THREE from './vendor/three.module.js';
-import {stepPlayer} from './player-physics.js?v=20261015-mantle103';
+import {stepPlayer} from './player-physics.js?v=20261015-spectacle104';
 export class PlayerPrediction{
  constructor(){this.epoch=1;this.seq=0;this.ack=0;this.pending=[];this.active=false;this.mantle=null;this.offset=new THREE.Vector3();this.last=null;this.resetPending=false;}
  reset(){this.epoch++;this.seq=0;this.ack=0;this.pending=[];this.active=false;this.mantle=null;this.last=null;this.offset.set(0,0,0);}

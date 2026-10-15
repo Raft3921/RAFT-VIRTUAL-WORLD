@@ -1,10 +1,11 @@
+import {createGunActionMotion,stepGunActionMotion} from './gun-action-motion.js?v=20261015-spectacle104';
 import {sampleKatanaPose} from './katana-motion.js?v=20261015-tactics99';
-import {sampleGunReload,shotHandKick} from './gun-hand-motion.js?v=20261015-tactics99';
-import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261015-tactics99';
+import {sampleGunReload,shotHandKick} from './gun-hand-motion.js?v=20261015-spectacle104';
+import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261015-spectacle104';
 import * as THREE from 'three';
 import {withLocalLighting} from './local-lighting.js?v=20261014-world96';
 import { sampleAttack,sampleCharge } from './combat-motion.js?v=20261013-life89b';
-import {applyAvatarHitPose,groundAvatarHitPose} from './avatar-hit-pose.js?v=20261014-cinema93';
+import {applyAvatarHitPose,groundAvatarHitPose} from './avatar-hit-pose.js?v=20261015-spectacle104';
 import { jemAvatarDefinition } from './jem-avatar.js?v=20261014-cinema93';
 
 const swordGhostMaterials=[.16,.10,.055].map(opacity=>new THREE.MeshBasicMaterial({color:'#d7eef4',transparent:true,opacity,depthWrite:false,blending:THREE.AdditiveBlending}));
@@ -272,6 +273,7 @@ export async function createAvatar(url,{model=null}={}) {
   let lastVerticalSpeed = 0;
   let disposed = false;
   let previousSpeed=0,braking=0,crouchBlend=0,mantleBlend=0;
+  const gunActionState=createGunActionMotion();let gunActionPose={pitch:0,yaw:0,roll:0,jump:0,land:0};
   let previousAttack=0,entryPose=null;
   for(const mesh of meshes)mesh.geometry.computeBoundingBox();
   const gestures = { none: 0, wave: 0, cheer: 0, pose: 0 };
@@ -346,6 +348,7 @@ export async function createAvatar(url,{model=null}={}) {
     torso.rotation.z = Math.sin(phase) * .012 * motion;
     // Breathing is limited to the upper body so the feet never bounce at rest.
     torso.scale.y = 1 + breathing * .002;
+    gunActionPose=stepGunActionMotion(gunActionState,{grounded,verticalSpeed,speed,phase,mantling:state.mantling},dt);
     const hipHeight = legHeight * PX + pelvis.position.y;
     for (const [side, offset, sign] of [['right', 0, -1], ['left', Math.PI, 1]]) {
       hips[side].position.x=damp(hips[side].position.x,(custom?parts[`${side}Leg`].center[0]*PX:sign*.125)+sign*(.045*motion+.018*crouchBlend),16,dt);
@@ -475,6 +478,7 @@ export async function createAvatar(url,{model=null}={}) {
       // normal idle/walk pose; the separate first-person rig has its own grip.
       torso.rotation.y=.015;torso.rotation.z=Math.sin(phase)*.006*motion;
       if(gunId==='katana'){const pose=sampleKatanaPose(gunChargeAt===null?0:(now-gunChargeAt)/1000,(now-gunShotAt)/1000);shoulders.right.rotation.set(...pose.shoulder);shoulders.right.rotation.x-=aim*.65;shoulders.right.rotation.y+=look*.5;elbows.right.rotation.set(...pose.elbow);}
+      shoulders.right.rotation.x+=gunActionPose.pitch*.8;shoulders.right.rotation.y+=gunActionPose.yaw;shoulders.right.rotation.z+=gunActionPose.roll;elbows.right.rotation.x-=gunActionPose.land*.12+gunActionPose.jump*.10;
       gunInverse.copy(pelvis.quaternion).multiply(torso.quaternion).multiply(shoulders.right.quaternion).multiply(elbows.right.quaternion).invert();gunEuler.set(-aim-kick*.11+reload.tilt,look,reload.roll,'YXZ');
       if(gunId==='katana'){const pose=sampleKatanaPose(gunChargeAt===null?0:(now-gunChargeAt)/1000,(now-gunShotAt)/1000);gunEuler.x+=pose.rotation[0];gunEuler.y+=pose.rotation[1];gunEuler.z+=pose.rotation[2];}
       gunAim.setFromEuler(gunEuler);updateGunReload(gunModel,progress);

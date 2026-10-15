@@ -1,7 +1,7 @@
 import {HOUSES,mirrorRealm} from './housing-data.js';
 import * as THREE from './vendor/three.module.js';
 import {createWorld} from './world.js?v=20261015-mantle103';
-import {stepPlayer} from './player-physics.js?v=20261015-mantle103';
+import {stepPlayer} from './player-physics.js?v=20261015-spectacle104';
 import {housingColliders,mirrorAvenueColliders} from './housing-collision.js?v=20261015-physics101';
 
 // The room owns position, vertical velocity and contact state. Clients send

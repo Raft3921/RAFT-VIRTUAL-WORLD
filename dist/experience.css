@@ -57,3 +57,5 @@ body[data-cinematic=true] #scene{visibility:visible!important;pointer-events:non
 #gunCrosshair[data-weapon=machine] .aim-reticle{stroke-width:1.3}#gunCrosshair[data-weapon=sniper] .aim-reticle{stroke-width:.8}#gunCrosshair[data-weapon=rocket] .aim-reticle{stroke-width:1.4;color:#f3ead5}
 #gunCrosshair[data-scoped=true] .aim-reticle{opacity:0}
 #scopeOverlay{display:none!important}
+
+#gunReload{bottom:calc(105px + env(safe-area-inset-bottom))}#gunProne{position:fixed;z-index:15;right:calc(max(18px,env(safe-area-inset-right)) + 94px);bottom:calc(37px + env(safe-area-inset-bottom));width:76px;min-height:54px;padding:5px;background:#152934df;border:2px solid #8ca9aa;color:#d9ede6;font-size:11px;touch-action:manipulation}#gunProne[aria-pressed=true]{border-color:#b9f5d9;background:#25443d}#gunProne[hidden],body[data-clean=true] #gunProne{display:none!important}

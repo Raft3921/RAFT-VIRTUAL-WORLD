@@ -1,4 +1,4 @@
-import {plazaParts} from './plaza-shapes.js?v=20261013-life89b';
+import {plazaParts} from './plaza-shapes.js?v=20261015-tactics99';
 import {furnitureDefinition,FURNITURE_COLORS} from './housing-data.js?v=20261013-life89b';
 import {expandedParts} from './furniture-shapes.js?v=20261013-life89b';
 import {furnitureAction} from './furniture-actions.js?v=20261013-life89b';

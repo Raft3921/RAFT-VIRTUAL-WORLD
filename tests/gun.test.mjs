@@ -12,7 +12,7 @@ function fixture(){
  return {gun,players,messages,hits,resolved};
 }
 
-test('rocket kills all enemies in its radius, including behind cover, before resolving the round',()=>{
+test('rocket deals two damage to all enemies within the radius, including behind cover',()=>{
  const {gun,players,messages,hits,resolved}=fixture(),radius=weaponById('rocket').radius;
  players.find(p=>p.id==='edge').x+=radius;
  players.find(p=>p.id==='outside').x+=radius+.335;
@@ -21,13 +21,13 @@ test('rocket kills all enemies in its radius, including behind cover, before res
  let queries=0;gun.blocked=()=>{queries++;return 0;};
  gun.shots=[{id:'blast',owner:'owner',weapon:'rocket',position:{x:182,y:.9,z:-92},vx:24,vy:0,vz:0,born:1000,lastAt:1000,life:10,round:1}];
  gun.lastTick=1000;gun.tick(1040);
- assert.deepEqual(hits,[{id:'near',damage:3},{id:'edge',damage:3}]);assert.deepEqual(resolved,[['near','edge']]);assert.equal(queries,1);
- assert.equal(gun.members.get('near').damage,3);assert.equal(gun.members.get('edge').out,true);
+ assert.deepEqual(hits,[{id:'near',damage:2},{id:'edge',damage:2}]);assert.deepEqual(resolved,[[]]);assert.equal(queries,1);
+ assert.equal(gun.members.get('near').damage,2);assert.equal(gun.members.get('edge').out,false);
  for(const id of ['owner','outside','friend'])assert.equal(gun.members.get(id).damage,0);
  const impact=messages.find(m=>m.type==='gun-impact');assert.equal(impact.radius,radius);assert.equal(impact.explosion,true);
- assert.equal(messages.filter(m=>m.type==='gun-eliminated').length,2);
- assert.deepEqual(messages.filter(m=>m.type==='gun-damage').map(m=>m.damage),[3,3]);
- assert.deepEqual(messages.filter(m=>m.type==='gun-damage').map(m=>m.remaining),[0,0]);
+ assert.equal(messages.filter(m=>m.type==='gun-eliminated').length,0);
+ assert.deepEqual(messages.filter(m=>m.type==='gun-damage').map(m=>m.damage),[2,2]);
+ assert.deepEqual(messages.filter(m=>m.type==='gun-damage').map(m=>m.remaining),[1,1]);
 });
 
 test('ordinary bullets still take three hits to eliminate an enemy',()=>{
@@ -61,19 +61,20 @@ test('blast hits a body intersecting the boundary, including crouched players',(
  const near=players.find(p=>p.id==='near');near.x+=radius+.3;near.crouched=true;
  players.find(p=>p.id==='outside').x+=radius+.34;
  gun.blocked=()=>0;gun.shots=[{id:'body-edge',owner:'owner',weapon:'rocket',position:{x:182,y:.6,z:-92},vx:24,vy:0,vz:0,born:1000,lastAt:1000,life:10,round:1}];gun.lastTick=1000;gun.tick(1040);
- assert.equal(gun.members.get('near').out,true);assert.equal(gun.members.get('outside').out,false);
- assert.equal(messages.find(m=>m.type==='gun-damage'&&m.playerId==='near').damage,3);
+ assert.equal(gun.members.get('near').damage,2);assert.equal(gun.members.get('outside').damage,0);
+ assert.equal(messages.find(m=>m.type==='gun-damage'&&m.playerId==='near').damage,2);
 });
 
 test('real round resolution eliminates every blast victim before awarding the win',()=>{
  const {gun,players,messages}=fixture();
  gun.resolve=GunRules.prototype.resolve;
- for(const p of players){p.skin=players.indexOf(p);const m=gun.members.get(p.id);m.skin=p.skin;m.weapon='rocket';m.previousWeapon='pistol';}
+ for(const p of players){p.skin=players.indexOf(p);const m=gun.members.get(p.id);if(m.team===1)m.damage=1;m.skin=p.skin;m.weapon='rocket';m.previousWeapon='pistol';}
  gun.rules.characters={get:()=>({coins:0,weaponWins:{}}),change:()=>Promise.resolve()};gun.rules.onAsyncWork=()=>{};
  gun.blocked=()=>0;gun.shots=[{id:'round-end',owner:'owner',weapon:'rocket',position:{x:182,y:.9,z:-92},vx:24,vy:0,vz:0,born:1000,lastAt:1000,life:10,round:1}];gun.lastTick=1000;gun.tick(1040);
+ assert.equal(gun.phase,'preview');gun.finishPreview(16000);
  assert.equal(messages.filter(m=>m.type==='gun-eliminated').length,3);
  const resultIndex=messages.findIndex(m=>m.type==='gun-result');
- assert(messages.slice(0,resultIndex).filter(m=>m.type==='gun-damage').every(m=>m.damage===3&&m.remaining===0));
+ assert(messages.slice(0,resultIndex).filter(m=>m.type==='gun-damage').every(m=>m.damage===2&&m.remaining===0));
  assert.equal(messages[resultIndex].winner,0);assert.equal(gun.phase,'waiting');assert.equal(gun.members.size,0);
 });
 

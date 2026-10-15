@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {PLAZA,FURNITURE_BY_ID,furniturePose} from './housing-data.js';
-import {playHint,stepSwing,swingSeat,motionAngle} from './plaza-play-shared.js?v=20261013-life89b';
+import {playHint,stepSwing,swingSeat,motionAngle} from './plaza-play-shared.js?v=20261015-tactics99';
 import {springLaunch} from './plaza-surfaces.js?v=20261013-life89b';
 export function createPlazaPlay({scene,camera,view,get,send,notify,onStart,onEnd,mapTexture,openMap,openMenu,openGuide,openPlayers}){
  const states=new Map(),notices=new Map(),bounces=new Map(),ray=new THREE.Raycaster(),direction=new THREE.Vector3(),point=new THREE.Vector3(),scratch=new THREE.Object3D(),matrix=new THREE.Matrix4();let run=null,near=null,lastUI=0,lastNear=0,lastSend=0,layoutKey='',requestAt=-Infinity,flight=null;
@@ -46,14 +46,14 @@ export function createPlazaPlay({scene,camera,view,get,send,notify,onStart,onEnd
  }
  function constrain(){
   if(!run)return false;const s=get(),item=itemAt(run.itemId);if(!item)return false;const def=FURNITURE_BY_ID.get(item.t),p=furniturePose(item),kind=run.kind,t=run.progress||0,a=kind==='seesaw'?motionAngle(states.get(s.selfId),s.serverNow()):run.angle||0,seatOffset=s.avatar?.seatOffset||.41;let x=0,y=.3,z=0;
-  if(kind==='swing'){const seat=swingSeat(def,a,run.slot);x=seat.x;y=seat.y+def.h*.88*.0175-seatOffset;z=seat.z;}
+  if(kind==='swing'){const seat=swingSeat(def,a,run.slot);x=seat.x;y=seat.y+(def.h*.88*.0175-seatOffset)*Math.cos(a);z=seat.z+(def.h*.88*.0175-seatOffset)*Math.sin(a);}
   else if(kind==='zipline'){const seat=swingSeat(def,a);z=(t-.5)*def.d*.88*.86+seat.z;y=seat.y-(s.avatar?.eyeHeight||1.68)-.42;}
   else if(kind==='monkey'){z=(t-.5)*def.d*.88*.75;y=def.h*.88*.94-(s.avatar?.eyeHeight||1.68)-.48;}
   else if(kind==='climb'){x=(run.side||0)*def.w*.88;z=def.d*.88*(def.id==='play-climbing-wall'?-.18:.46);const reach=Math.max(.2,def.h*.88-(s.avatar?.eyeHeight||1.68)-.35),mantle=Math.min(1,(run.mantle||0)/.4);y=t*reach+mantle*(def.h*.88-reach);z-=mantle*def.d*.88*(def.id==='play-climbing-wall'?.2:.18);}
   else if(kind==='seesaw'){x=(run.slot===1?-1:1)*def.w*.88*.4;y=def.h*.88*.51+Math.sin(a)*x-seatOffset;}
   else if(kind==='spring'){x=run.chargeX*.14;z=run.chargeZ*.14;y=def.h*.88*.64-seatOffset;}
   else if(kind==='carousel'){const a=run.angle+(run.slot||0)*Math.PI/2;x=Math.sin(a)*def.w*.88*.28;z=Math.cos(a)*def.d*.88*.28;y=def.h*.88*.15;}
-  point.set(p.x+Math.cos(p.yaw)*x+Math.sin(p.yaw)*z,p.y+Math.max(0,y),p.z-Math.sin(p.yaw)*x+Math.cos(p.yaw)*z);view.rooms.plaza.group.localToWorld(point);s.player.position.copy(point);if(kind==='carousel')s.player.rotation.y=p.yaw+run.angle+(run.slot||0)*Math.PI/2+Math.PI;return true;
+  point.set(p.x+Math.cos(p.yaw)*x+Math.sin(p.yaw)*z,p.y+(kind==='swing'?y:Math.max(0,y)),p.z-Math.sin(p.yaw)*x+Math.cos(p.yaw)*z);view.rooms.plaza.group.localToWorld(point);s.player.position.copy(point);if(kind==='carousel')s.player.rotation.y=p.yaw+run.angle+(run.slot||0)*Math.PI/2+Math.PI;return true;
  }
  function bounce(body,velocity){const m={type:'plaza-bounce',itemId:body.plazaItemId,velocity,playerId:get().selfId,at:get().serverNow()};receive(m);send(m);}
  function applyFlight(velocity,dt,grounded){if(!flight)return;if((grounded&&performance.now()-flight.at>250)||performance.now()-flight.at>5000){flight=null;return;}flight.velocity.multiplyScalar(Math.exp(-dt*.2));velocity.copy(flight.velocity);}

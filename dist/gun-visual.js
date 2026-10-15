@@ -1,5 +1,6 @@
+import {sampleGunReload} from './gun-hand-motion.js?v=20261015-tactics99';
 import * as THREE from 'three';
-import {WEAPON_DIMENSIONS} from './weapon-dimensions.js?v=20261014-fps94';
+import {WEAPON_DIMENSIONS} from './weapon-dimensions.js?v=20261015-tactics99';
 import {cuboidGeometry} from './model-batching.js?v=20261014-fps94';
 const steel='#59636e',silver='#88939d',black='#252c32',rubber='#111820',wood='#815539',cache=new Map(),handCache=new Map();
 const gunMaterial=new THREE.MeshStandardMaterial({vertexColors:true,metalness:.48,roughness:.39}),skinMaterial=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.83}),flashMaterial=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,opacity:.88,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
@@ -7,6 +8,21 @@ const scopeLensGeometry=new THREE.PlaneGeometry(.112,.112),scopeGlass=new THREE.
 const flashGeometry=cuboidGeometry([{x:0,y:0,z:.065,w:.055,h:.055,d:.13,c:'#fff7d7'},{x:0,y:0,z:.14,w:.1,h:.025,d:.18,c:'#ffbd55',rz:.6},{x:0,y:0,z:.14,w:.025,h:.1,d:.18,c:'#ffd987',rz:.6}]);
 function build(id){
  const staticParts=[],reloadParts=[];let target=staticParts;
+ if(id==='katana'){
+  const add=(x,y,z,w,h,d,c,rz=0)=>staticParts.push({x,y,z,w,h,d,c,rz});
+  add(0,.015,-.11,.065,.065,.32,'#25252a');add(0,.015,.065,.17,.13,.018,'#44434a');add(0,.015,.10,.072,.044,.05,'#aaa093');
+  for(let i=0;i<9;i++)add(0,.052,-.25+i*.032,.067,.012,.016,i%2?'#6f655b':'#171c24',i%2?.5:-.5);
+  const grip=cuboidGeometry(staticParts),vertices=[];
+  const ring=i=>{const t=i/16,z=.12+t*1.31,y=.02+t*t*.065,w=i===16?0:.057*(1-t*.43);return [[-w/2,y-.011,z],[w/2,y-.011,z],[w/2,y+.011,z],[-w/2,y+.011,z]];};
+  const tri=(a,b,c)=>vertices.push(...a,...b,...c);
+  for(let i=0;i<16;i++){const a=ring(i),b=ring(i+1);for(let side=0;side<4;side++){const next=(side+1)%4;tri(a[side],b[side],a[next]);tri(a[next],b[side],b[next]);}}
+  const blade=new THREE.BufferGeometry();blade.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));blade.computeVertexNormals();
+  const bladeColors=[];for(let i=0;i<vertices.length/3;i++)bladeColors.push(.68,.75,.79);blade.setAttribute('color',new THREE.Float32BufferAttribute(bladeColors,3));
+  const geometry=new THREE.BufferGeometry();for(const key of ['position','normal','color']){const a=grip.attributes[key].array,b=blade.attributes[key].array,joined=new Float32Array(a.length+b.length);joined.set(a);joined.set(b,a.length);geometry.setAttribute(key,new THREE.BufferAttribute(joined,3));}
+  geometry.computeBoundingSphere();geometry.computeBoundingBox();grip.dispose();blade.dispose();return {geometry,reloadGeometry:cuboidGeometry([])};
+
+ }
+
  const part=(x,y,z,w,h,d,c=steel,rx=0,ry=0,rz=0)=>target.push({x,y,z,w,h,d,c,rx,ry,rz});
  const barrel=(x,y,z,r,length,c=steel)=>{const wall=r*.32;for(const side of [-1,1]){part(x+side*(r-wall/2),y,z,wall,r*2,length,c);part(x,y+side*(r-wall/2),z,r*2-wall*2,wall,length,c);}};
  part(0,-.11,-.015,.11,.22,.13,rubber,-.13);part(0,-.19,.14,.095,.023,.15,steel);part(0,-.13,.21,.095,.12,.023,steel);part(0,-.075,.13,.014,.055,.014,black);
@@ -53,4 +69,17 @@ export function createFiringHand(color='#bd9271',{forearm:showForearm=true,suppo
  }
  const root=new THREE.Group();root.name=support?'support hand':'right firing hand';root.add(new THREE.Mesh(handCache.get(key),skinMaterial));return root;
 }
-export function updateGunReload(model,progress=null){const part=model?.userData.reloadPart;if(!part)return;part.position.set(0,0,0);part.rotation.set(0,0,0);if(progress===null)return;const t=THREE.MathUtils.clamp(progress,0,1),motion=Math.sin(Math.PI*t),kind=model.userData.weapon;if(kind==='pistol'||kind==='machine'){part.position.y=-motion*.27;part.rotation.x=motion*.12;}else if(kind==='sniper')part.position.z=-Math.sin(Math.PI*t*2)*.1;else if(kind==='shotgun')part.position.z=-Math.sin(Math.PI*t*4)*.105;else if(kind==='rocket')part.position.z=-motion*.4;}
+export function updateGunReload(model,progress=null){
+ const part=model?.userData.reloadPart;if(!part)return;
+ const pose=sampleGunReload(model.userData.weapon,progress);part.position.fromArray(pose.part);part.rotation.set(...pose.partRotation);
+}
+
+const armElbow=new THREE.Vector3(),armVector=new THREE.Vector3(),armCenter=new THREE.Vector3(),armInverse=new THREE.Quaternion(),armUp=new THREE.Vector3(0,1,0),armWorldInverse=new THREE.Matrix4();
+export function updateFiringArm(hand,home,frame=null,anchor=null){
+ const arm=hand?.userData.forearm;if(!arm)return;
+ // Hold the elbow near its original place while the wrist reaches for the gun.
+ if(frame&&anchor){hand.updateWorldMatrix(true,false);armElbow.copy(anchor).applyMatrix4(frame.matrixWorld).applyMatrix4(armWorldInverse.copy(hand.matrixWorld).invert());}
+ else armElbow.copy(arm.elbow).add(home).sub(hand.position).applyQuaternion(armInverse.copy(hand.quaternion).invert());
+ armVector.subVectors(armElbow,arm.wrist);const length=armVector.length();armCenter.copy(armElbow).add(arm.wrist).multiplyScalar(.5);
+ for(const mesh of arm.meshes){mesh.position.copy(armCenter);mesh.quaternion.setFromUnitVectors(armUp,armVector.normalize());mesh.scale.y=length/arm.skinLength;}
+}

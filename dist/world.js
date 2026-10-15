@@ -1,5 +1,7 @@
+import {sandTexture} from './sand-texture.js?v=20261015-tactics99';
+import {createGunMapVisual} from './gun-map-visual.js?v=20261015-tactics99';
 import {rampHeight} from './plaza-surfaces.js?v=20261013-life89b';
-import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261014-fps94';
+import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261015-tactics99';
 import * as THREE from 'three';
 import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261013-life89b';
 import { buildDistrict } from './district.js?v=20261013-life89b';
@@ -8,7 +10,7 @@ import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js?v=2
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const materials=new Map();
-function material(color){if(!materials.has(color)){const mat=withLocalLighting(new THREE.MeshStandardMaterial({color,roughness:.82}));if(['#c9a575','#af8960','#e4c797','#b99d79','#936c4f','#dbc29b'].includes(color)){const canvas=document.createElement('canvas');canvas.width=canvas.height=64;const c=canvas.getContext('2d');c.fillStyle='#ffffff';c.fillRect(0,0,64,64);let seed=42;for(let i=0;i<900;i++){seed=(seed*1664525+1013904223)>>>0;const x=seed%64;seed=(seed*1664525+1013904223)>>>0;const y=seed%64;c.fillStyle=i%2?'#bdb5a530':'#7e6b4720';c.fillRect(x,y,1,1);}const texture=new THREE.CanvasTexture(canvas);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.colorSpace=THREE.SRGBColorSpace;mat.map=texture;mat.roughness=.94;
+function material(color){if(!materials.has(color)){const mat=withLocalLighting(new THREE.MeshStandardMaterial({color,roughness:.82}));if(['#c9a575','#af8960','#e4c797','#b99d79','#936c4f','#dbc29b'].includes(color)){const texture=sandTexture(color);mat.map=texture;mat.roughness=.94;
  const previous=mat.onBeforeCompile;mat.onBeforeCompile=function(shader,renderer){previous?.call(this,shader,renderer);shader.vertexShader='varying vec3 vSandLocal; varying vec3 vSandNormal;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
  #ifdef USE_INSTANCING
  vSandLocal=(instanceMatrix*vec4(position,1.0)).xyz;
@@ -18,7 +20,7 @@ function material(color){if(!materials.has(color)){const mat=withLocalLighting(n
  vSandNormal=normal;`);shader.fragmentShader='varying vec3 vSandLocal; varying vec3 vSandNormal;\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`
  #ifdef USE_MAP
  vec3 n=abs(vSandNormal);vec2 tile=n.y>.5?vSandLocal.xz:n.x>.5?vSandLocal.zy:vSandLocal.xy;
- diffuseColor*=texture2D(map,tile*.65);
+ diffuseColor*=texture2D(map,tile*.5);
  #endif`);};const cache=mat.customProgramCacheKey.bind(mat);mat.customProgramCacheKey=()=>cache()+'|sand-world-uv';}materials.set(color,mat);}return materials.get(color);}
 const WHITE='#faf8f1',TRIM='#d4d7d5',WOOD='#bd8d60',STONE='#c9c4b7';
 export function createWorld(scene){
@@ -33,6 +35,7 @@ export function createWorld(scene){
     const body={x,y,z,w,h,d,...extra};
     if(currentHouse){body.houseIndex=currentHouse.index;currentHouse.parts.push(body);}
     if(solid)bodies.push(body);
+    if(extra.noRender)return body;
     // Spatial and vertical batches keep elevated/far-away parts independently culled.
     const key=color+':'+!!extra.noShadow+':'+!!extra.streetLamp+':'+Math.floor(x/48)+','+Math.floor(y/24)+','+Math.floor(z/48);
     if(!batches.has(key))batches.set(key,{color,list:[]});
@@ -357,5 +360,6 @@ export function createWorld(scene){
   // Keep the inexpensive pool draw registered even during the day (alpha 0)
   // so its shader is not first compiled when night begins.
   function setNight(value){const night=THREE.MathUtils.clamp(value||0,0,1);if(nightLight.value===night&&lampMaterial.emissiveIntensity===night*1.8)return;nightLight.value=night;lampMaterial.emissiveIntensity=night*1.8;}
-  const api={cameraClear,canStand,setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);},group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
+  const gunMap=createGunMapVisual(group,bodies);
+  const api={gunMap,cameraClear,canStand,setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);},group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
 }

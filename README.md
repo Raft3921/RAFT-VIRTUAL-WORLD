@@ -1,5 +1,9 @@
 # RAFT-VIRTUAL-WORLD
 
+## 銃撃戦・公園 — 2026-10-15 / tactics99
+
+連続回転するブランコ、銃・刀の腕の動作、自動合焦、銃撃戦マップの高低差と通路、匍匐前進、共有される破壊・切断跡、ライフ3〜100設定を追加。高層棟は折り返し階段で屋上へ上がれ、テントはトランポリンの3倍の跳躍高度です。操作・数値・検証は [更新記録](docs/tactics99.md) を参照してください。
+
 ## Cooking taste and cooked appearance — 2026-10-11 / cook81
 
 Five-star ratings now use the saved ingredients, cut styles, cooking progress/methods and seasoning amounts. Sugar-only fish or other savory dishes lose points for an unbalanced flavor; balanced soy/miso/stock seasoning can support a sweet savory dish. Excess salt, sugar, vinegar or spices, insufficient cooking/washing, burning, overcooking and unbound minced fish boiled into loose fragments each contribute explicit reasons. Merely adding multiple ingredients or any seasoning no longer grants five stars. The server persists the result and returns up to three reasons with the rating.

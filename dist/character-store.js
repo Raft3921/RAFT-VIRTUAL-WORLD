@@ -1,6 +1,6 @@
 import {cleanKitchenState} from './cooking-state.js?v=20261013-life89b';
 import {cleanMeal,describeDish} from './cooking-data.js?v=20261013-life89b';
-import {WEAPONS,weaponById} from './gun-layout.js?v=20261014-fps94';
+import {WEAPONS,weaponById} from './gun-layout.js?v=20261015-tactics99';
 export const characterIndex=value=>Number.isInteger(Number(value))&&Number(value)>=0&&Number(value)<9?Number(value):null;
 export function cleanCharacter(value={}){
   const score=Number(value?.score),checkpoint=Number(value?.checkpoint),appearance=Number(value?.appearanceLevel),safeScore=Number.isFinite(score)?Math.max(-10000,Math.min(10000,Math.trunc(score))):0;

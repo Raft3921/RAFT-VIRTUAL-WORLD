@@ -1,6 +1,6 @@
-import {buildGunTown,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261014-fps94';
+import {buildGunTown,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261015-tactics99';
 // Authority-only geometry and spawn search; browsers do not build these tables.
-const solids=[];buildGunTown({box:(x,y,z,w,h,d,color,solid=true)=>{if(solid)solids.push({x,y,z,w,h,d});}});
+const solids=[];buildGunTown({box:(x,y,z,w,h,d,color,solid=true,extra={})=>{if(solid)solids.push({x,y,z,w,h,d,...extra,yaw:extra.rotation||0});}});
 export const GUN_SOLIDS=solids;
 
 // Ground-level clear points come from the actual shared maze solids. No fixed team pads.

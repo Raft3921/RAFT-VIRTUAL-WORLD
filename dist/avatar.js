@@ -1,10 +1,13 @@
-import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash} from './gun-visual.js?v=20261014-optics95';
+import {sampleKatanaPose} from './katana-motion.js?v=20261015-tactics99';
+import {sampleGunReload,shotHandKick} from './gun-hand-motion.js?v=20261015-tactics99';
+import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261015-tactics99';
 import * as THREE from 'three';
 import {withLocalLighting} from './local-lighting.js?v=20261014-world96';
 import { sampleAttack,sampleCharge } from './combat-motion.js?v=20261013-life89b';
 import {applyAvatarHitPose,groundAvatarHitPose} from './avatar-hit-pose.js?v=20261014-cinema93';
 import { jemAvatarDefinition } from './jem-avatar.js?v=20261014-cinema93';
 
+const swordGhostMaterials=[.16,.10,.055].map(opacity=>new THREE.MeshBasicMaterial({color:'#d7eef4',transparent:true,opacity,depthWrite:false,blending:THREE.AdditiveBlending}));
 const PX = 1 / 16;
 const TAU = Math.PI * 2;
 const clamp = THREE.MathUtils.clamp;
@@ -302,13 +305,14 @@ export async function createAvatar(url,{model=null}={}) {
     if(forearm){
       // The sleeve uses this character's actual left/right arm atlas, including its overlay.
       const wrist=new THREE.Vector3(0,-.17,-.065),elbow=new THREE.Vector3(side==='right'?-.22:.29,side==='right'?-.31:-.32,side==='right'?-.53:weapon==='pistol'?-.49:-.73),vector=elbow.clone().sub(wrist),center=wrist.clone().add(elbow).multiplyScalar(.5);
-      for(const overlay of [false,true]){const geometry=skinBox(arm,overlay,start,length),mesh=new THREE.Mesh(geometry,overlay?overlayMaterial:baseMaterial);mesh.name=side+' character sleeve '+(overlay?'overlay':'base');mesh.position.copy(center);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),vector.clone().normalize());mesh.scale.set(.117/(arm.size[0]*PX),vector.length()/(length*PX),.125/(arm.size[2]*PX));root.add(mesh);}
+      const sleeves=[];root.userData.forearm={wrist,elbow,meshes:sleeves,skinLength:length*PX};
+      for(const overlay of [false,true]){const geometry=skinBox(arm,overlay,start,length),mesh=new THREE.Mesh(geometry,overlay?overlayMaterial:baseMaterial);mesh.name=side+' character sleeve '+(overlay?'overlay':'base');mesh.position.copy(center);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),vector.clone().normalize());mesh.scale.set(.117/(arm.size[0]*PX),vector.length()/(length*PX),.125/(arm.size[2]*PX));root.add(mesh);sleeves.push(mesh);}
     }
     return root;
   }
 
-  const weaponGrip=new THREE.Group(),gunInverse=new THREE.Quaternion(),gunAim=new THREE.Quaternion(),gunAxis=new THREE.Vector3(1,0,0);weaponGrip.name='right hand weapon grip';weaponGrip.position.set(0,-armHalf*PX+.04,0);elbows.right.add(weaponGrip);
-  let gunModel=null,gunId=null;
+  const weaponGrip=new THREE.Group(),gunInverse=new THREE.Quaternion(),gunAim=new THREE.Quaternion();weaponGrip.name='right hand weapon grip';weaponGrip.position.set(0,-armHalf*PX+.04,0);elbows.right.add(weaponGrip);
+  let gunModel=null,gunGhosts=[],gunId=null,gunShotAt=-Infinity,gunChargeAt=null,gunReload=null;const gunEuler=new THREE.Euler(0,0,0,'YXZ');
   function update(dt, state = {}) {
     if (disposed) return;
     if(state.punchSwing>0&&previousAttack===0){entryPose={y:pelvis.position.y,rotation:pelvis.rotation.clone(),torso:torso.rotation.clone(),joints:{}};for(const side of ['right','left'])for(const [name,list]of [['shoulder',shoulders],['elbow',elbows],['hip',hips],['knee',knees]])entryPose.joints[side+name]=list[side].rotation.clone();}
@@ -452,18 +456,35 @@ export async function createAvatar(url,{model=null}={}) {
       const t=state.impactTime,u=t/state.impactDuration,amount=(.012+.035*(state.impactStrength||0))*Math.sin(Math.PI*u);
       pelvis.position.x+=Math.sin(t*155)*amount;pelvis.position.z+=Math.sin(t*119+.8)*amount;pelvis.rotation.z+=Math.sin(t*142)*amount*.4;
     }
-    if(gunId!==state.equippedWeapon){gunId=state.equippedWeapon;gunModel?.removeFromParent();gunModel=gunId?createGunModel(gunId):null;if(gunModel){weaponGrip.add(gunModel);gunModel.add(createSkinnedFiringHand());}}
+    if(state.prone&&!state.ragdoll&&!state.sleeping&&!state.seated){
+      pelvis.position.y=-legHeight*PX+.24;pelvis.position.z=0;pelvis.rotation.set(Math.PI/2,0,0);
+      torso.rotation.set(0,Math.sin(phase)*.025*motion,0);
+      for(const [side,sign]of [['right',-1],['left',1]]){
+       hips[side].rotation.set(Math.sin(phase+sign)*.10*motion,0,sign*.10);knees[side].rotation.set(.10+Math.max(0,Math.sin(phase+sign))*.22*motion,0,0);
+       shoulders[side].rotation.set(-2.6+Math.sin(phase+sign)*.18*motion,0,sign*.12);elbows[side].rotation.set(-.45,0,0);
+      }
+    }
+    if(gunId!==state.equippedWeapon){gunReload=null;gunChargeAt=null;gunShotAt=-Infinity;gunId=state.equippedWeapon;gunModel?.removeFromParent();for(const ghost of gunGhosts)ghost.removeFromParent();gunGhosts=[];gunModel=gunId?createGunModel(gunId):null;if(gunModel){weaponGrip.add(gunModel);const grip=createSkinnedFiringHand();if(gunId==='katana')grip.rotation.x=Math.PI/2;gunModel.add(grip);if(gunId==='katana')gunGhosts=swordGhostMaterials.map(material=>{const mesh=new THREE.Mesh(gunModel.children[0].geometry,material);mesh.visible=false;weaponGrip.add(mesh);return mesh;});}}
+    for(const ghost of gunGhosts)ghost.visible=false;
     if(gunModel){gunModel.visible=!state.ragdoll&&!state.sleeping&&!state.seated;if(gunModel.visible){
-      const aim=clamp(-(state.lookPitch||0),-.75,.75);
-      shoulders.right.rotation.set(-1.20-aim*.82,0,-.035);elbows.right.rotation.set(-.22,0,0);
+      const aim=clamp(-(state.lookPitch||0),-.75,.75),look=clamp(state.lookYaw||0,-.85,.85),now=performance.now(),kick=shotHandKick(gunId,(now-gunShotAt)/1000);
+      if(gunReload&&(gunReload.weapon!==gunId||now-gunReload.start>=gunReload.duration))gunReload=null;
+      const progress=gunReload?clamp((now-gunReload.start)/gunReload.duration,0,1):null,reload=sampleGunReload(gunId,progress);
+      shoulders.right.rotation.set(-1.20-aim*.82+reload.weight*.28-kick*.12,look*.55,-.035+reload.roll*.45);elbows.right.rotation.set(-.22-reload.weight*.4-kick*.16,0,0);
       // The world avatar holds the gun with its right hand. Keep the left arm's
       // normal idle/walk pose; the separate first-person rig has its own grip.
       torso.rotation.y=.015;torso.rotation.z=Math.sin(phase)*.006*motion;
-      gunInverse.copy(shoulders.right.quaternion).multiply(elbows.right.quaternion).invert();const recoil=Math.max(0,gunModel.userData.flashUntil-performance.now())/65;gunAim.setFromAxisAngle(gunAxis,-aim-torso.rotation.x-recoil*.035);
+      if(gunId==='katana'){const pose=sampleKatanaPose(gunChargeAt===null?0:(now-gunChargeAt)/1000,(now-gunShotAt)/1000);shoulders.right.rotation.set(...pose.shoulder);shoulders.right.rotation.x-=aim*.65;shoulders.right.rotation.y+=look*.5;elbows.right.rotation.set(...pose.elbow);}
+      gunInverse.copy(pelvis.quaternion).multiply(torso.quaternion).multiply(shoulders.right.quaternion).multiply(elbows.right.quaternion).invert();gunEuler.set(-aim-kick*.11+reload.tilt,look,reload.roll,'YXZ');
+      if(gunId==='katana'){const pose=sampleKatanaPose(gunChargeAt===null?0:(now-gunChargeAt)/1000,(now-gunShotAt)/1000);gunEuler.x+=pose.rotation[0];gunEuler.y+=pose.rotation[1];gunEuler.z+=pose.rotation[2];}
+      gunAim.setFromEuler(gunEuler);updateGunReload(gunModel,progress);
       gunModel.quaternion.copy(gunInverse).multiply(gunAim);gunModel.position.set(0,.115,.025).applyQuaternion(gunModel.quaternion);updateGunFlash(gunModel);
+      for(let i=0;i<gunGhosts.length;i++){const ghost=gunGhosts[i],age=(now-gunShotAt)/1000-(i+1)*.018;ghost.visible=age>=0&&age<.16;
+       if(ghost.visible){const pose=sampleKatanaPose(0,age);gunEuler.set(-aim+pose.rotation[0],look+pose.rotation[1],pose.rotation[2],'YXZ');gunAim.setFromEuler(gunEuler);ghost.quaternion.copy(gunInverse).multiply(gunAim);ghost.position.set(0,.115,.025).applyQuaternion(ghost.quaternion);}
+      }
     }}
     // Keep the supporting foot planted after the combat pose has been blended.
-    if(grounded&&airborne<.02&&sitWeight<.01&&sleepWeight<.01&&ragdollWeight<.01){
+    if(!state.prone&&grounded&&airborne<.02&&sitWeight<.01&&sleepWeight<.01&&ragdollWeight<.01){
       let sole=Infinity;for(const side of ['right','left']){const a=hips[side].rotation.x,b=a+knees[side].rotation.x,z=hips[side].rotation.z;const y=legHeight*PX+pelvis.position.y-(legHalf*PX*Math.cos(a)+legHalf*PX*Math.cos(b))*Math.cos(z)-.125*Math.abs(Math.sin(b));sole=Math.min(sole,y);}
       if(sole<0)pelvis.position.y-=sole;
     }
@@ -479,7 +500,7 @@ export async function createAvatar(url,{model=null}={}) {
     pelvis.rotation.set(0,0,0);pelvis.position.z=-crouchBlend*.13*motionScale;torso.rotation.set(0,0,0);pelvis.position.y=(kind==='slide'?-legHeight*PX:seated?-.34*motionScale:0);
     for(const [side,sign]of [['left',1],['right',-1]]){
       hips[side].rotation.set(seated?-Math.PI/2:0,0,sign*.035);knees[side].rotation.set(seated?Math.PI/2:.08,0,0);shoulders[side].rotation.set(-.45,0,sign*.12);elbows[side].rotation.set(-.25,0,0);
-      if(kind==='swing'){shoulders[side].rotation.set(-1.7,0,sign*.18);elbows[side].rotation.x=-.8;hips[side].rotation.x=-1.25+(pose.angle||0)*.25;knees[side].rotation.x=.9-(pose.angle||0)*.3;torso.rotation.x=-(pose.angle||0)*.5;}
+      if(kind==='swing'){pelvis.rotation.x=pose.angle||0;shoulders[side].rotation.set(-1.7,0,sign*.18);elbows[side].rotation.x=-.8;hips[side].rotation.x=-1.25+(pose.angle||0)*.25;knees[side].rotation.x=.9-(pose.angle||0)*.3;torso.rotation.x=-(pose.angle||0)*.5;}
       else if(kind==='seesaw'){shoulders[side].rotation.x=-1.2;elbows[side].rotation.x=-.7;hips[side].rotation.x=pose.lift?-.65:-1.4;knees[side].rotation.x=pose.lift?.2:1.3;}
       else if(kind==='spring'){shoulders[side].rotation.x=-1.35;elbows[side].rotation.x=-.55;torso.rotation.x=(pose.input||0)*Math.min(.4,(pose.charge||0)*.18);torso.rotation.z=-(pose.inputX||0)*Math.min(.3,(pose.charge||0)*.14);}
       else if(kind==='monkey'||kind==='zipline'){shoulders[side].rotation.set(-3.05+(kind==='monkey'?sign*wave*.28:.04),0,sign*.06);elbows[side].rotation.x=kind==='monkey'?-.12-Math.max(0,sign*wave)*.5:-.15;hips[side].rotation.x=sign*wave*(kind==='monkey'?.3:.18);knees[side].rotation.x=.4+Math.max(0,sign*wave)*.25;torso.rotation.z=wave*.05;}
@@ -506,7 +527,7 @@ export async function createAvatar(url,{model=null}={}) {
   return {
     animation,
     root, update, applyPlayPose, dispose, head, setAppearance,gripColor:skinColor,createFirstPersonHand:options=>createSkinnedFiringHand({forearm:true,...options}),
-    getGunMuzzle(target=new THREE.Vector3()){if(!gunModel?.visible)return null;root.updateMatrixWorld(true);return gunModel.userData.muzzle.getWorldPosition(target);},fireGun(){triggerGunFlash(gunModel);},
+    getGunMuzzle(target=new THREE.Vector3()){if(!gunModel?.visible)return null;root.updateMatrixWorld(true);return gunModel.userData.muzzle.getWorldPosition(target);},chargeGun(active){gunChargeAt=active?performance.now():null;},fireGun(){gunShotAt=performance.now();gunChargeAt=null;gunReload=null;if(gunId!=='katana')triggerGunFlash(gunModel);},reloadGun(event){gunReload=event?{weapon:event.weapon,duration:event.duration,start:performance.now()-(event.age||0)}:null;},
     reactHit(serial,strength=.2,age=0){if(!Number.isFinite(serial)||serial<=flinchSerial)return;flinchSerial=serial;if(age>=.24)return;flinchStart=elapsed-Math.max(0,age);flinchStrength=clamp(strength,0,1);},
     resetHitReaction(){flinchSerial=0;flinchStart=-Infinity;},
     eyeHeight:custom?(custom.headBottom+parts.head.size[1]*.5)*PX:1.68,

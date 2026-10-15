@@ -154,12 +154,12 @@ export class GunRules{
    if(this.traces.has(def.id)||def.kind==='crate'||p.y+1.5<def.y-def.h/2||p.y>def.y+def.h/2)continue;
    const dx=Math.abs(p.x-def.x),dz=Math.abs(p.z-def.z);
    if(dx>def.w/2+.58||dz>def.d/2+.58)continue;
-   if(def.kind==='door'&&p.speed>1.5||def.kind==='bars'&&!p.grounded&&Math.abs(p.verticalSpeed||0)>1)this.changeProp(def.id,def.kind==='door'?'open':'broken');
+   if(def.kind==='door'&&p.speed>1.5||def.kind==='bars'&&!p.grounded&&Math.abs(p.verticalSpeed||0)>1)this.changeProp(def.id,def.kind==='door'?'open':'broken',[Math.sin(p.yaw||0),0,Math.cos(p.yaw||0)]);
   }
  }
  breakAt(point,shot,now){
   for(const def of GUN_PROP_DEFS.values())if(!this.traces.has(def.id)&&Math.abs(point.x-def.x)<=def.w/2+.12&&Math.abs(point.y-def.y)<=def.h/2+.12&&Math.abs(point.z-def.z)<=def.d/2+.12){
-   if(def.kind!=='crate')this.changeProp(def.id,def.kind==='door'?'open':'broken',undefined,now);return;
+   if(def.kind!=='crate')this.changeProp(def.id,def.kind==='door'?'open':'broken',[shot.vx,shot.vy,shot.vz].map(n=>n/(Math.hypot(shot.vx,shot.vy,shot.vz)||1)),now);return;
   }
  }
  slash(p,message,now){

@@ -15,7 +15,7 @@ export function createGunCinematic({scene,camera,get,audio}){
  let projectile=null,data=null,lastCut=-1,savedFov=55,elapsed=0,local=0,rail=null,fired=false,impacted=false,landed=false;
  const v=p=>new THREE.Vector3(p.x,p.y,p.z),smooth=t=>THREE.MathUtils.smoothstep(t,0,1);
  const result=()=>document.getElementById('gunCinematicResult');
- function stop(){afterRender();get().world?.setCinematicOverview?.(false);data=null;projectile?.dispose();projectile=null;stage.visible=false;delete document.body.dataset.cinematic;delete document.body.dataset.cinematicCut;delete document.body.dataset.cinematicHit;if(result())result().hidden=true;for(const clone of clones.values())clone.root.removeFromParent();clones.clear();effects.update(5);camera.fov=savedFov;camera.updateProjectionMatrix();}
+ function stop(){afterRender();audio.cancelReplay?.();get().world?.setCinematicOverview?.(false);data=null;projectile?.dispose();projectile=null;stage.visible=false;delete document.body.dataset.cinematic;delete document.body.dataset.cinematicCut;delete document.body.dataset.cinematicHit;if(result())result().hidden=true;for(const clone of clones.values())clone.root.removeFromParent();clones.clear();effects.update(5);camera.fov=savedFov;camera.updateProjectionMatrix();}
  function start(message){if(data?.id===message.id)return;const fov=camera.fov;stop();savedFov=fov;data={...message,duration:message.duration||REPLAY_DURATION};lastSafe.copy(camera.position);lastCut=-1;fired=impacted=landed=false;if(message.shot.weapon!=='katana'){projectile=createCinematicProjectile(message.shot.weapon,{subtle:true});projectile.root.visible=false;stage.add(projectile.root);}stage.visible=true;document.body.dataset.cinematic='true';}
  function seekFinal(startAt=get().now-REPLAY_FINAL_AT){if(!data)return;if(get().now-data.startAt<REPLAY_FINAL_AT)data.startAt=startAt;}
  function cameraOverride(){
@@ -24,7 +24,7 @@ export function createGunCinematic({scene,camera,get,audio}){
   const changed=cut!==lastCut;if(changed){lastCut=cut;if(cut!==1)effects.update(5);document.body.dataset.cinematicCut=String(cut);s.world?.setCinematicOverview?.(cut===2);if(result())result().hidden=cut!==2;}
   const owner=data.players.find(p=>p.id===data.owner),shooter=data.shot.shooter||owner,victim=data.players.find(p=>p.id===data.victims[0]),hit=v(data.impact.position),direction=new THREE.Vector3(data.shot.vx,data.shot.vy,data.shot.vz).normalize(),heading=Math.atan2(direction.x,direction.z);
   if(cut===0&&!fired&&elapsed>=fireAt){fired=true;if(elapsed<fireAt+650){if(data.shot.weapon==='katana')audio.sword(v(data.shot.origin),s);else audio.shot(v(data.shot.origin),s);effects.muzzle(v(data.shot.origin),direction);effects.eject(v(data.shot.origin),direction,data.shot.weapon,owner?.y||0);}}
-  if(cut<2&&!impacted&&elapsed>=impactAt){impacted=true;effects.impact(hit,!!data.impact.explosion,data.impact.radius||0,direction.clone().negate(),data.impact.wall?'stone':'cloth');if(data.impact.explosion)audio.explosion(hit,s);}
+  if(cut<2&&!impacted&&elapsed>=impactAt){impacted=true;effects.impact(hit,!!data.impact.explosion,data.impact.radius||0,direction.clone().negate(),data.impact.wall?'stone':'cloth');if(data.impact.explosion)audio.explosion(hit,s);if(!data.impact.wall)audio.replayImpact?.(hit);}
   if(cut===1&&!landed&&(elapsed-impactAt)/1000*.34>=.75){landed=true;for(const id of data.victims){const p=data.players.find(p=>p.id===id);if(p)effects.action('land',v(p),.85,direction);}}
   const origin=v(data.shot.origin),flight=THREE.MathUtils.clamp((elapsed-fireAt)/(impactAt-fireAt),0,1);
   if(projectile){projectile.root.visible=cut===0&&elapsed>=fireAt&&elapsed<impactAt;projectile.root.position.copy(origin).lerp(hit,flight);projectile.root.quaternion.setFromUnitVectors(forward,direction);projectile.update(elapsed/1000);}
@@ -32,7 +32,8 @@ export function createGunCinematic({scene,camera,get,audio}){
    const xs=data.players.map(p=>p.x),zs=data.players.map(p=>p.z),minX=Math.min(GUN_ZONE.minX,...xs),maxX=Math.max(GUN_ZONE.maxX,...xs),minZ=Math.min(GUN_ZONE.minZ,...zs),maxZ=Math.max(GUN_ZONE.maxZ,...zs),span=Math.max(24,maxZ-minZ+18,(maxX-minX+18)/Math.max(.45,camera.aspect));
    focus.set((minX+maxX)/2,.8,(minZ+maxZ)/2);const height=Math.max(29,span*.5/Math.tan(THREE.MathUtils.degToRad(29))+7),pull=1+smooth(local)*.065;
    camera.position.set(focus.x+span*.055,height*pull,focus.z+span*.08);camera.lookAt(focus);camera.fov=58;
-   const member=data.players.find(p=>p.id===s.selfId),winner=data.winner??data.players.find(p=>p.id===data.owner)?.team,node=result();
+   const member=data.players.find(p=>p.id===s.selfId),winner=data.winner===undefined?data.players.find(p=>p.id===data.owner)?.team:data.winner,node=result();
+   if(changed)audio.replayResult?.(winner===null?'draw':member&&Number.isInteger(member.team)?member.team===winner?'win':'lose':'neutral');
    if(node){node.textContent=winner===null?'引き分け':member&&Number.isInteger(member.team)?member.team===winner?'勝利！':'敗北':Number.isInteger(winner)?'TEAM '+String.fromCharCode(65+winner)+' 勝利！':'試合終了';node.dataset.result=winner===null?'draw':member?.team===winner?'win':'lose';}
   }else{
    const subject=cut===0?shooter||victim:victim||owner,subjectPoint=subject?v(subject):hit;

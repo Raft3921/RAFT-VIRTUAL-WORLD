@@ -18,6 +18,7 @@ test('LAN room acknowledges authoritative jump inputs and broadcasts the same co
  a.ws.send(JSON.stringify({type:'state',state,motion:{active:true,epoch:1,inputs:[{seq:1,dt:.05,vx:2,vz:0,jump:true,shape:{width:.32,depth:.32,height:1.9}}]}}));
  const ack=await a.wait(m=>m.type==='motion'&&m.seq===1),remote=await peer.wait(m=>m.type==='state'&&m.player.id===a.joined.self.id);
  assert(ack.x<1);assert(ack.y>.52&&ack.y<.58);assert(ack.vy>7&&ack.vy<7.3);assert(!ack.grounded);
+ assert(Number.isFinite(remote.at));assert(Math.abs(remote.at-Date.now())<3000);
  for(const axis of ['x','y','z'])assert.equal(remote.player[axis],ack[axis]);
  await new Promise(r=>setTimeout(r,60));a.ws.send(JSON.stringify({type:'state',state,motion:{active:true,epoch:1,inputs:[{seq:1,dt:.05,vx:2,vz:0,jump:true},{seq:2,dt:.05,vx:2,vz:0,jump:true}]}}));
  const second=await a.wait(m=>m.type==='motion'&&m.seq===2);assert(second.vy<ack.vy);assert(second.y>ack.y);assert(second.x<.21);

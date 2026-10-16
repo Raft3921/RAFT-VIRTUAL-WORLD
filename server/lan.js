@@ -144,7 +144,7 @@ sockets.on('connection', (socket, request) => {
     rules.state(entry);
     playerPhysics.reply(entry);
     entry.lastStateAt = Date.now();
-    broadcast({ type: 'state', player: entry.player }, socket);
+    broadcast({ type: 'state', at:Date.now(), player: entry.player }, socket);
   });
   socket.on('close', () => remove(socket));
   socket.on('error', () => remove(socket));

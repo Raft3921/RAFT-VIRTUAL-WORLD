@@ -97,7 +97,7 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
     applyPlayerState(entry.player,state);
     this.rules.state(entry);
     this.playerPhysics.reply(entry);
-    this.broadcast({ type: 'state', player: entry.player }, socket);
+    this.broadcast({ type: 'state', at:Date.now(), player: entry.player }, socket);
   }
 
   broadcast(message, except = null) {

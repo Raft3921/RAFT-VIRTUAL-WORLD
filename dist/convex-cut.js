@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import * as THREE from "./vendor/three.module.js";
 function cutConvexGeometry(input, point, normal) {
   const source = input.index ? input.toNonIndexed() : input.clone(), p = source.getAttribute("position"), uv = source.getAttribute("uv");
   if (!p || p.count % 3 || p.count > 768 || normal.lengthSq() < 1e-12 || ![...point.toArray(), ...normal.toArray()].every(Number.isFinite)) {

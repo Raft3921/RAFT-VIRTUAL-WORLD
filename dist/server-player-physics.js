@@ -56,7 +56,7 @@ export class ServerPlayerPhysics{
    const m=entry.motion;if(now-m.lastInputAt<150)continue;
    const p=entry.player;if((p.gunTeleportSerial||0)!==m.teleport||p.ragdoll||p.flight||p.seated||p.sleeping){entry.motion=null;this.entries.delete(entry);continue;}
    // Lost or suspended clients stop walking, but continue to fall on the server.
-   this.world.update(now/1000);stepPlayer(this.world,m,{...m.input,dt,vx:0,vz:0,jump:false,launch:0});Object.assign(p,{x:m.p.x,y:m.p.y,z:m.p.z,vy:m.vy,verticalSpeed:m.vy,grounded:m.grounded,mantling:!!m.mantle,vx:0,vz:0,speed:0});this.reply(entry);this.rules.broadcast({type:'state',player:p});
+   this.world.update(now/1000);stepPlayer(this.world,m,{...m.input,dt,vx:0,vz:0,jump:false,launch:0});Object.assign(p,{x:m.p.x,y:m.p.y,z:m.p.z,vy:m.vy,verticalSpeed:m.vy,grounded:m.grounded,mantling:!!m.mantle,vx:0,vz:0,speed:0});this.reply(entry);this.rules.broadcast({type:'state',at:now,player:p});
   }
   if(!this.entries.size){clearInterval(this.timer);this.timer=null;}
  }

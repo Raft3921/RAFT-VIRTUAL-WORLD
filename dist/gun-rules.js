@@ -45,22 +45,22 @@ export class GunRules{
   participants.forEach((m,index)=>{const p=this.players().find(p=>p.id===m.id);this.remove(m.id,{publish:false,reassign:false});if(p)this.move(p,{...GUN_ENTRY,x:GUN_ENTRY.x-2+(index%3)*1.3,z:GUN_ENTRY.z+3+Math.floor(index/3)*1.5});});
   this.phase='waiting';this.startAt=0;this.nextRoundAt=0;this.resetMap();this.publish();
  }
- damage(owner,victim,shot,now,{deferResolve=false}={}){
+ damage(owner,victim,shot,now,{deferResolve=false,previewed=false}={}){
   const attacker=this.members.get(owner.id),target=this.members.get(victim.id),damage=gunDamage(shot.weapon,shot.charge);
   if(inGunZone(owner)||inGunZone(victim)){
    if(this.phase!=='active'||!attacker||!target||attacker.out||target.out||attacker.team===target.team)return;
-   target.damage=Math.min(this.maxLife,target.damage+damage);target.out=target.damage>=this.maxLife;if(target.out){this.cancelReload(victim,now);target.outAt=now;target.outPosition={x:victim.x,y:victim.y,z:victim.z};Object.assign(victim,gunEliminationState(0),{vx:0,vy:0,vz:0});const length=Math.hypot(shot.vx||victim.x-owner.x,shot.vz||victim.z-owner.z)||1;this.send({type:'gun-eliminated',playerId:victim.id,attacker:owner.id,weapon:shot.weapon,position:target.outPosition,direction:{x:(shot.vx||victim.x-owner.x)/length,z:(shot.vz||victim.z-owner.z)/length},at:now});}
+   target.damage=Math.min(this.maxLife,target.damage+damage);target.out=target.damage>=this.maxLife;if(target.out){this.cancelReload(victim,now);target.outAt=now-(previewed?1800:0);target.outPosition={x:victim.x,y:victim.y,z:victim.z};Object.assign(victim,gunEliminationState(previewed?1.8:0),{vx:0,vy:0,vz:0});const length=Math.hypot(shot.vx||victim.x-owner.x,shot.vz||victim.z-owner.z)||1;this.send({type:'gun-eliminated',settled:previewed,playerId:victim.id,attacker:owner.id,weapon:shot.weapon,position:target.outPosition,direction:{x:(shot.vx||victim.x-owner.x)/length,z:(shot.vz||victim.z-owner.z)/length},at:now});}
   }else if(this.rules.duel?.ids.includes(owner.id)||this.rules.duel?.ids.includes(victim.id))return;
   // Reuse light punch reaction; each pellet scores independently, without stun immunity.
   this.rules.hit(owner,victim,damage,now,{kind:0,held:0});
-  this.send({type:'gun-damage',playerId:victim.id,attacker:owner.id,damage,weapon:shot.weapon,remaining:target?Math.max(0,this.maxLife-target.damage):null});
+  this.send({type:'gun-damage',previewed,playerId:victim.id,attacker:owner.id,damage,weapon:shot.weapon,remaining:target?Math.max(0,this.maxLife-target.damage):null});
   if(target&&!deferResolve){this.publish();this.resolve();}
  }
  inBlast(q,point,radius){const box=gunHitBox(q),c=Math.cos(box.yaw),s=Math.sin(box.yaw),x=point.x-box.x,z=point.z-box.z,dx=Math.max(0,Math.abs(c*x-s*z)-box.w/2),dz=Math.max(0,Math.abs(s*x+c*z)-box.d/2),dy=Math.max(0,Math.abs(point.y-box.y)-box.h/2);return Math.hypot(dx,dy,dz)<=radius;}
 
  applyImpact(owner,victims,shot,impact,now){
   this.impact(impact);
-  for(const victim of victims)this.damage(owner,victim,shot,now,{deferResolve:true});
+  for(const victim of victims)this.damage(owner,victim,shot,now,{deferResolve:true,previewed:!!impact.previewId});
   this.publish();this.resolve();
  }
  reserveFinalHit(owner,victims,shot,impact,now){

@@ -60,15 +60,13 @@ body[data-cinematic=true] #scene{visibility:visible!important;pointer-events:non
 
 #gunReload{bottom:calc(105px + env(safe-area-inset-bottom))}#gunProne{position:fixed;z-index:15;right:calc(max(18px,env(safe-area-inset-right)) + 94px);bottom:calc(37px + env(safe-area-inset-bottom));width:76px;min-height:54px;padding:5px;background:#152934df;border:2px solid #8ca9aa;color:#d9ede6;font-size:11px;touch-action:manipulation}#gunProne[aria-pressed=true]{border-color:#b9f5d9;background:#25443d}#gunProne[hidden],body[data-clean=true] #gunProne{display:none!important}
 
-/* World-contact footage: no arcade frames, cut labels or decorative particles. */
-#gunHitFeedback{position:fixed;z-index:24;left:50%;top:calc(50% + 30px);opacity:0;pointer-events:none;transform:translate(-50%,-50%);color:#e0ded5;font:500 11px/1.2 ui-sans-serif,system-ui,sans-serif;letter-spacing:.18em;text-shadow:0 1px 3px #000b}
-#gunHitFeedback[data-kill=true]{color:#d1bba2;letter-spacing:.22em}
-#gunResult,#gunCinematicResult{position:fixed;left:50%;top:auto;bottom:13vh;transform:translateX(-50%);z-index:70;padding:18px 34px;color:#e8e5dc!important;font:300 clamp(25px,4.8vw,54px)/1.2 ui-sans-serif,system-ui,sans-serif;letter-spacing:.24em;text-align:center;text-shadow:0 2px 18px #000a;white-space:nowrap;background:linear-gradient(90deg,transparent,#1013166b,transparent);border:0;box-shadow:none;filter:none;pointer-events:none}
-#gunCinematicResult:before,#gunResult:before{content:'';position:absolute;top:0;left:25%;width:50%;height:1px;background:linear-gradient(90deg,transparent,#e8e5dc70,transparent)}
+/* Original match text presentation; replay text appears only in the final cut. */
+#gunHitFeedback{position:fixed;z-index:58;left:50%;top:43%;opacity:0;pointer-events:none;color:#fff0a8;font:900 28px/1 DotGothic16,monospace;letter-spacing:.12em;text-shadow:3px 3px #162736,-2px -2px #162736;transform:translate(-50%,-50%)}
+#gunResult,#gunCinematicResult{position:fixed;left:50%;top:50%;bottom:auto;transform:translate(-50%,-50%);z-index:70;padding:.15em .25em;font:900 clamp(72px,20vmin,190px)/1 DotGothic16,monospace;letter-spacing:.12em;text-align:center;text-shadow:6px 6px 0 #101e2b,-3px -3px 0 #101e2b;white-space:nowrap;background:#132635ba;border:0;border-block:5px solid currentColor;filter:drop-shadow(0 8px 0 #101e2b);pointer-events:none}
+:is(#gunResult,#gunCinematicResult)[data-result=win]{color:#d9ffd3}:is(#gunResult,#gunCinematicResult)[data-result=lose]{color:#ffb3a1}:is(#gunResult,#gunCinematicResult)[data-result=draw]{color:#ffe7a8}
 #gunCinematicResult[hidden]{display:none!important}
 body[data-cinematic=true] #gunCinemaOverlay,body[data-cinematic=true] #gunCinemaOverlay *{visibility:hidden!important;display:none!important}
-body[data-cinematic=true][data-cinematic-cut='2'] #gunCinematicResult{visibility:visible!important;animation:cinema-result-in 1s ease-out both}
-@keyframes cinema-result-in{from{opacity:0;filter:blur(3px)}to{opacity:1;filter:blur(0)}}
+body[data-cinematic=true][data-cinematic-cut='2'] #gunCinematicResult{visibility:visible!important;animation:cinema-result-in .55s cubic-bezier(.2,.8,.2,1) both}
+@keyframes cinema-result-in{from{opacity:0;transform:translate(-50%,-50%) scale(1.8) rotate(-5deg)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 @media(prefers-reduced-motion:reduce){body[data-cinematic=true][data-cinematic-cut='2'] #gunCinematicResult{animation-duration:.2s}}
 
-#gunCountdown,#gunCountdown[data-start=true]{top:20%;font:300 clamp(28px,6vmin,50px)/1.2 ui-sans-serif,system-ui,sans-serif;letter-spacing:.12em;text-shadow:0 1px 12px #0009;color:#e8e5dc;}

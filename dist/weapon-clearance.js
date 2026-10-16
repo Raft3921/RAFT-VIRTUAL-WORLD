@@ -14,6 +14,6 @@ export function createWeaponClearance(){
   if(blocked){incoming.subVectors(point,anchor).normalize();const n=world.surfaceNormal(safe,incoming);if(n.dot(incoming)>0)n.negate();wall.normal.copy(n);wall.constant=-n.dot(safe)+.012;}else{wall.normal.set(0,1,0);wall.constant=1e5;}
   const base=world.floorAt(anchor,anchor.y+.045).y;floor.constant=-(base+.012);return weight;
  }
- function liftAboveFloor(world,anchor,rig,model){if(!model)return;rig.updateWorldMatrix(true,true);bounds.setFromObject(model);const ground=world.floorAt(anchor,anchor.y+.045).y+.035,raise=Math.max(0,ground-bounds.min.y);if(raise>0){const position=rig.getWorldPosition(point);position.y+=Math.min(.5,raise);rig.position.copy(rig.parent.worldToLocal(position));rig.updateWorldMatrix(true,true);}}
+ function liftAboveFloor(world,anchor,rig,model){if(!model)return;rig.updateWorldMatrix(true,true);bounds.setFromObject(model);const ground=world.floorAt(anchor,anchor.y+.045).y+.035,raise=Math.max(0,ground-bounds.min.y);if(raise>0){const position=rig.getWorldPosition(point);position.y+=raise;rig.position.copy(rig.parent.worldToLocal(position));rig.updateWorldMatrix(true,true);}}
  return {update,liftAboveFloor,dispose,get weight(){return weight;}};
 }

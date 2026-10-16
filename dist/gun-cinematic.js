@@ -1,7 +1,7 @@
 import {GUN_ZONE} from './gun-layout.js';
 import * as THREE from 'three';
 import {planCinematicRail} from './cinematic-rail.js?v=20261015-replay100';
-import {createGunEffects} from './gun-effects.js?v=20261016-cinema106';
+import {createGunEffects} from './gun-effects.js?v=20261016-effects108';
 import {applyAvatarHitPose,groundAvatarHitPose} from './avatar-hit-pose.js?v=20261015-spectacle104';
 import {gunEliminationState} from './hit-reaction.js?v=20261016-cinema106';
 import {sampleKatanaPose} from './katana-motion.js?v=20261016-cinema106';
@@ -23,18 +23,19 @@ export function createGunCinematic({scene,camera,get,audio}){
   const owner=data.players.find(p=>p.id===data.owner),victim=data.players.find(p=>p.id===data.victims[0]),hit=v(data.impact.position),direction=new THREE.Vector3(data.shot.vx,data.shot.vy,data.shot.vz).normalize(),heading=Math.atan2(direction.x,direction.z);
   if(cut===0&&!fired&&elapsed>=120){fired=true;if(elapsed<750){if(data.shot.weapon==='katana')audio.sword(v(data.shot.origin),s);else audio.shot(v(data.shot.origin),s);effects.muzzle(v(data.shot.origin),direction);effects.eject(v(data.shot.origin),direction,data.shot.weapon,owner?.y||0);}}
   if(cut===1&&!impacted&&local>.035){impacted=true;effects.impact(hit,!!data.impact.explosion,data.impact.radius||0,direction.clone().negate(),data.impact.wall?'stone':'cloth');if(data.impact.explosion)audio.explosion(hit,s);}
-  if(cut===1&&!landed&&local>.75){landed=true;for(const id of data.victims){const p=data.players.find(p=>p.id===id);if(p)effects.action('land',v(p),.65,direction);}}
+  if(cut===1&&!landed&&local>.75){landed=true;for(const id of data.victims){const p=data.players.find(p=>p.id===id);if(p)effects.action('land',v(p),.85,direction);}}
   if(cut===2){
    const xs=data.players.map(p=>p.x),zs=data.players.map(p=>p.z),minX=Math.min(GUN_ZONE.minX,...xs),maxX=Math.max(GUN_ZONE.maxX,...xs),minZ=Math.min(GUN_ZONE.minZ,...zs),maxZ=Math.max(GUN_ZONE.maxZ,...zs),span=Math.max(24,maxZ-minZ+18,(maxX-minX+18)/Math.max(.45,camera.aspect));
    focus.set((minX+maxX)/2,.8,(minZ+maxZ)/2);const height=Math.max(29,span*.5/Math.tan(THREE.MathUtils.degToRad(29))+7),pull=1+smooth(local)*.065;
    camera.position.set(focus.x+span*.055,height*pull,focus.z+span*.08);camera.lookAt(focus);camera.fov=58;
    const member=data.players.find(p=>p.id===s.selfId),winner=data.winner??data.players.find(p=>p.id===data.owner)?.team,node=result();
-   if(node){node.textContent=winner===null?'DRAW':member&&Number.isInteger(member.team)?member.team===winner?'VICTORY':'DEFEAT':Number.isInteger(winner)?'TEAM '+String.fromCharCode(65+winner)+' WINS':'MATCH ENDED';node.dataset.result=member?.team===winner?'win':'lose';}
+   if(node){node.textContent=winner===null?'引き分け':member&&Number.isInteger(member.team)?member.team===winner?'勝利！':'敗北':Number.isInteger(winner)?'TEAM '+String.fromCharCode(65+winner)+' 勝利！':'試合終了';node.dataset.result=winner===null?'draw':member?.team===winner?'win':'lose';}
   }else{
    const subject=cut===0?owner||victim:victim||owner,subjectPoint=subject?v(subject):hit;
    const pose=t=>{const q=smooth(t),target=subjectPoint.clone();target.y+=cut===0?(subject?.prone?.38:1.25):1.10-smooth(t/.65)*.65;return {target,distance:cut===0?3.25-q*.45:3.5+q*.20,elevation:cut===0?.40:.70,heading:cut===0?heading+Math.PI+.48:heading+Math.PI*.64,fov:cut===0?44:48};};
    if(changed)rail=planCinematicRail(s.world,pose,lastSafe);const shotPose=pose(local);focus.copy(shotPose.target);rail.sample(local,lastSafe);camera.position.copy(lastSafe);camera.lookAt(focus);camera.fov=shotPose.fov;
-   const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches,age=Math.max(0,elapsed-120)/1000;if(cut===0&&!reduced)camera.rotateX(Math.exp(-age*7)*Math.sin(age*16)*.006);
+   const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches,age=Math.max(0,elapsed-120)/1000;if(cut===0&&!reduced)camera.rotateX(Math.exp(-age*7)*Math.sin(age*16)*.008);
+   if(cut===1&&!reduced){const hitAge=Math.max(0,(local-.035)*duration/1000);if(local>.035)camera.rotateX(Math.exp(-hitAge*9)*Math.sin(hitAge*22)*.003);}
   }
   camera.updateProjectionMatrix();camera.updateMatrixWorld();return true;
  }

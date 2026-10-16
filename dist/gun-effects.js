@@ -50,9 +50,9 @@ export function createGunEffects(scene,{showRadius=false,floorAt=()=>0}={}){
  function burst(position,count,speed,color='#ffcf78',size=.075){for(let i=0;i<count;i++){const a=i*2.39996;const v=new THREE.Vector3(Math.cos(a)*(1+Math.random())*speed,.6+Math.random()*speed,Math.sin(a)*(1+Math.random())*speed);puff(position,v,size,.3+Math.random()*.35,true,0,position,color,3);}}
  return {
   action(kind,position,strength=1,direction=new THREE.Vector3()){
-   const amount=Math.max(.15,Math.min(1.4,strength)),step=kind==='step',count=step?2:kind==='land'?Math.round(5+amount*5):kind==='eliminate'?9:3;
+   const amount=Math.max(.15,Math.min(1.4,strength)),step=kind==='step',count=step?2:kind==='land'?Math.round(6+amount*6):kind==='eliminate'?11:4;
    const contact=position.clone();if(kind==='mantle')contact.y+=1.15;
-   for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=(step?.12:kind==='land'?.65:.3)*amount,v=new THREE.Vector3(Math.cos(angle)*speed,.06+Math.random()*.16,Math.sin(angle)*speed).addScaledVector(direction,-.08);puff(contact,v,(step?.035:.075)*amount,.35+Math.random()*.35,false,0,contact,'#b7a18a',.10);}
+   for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=(step?.15:kind==='land'?.80:.36)*amount,v=new THREE.Vector3(Math.cos(angle)*speed,.06+Math.random()*.16,Math.sin(angle)*speed).addScaledVector(direction,-.08);puff(contact,v,(step?.043:.090)*amount,.35+Math.random()*.35,false,0,contact,'#b7a18a',.10);}
   },
   eject(position,aim,weapon,floor=position.y-1.3){if(weapon==='rocket'||weapon==='katana')return;const side=new THREE.Vector3(aim.z,.45,-aim.x).normalize();chip(position,side.multiplyScalar(1.8+Math.random()).add(new THREE.Vector3(0,.8,0)),new THREE.Vector3(.025,.025,weapon==='shotgun'?.085:.055),floor,weapon==='shotgun'?'#d25740':'#e9b858');},
   reload(position,aim,weapon,stage,floor=position.y-1.1){
@@ -60,18 +60,18 @@ export function createGunEffects(scene,{showRadius=false,floorAt=()=>0}={}){
   },
   celebrate(){},
   muzzle(position,aim){
-   puff(position,aim.clone().multiplyScalar(.4),.095,.045,true,0,position,'#ffe5b3');
-   for(let i=0;i<3;i++)puff(position,aim.clone().multiplyScalar(.20+Math.random()*.25).add(new THREE.Vector3((Math.random()-.5)*.12,.14,(Math.random()-.5)*.12)),.055,.35+Math.random()*.30,false,0,position,'#8a8981');
+   puff(position,aim.clone().multiplyScalar(.4),.125,.055,true,0,position,'#ffe5b3');
+   for(let i=0;i<3;i++)puff(position,aim.clone().multiplyScalar(.20+Math.random()*.25).add(new THREE.Vector3((Math.random()-.5)*.12,.14,(Math.random()-.5)*.12)),.067,.40+Math.random()*.30,false,0,position,'#8a8981');
   },
   impact(position,explosion,radius=12,normal=new THREE.Vector3(0,1,0),surface='stone'){
    const ground=floorAt(position);
    if(!explosion){
-    for(let i=0;i<(surface==='cloth'?3:7);i++){const v=normal.clone().multiplyScalar(surface==='cloth'?.18:.6+Math.random()*1.3).add(new THREE.Vector3((Math.random()-.5)*.7,Math.random()*.6,(Math.random()-.5)*.7));puff(position,v,.045+Math.random()*.035,.28+Math.random()*.3,false,0,position,surface==='cloth'?'#6f7169':surface==='metal'?'#8a8a85':'#b7a18a',1.4);if(i<3&&surface!=='cloth')chip(position,v.clone().multiplyScalar(.7),new THREE.Vector3(.015,.02,.025),ground,surface==='metal'?'#686d70':'#9d8569');}
-    if(surface==='metal')for(let i=0;i<3;i++)puff(position,normal.clone().multiplyScalar(2).add(new THREE.Vector3(Math.random()-.5,Math.random(),Math.random()-.5)),.022,.07+Math.random()*.05,true,0,position,'#ffd09a',6);
+    for(let i=0;i<(surface==='cloth'?4:9);i++){const v=normal.clone().multiplyScalar(surface==='cloth'?.18:.6+Math.random()*1.3).add(new THREE.Vector3((Math.random()-.5)*.7,Math.random()*.6,(Math.random()-.5)*.7));puff(position,v,.055+Math.random()*.040,.28+Math.random()*.3,false,0,position,surface==='cloth'?'#6f7169':surface==='metal'?'#8a8a85':'#b7a18a',1.4);if(i<4&&surface!=='cloth')chip(position,v.clone().multiplyScalar(.7),new THREE.Vector3(.015,.02,.025),ground,surface==='metal'?'#686d70':'#9d8569');}
+    if(surface==='metal')for(let i=0;i<4;i++)puff(position,normal.clone().multiplyScalar(2).add(new THREE.Vector3(Math.random()-.5,Math.random(),Math.random()-.5)),.028,.09+Math.random()*.05,true,0,position,'#ffd09a',6);
     return;
    }
-   puff(position,new THREE.Vector3(0,.3,0),radius*.42,.13,true,radius,position,'#f2c38d');
-   for(let i=0;i<38;i++){const angle=i*2.39996,r=Math.random(),v=new THREE.Vector3(Math.cos(angle)*(1+r)*radius*.45,.6+Math.random()*radius*.4,Math.sin(angle)*(1+r)*radius*.45);puff(position,v,radius*(.09+Math.random()*.13),.9+Math.random()*1.3,false,radius,position,i%3?'#6e665b':'#b2a089',.25);if(i<9)chip(position,v.clone(),new THREE.Vector3(.045,.06,.04),ground,'#8d7c67');}
+   puff(position,new THREE.Vector3(0,.3,0),radius*.50,.16,true,radius,position,'#f2c38d');
+   for(let i=0;i<38;i++){const angle=i*2.39996,r=Math.random(),v=new THREE.Vector3(Math.cos(angle)*(1+r)*radius*.45,.6+Math.random()*radius*.4,Math.sin(angle)*(1+r)*radius*.45);puff(position,v,radius*(.11+Math.random()*.15),.9+Math.random()*1.3,false,radius,position,i%3?'#6e665b':'#b2a089',.25);if(i<9)chip(position,v.clone(),new THREE.Vector3(.045,.06,.04),ground,'#8d7c67');}
   },
   update(dt){
    for(const w of waves){if(w.life<=0)continue;w.life=Math.max(0,w.life-dt);const t=1-w.life/w.total;w.mesh.visible=w.life>0;w.mesh.scale.setScalar(w.radius*(.15+t*.85));w.mesh.material.opacity=(1-t)*.65;}
@@ -82,7 +82,7 @@ export function createGunEffects(scene,{showRadius=false,floorAt=()=>0}={}){
     p.life-=dt;if(p.life<=0){live.delete(p);continue;}
     const age=1-p.life/p.total;p.position.addScaledVector(p.velocity,dt);p.velocity.y-=p.gravity*dt;p.velocity.multiplyScalar(Math.exp(-dt*1.4));let size=p.size*(1+age*(p.fire?1.4:3));
     if(p.radius){const distance=p.position.distanceTo(p.center),maxDistance=p.radius*.72;if(distance>maxDistance)p.position.sub(p.center).multiplyScalar(maxDistance/distance).add(p.center);size=Math.min(size,Math.max(0,p.radius-p.position.distanceTo(p.center))*Math.SQRT2);}
-    p.drawSize=size;p.opacity=(p.fire?.85:.28)*Math.sin(Math.PI*Math.min(1,age+.15))*Math.max(0,1-age);(p.fire?fire:smoke).particles.push(p);
+    p.drawSize=size;p.opacity=(p.fire?.95:.35)*Math.sin(Math.PI*Math.min(1,age+.15))*Math.max(0,1-age);(p.fire?fire:smoke).particles.push(p);
    }
    smoke.mesh.count=smoke.particles.length;smoke.mesh.visible=smoke.mesh.count>0;fire.mesh.count=fire.particles.length;fire.mesh.visible=fire.mesh.count>0;
   },

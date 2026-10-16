@@ -1,4 +1,4 @@
-import {createWeaponClearance} from './weapon-clearance.js?v=20261016-cinema106';
+import {createWeaponClearance} from './weapon-clearance.js?v=20261016-effects108';
 import {ReplaySkipHold} from './replay-skip-hold.js?v=20261016-smooth106';
 import {createGunActionMotion,stepGunActionMotion} from './gun-action-motion.js?v=20261016-cinema106';
 import {sampleKatanaPose} from './katana-motion.js?v=20261016-cinema106';
@@ -6,8 +6,8 @@ import {sampleGunReload,shotHandKick,stepGunSway} from './gun-hand-motion.js?v=2
 import {createRifleScope} from './rifle-scope.js?v=20261014-optics95';
 import {createFpsHud} from './fps-hud.js?v=20261015-tactics99';
 import {createProjectileRenderer} from './projectile-renderer.js?v=20261014-optics95';
-import {createGunCinematic} from './gun-cinematic.js?v=20261016-cinema106';
-import {createGunEffects} from './gun-effects.js?v=20261016-cinema106';
+import {createGunCinematic} from './gun-cinematic.js?v=20261016-effects108';
+import {createGunEffects} from './gun-effects.js?v=20261016-effects108';
 import {createBodycam} from './bodycam.js?v=20261015-tactics99';
 import {createWorldAudio} from './world-audio.js?v=20261016-cinema106';
 import {createWorldInteraction} from './world-interaction.js?v=20261013-life89b';
@@ -15,7 +15,7 @@ import {fallbackMuzzle} from './weapon-dimensions.js?v=20261015-tactics99';
 import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261013-life89b';
 import * as THREE from 'three';
 import {WEAPONS,weaponById,GUN_ZONE,inGunZone} from './gun-layout.js?v=20261015-tactics99';
-import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload,updateFiringArm} from './gun-visual.js?v=20261016-cinema106';
+import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload,updateFiringArm} from './gun-visual.js?v=20261016-effects108';
 export function createWorldExperience({scene,camera,get,send,notify,openChat,openMenu,onModal,onTeleport,onCharacter,onAim,makeFace,skinURL,names,openMap}){
  const positionKey='vrs-last-position'+(new URL(location.href).searchParams.get('vrsDepth')?'-embedded-'+new URL(location.href).searchParams.get('vrsDepth'):'');
  const shell=document.createElement('div');shell.innerHTML=`
@@ -117,7 +117,7 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
   const counting=battle.phase==='waiting'&&battle.members.length>=2&&battle.startAt>s.now,starting=battle.phase==='active'&&s.now<startFlashUntil;
   countdown.hidden=!s.inStudio||!zone||!m||watching||!counting&&!starting;
   const countText=starting?'スタート':counting?String(Math.max(1,Math.ceil((battle.startAt-s.now)/1000))):'';
-  if(countdown.textContent!==countText){countdown.textContent=countText;countdown.dataset.start=String(starting);if(countText&&!matchMedia('(prefers-reduced-motion: reduce)').matches)countdown.animate([{opacity:.2},{opacity:1}],{duration:240,easing:'ease-out'});}
+  if(countdown.textContent!==countText){countdown.textContent=countText;countdown.dataset.start=String(starting);if(countText&&!matchMedia('(prefers-reduced-motion: reduce)').matches)countdown.animate([{opacity:.3,transform:'translate(-50%,-50%) scale(1.2)'},{opacity:1,transform:'translate(-50%,-50%) scale(1)'}],{duration:220,easing:'steps(5,end)'});}
   $('eliminatedSpectate').hidden=!(m?.out&&battle.phase==='active');const battleLabel=m?`TEAM ${String.fromCharCode(65+m.team)} · ${m.out?'脱落':battle.phase==='active'?'試合中':battle.phase==='preview'?'決着':battle.startAt?'開始まで '+Math.max(0,Math.ceil((battle.startAt-s.now)/1000))+'秒':'入場待ち'}`:'SAND TOWN · 入場待ち';if($('gunBattleHud').textContent!==battleLabel)$('gunBattleHud').textContent=battleLabel;
   if(zone&&!wasZone){cancel();recoil=recoilVelocity=0;}wasZone=zone;
   // Critically damped recoil: a fast upward kick, then a smooth return without ringing.
@@ -197,7 +197,7 @@ export function createWorldExperience({scene,camera,get,send,notify,openChat,ope
    for(const [name,at]of [['out',.26],['in',.67],['snap',.90]])if(progress>=at&&!r[name]){r[name]=true;if(id===s.selfId)worldAudio.accent('reload');gunEffects.reload(point,aim,r.weapon,name,p.y);}
   }
  }
- function feedback(text){const node=$('gunHitFeedback');node.textContent='HIT';node.dataset.kill=String(text==='K.O.');node.getAnimations().forEach(a=>a.cancel());node.animate([{opacity:0,transform:'translate(-50%,-50%) translateY(2px)'},{opacity:.86,transform:'translate(-50%,-50%) translateY(0)',offset:.13},{opacity:.65,offset:.55},{opacity:0,transform:'translate(-50%,-50%) translateY(-3px)'}],{duration:text==='K.O.'?600:320,easing:'ease-out'});}
+ function feedback(text){const node=$('gunHitFeedback');node.textContent=text;node.getAnimations().forEach(a=>a.cancel());node.animate([{opacity:1,transform:'translate(-50%,-50%) scale(1.45)'},{opacity:.85,transform:'translate(-50%,-50%) scale(1)'},{opacity:0,transform:'translate(-50%,-65%) scale(.9)'}],{duration:520,easing:'ease-out'});}
 
  function clearRoundVisuals(){
   shots.clear();pendingPredictions.clear();seenImpacts.clear();reloadEvents.clear();for(const mark of marks)mark.until=0;markCursor=0;marksDirty=true;holes.count=0;holes.visible=false;
@@ -219,7 +219,7 @@ if(message.type==='coin-award'){if(message.playerId===s.selfId)coinRewards.award
   if(message.type==='gun-map'){if(message.reset){s.world?.gunMap.reset();clearRoundVisuals();}s.world?.gunMap.apply(message.traces,s.now);return true;}
   if(message.type==='gun-map-error'){notify(message.message);return true;}
   if(message.type==='gun-battle'){if(battle.mapRevision!==message.battle.mapRevision){s.world?.gunMap.reset();clearRoundVisuals();}s.world?.gunMap.replace(message.battle.traces,s.now);const previous=battle.phase,previousOut=selfMember()?.out;battle=message.battle;if(['waiting','finished'].includes(previous)&&battle.phase==='active')completedPreview=null;if(battle.preview&&!cinematic.active&&battle.preview.id!==completedPreview)receive(battle.preview);if(previous!=='active'&&battle.phase==='active'&&selfMember()){startFlashUntil=s.now+1400;close();}if(battle.phase!=='active')startFlashUntil=0;if(!previousOut&&selfMember()?.out){cancel();notify('脱落 · チームの決着まで観戦できます',5000);document.body.classList.add('gun-eliminated-flash');setTimeout(()=>document.body.classList.remove('gun-eliminated-flash'),600);}if(!$('teamPanel').hidden)renderTeams();return true;}
-  if(message.type==='gun-result'){const fromReplay=!!completedPreview||cinematic.active;cinematic.stop();watching=false;onModal(false);if(fromReplay)return true;const self=selfMember(),won=message.winner!==null&&self?.team===message.winner,result=$('gunResult');result.textContent=message.winner===null?'DRAW':self?won?'VICTORY':'DEFEAT':'TEAM '+String.fromCharCode(65+message.winner)+' WINS';result.dataset.result=won?'win':'lose';result.hidden=false;result.getAnimations().forEach(a=>a.cancel());result.animate([{opacity:0},{opacity:1,offset:.20},{opacity:1,offset:.75},{opacity:0}],{duration:3200,easing:'ease-in-out'});clearTimeout(resultTimer);resultTimer=setTimeout(()=>result.hidden=true,3200);return true;}
+  if(message.type==='gun-result'){const fromReplay=!!completedPreview||cinematic.active;cinematic.stop();watching=false;onModal(false);if(fromReplay)return true;const self=selfMember(),won=message.winner!==null&&self?.team===message.winner,result=$('gunResult');result.textContent=message.winner===null?'引き分け':self?won?'勝利！':'敗北':'TEAM '+String.fromCharCode(65+message.winner)+' 勝利！';result.dataset.result=message.winner===null?'draw':won?'win':'lose';result.hidden=false;result.getAnimations().forEach(a=>a.cancel());result.animate([{opacity:0,transform:'translate(-50%,-50%) scale(1.8) rotate(-5deg)'},{opacity:1,transform:'translate(-50%,-50%) scale(1)',offset:.20},{opacity:1,transform:'translate(-50%,-50%) scale(1)',offset:.75},{opacity:0,transform:'translate(-50%,-50%) scale(.9)'}],{duration:3200,easing:'cubic-bezier(.2,.8,.2,1)'});clearTimeout(resultTimer);resultTimer=setTimeout(()=>result.hidden=true,3200);return true;}
 
   if(message.type==='gun-teleport'){if(message.playerId===s.selfId){if(!inGunZone(message.position)){++reloadToken;reloadAudioBusy=false;reloadAnimation=null;worldAudio.cancelReload();close();eliminationView=false;bodycamActive=false;document.body.dataset.firstPerson='false';$('gunCountdown').hidden=$('gunHealthHud').hidden=true;}onTeleport(message.position,message.serial);}else s.remoteTeleport?.(message.playerId,message.position);return true;}
   if(message.type==='gun-shot'){if(seenImpacts.has(message.shot.id))return true;if(message.shot.owner===s.selfId){const key='predicted-'+message.shot.serial,predicted=shots.get(key)||pendingPredictions.get(message.shot.serial);pendingPredictions.delete(message.shot.serial);if(predicted){message.shot={...message.shot,visualBorn:predicted.visualBorn??predicted.born,visualOrigin:{...(predicted.visualOrigin||predicted.origin||predicted.position)},visualAge:predicted.visualAge||0,life:Math.min(message.shot.life,predicted.life)};shots.delete(key);}}shots.set(message.shot.id,message.shot);const soundKey=message.shot.owner+':'+message.shot.serial;if(!soundedShots.has(soundKey)&&s.now-message.shot.born<300){soundedShots.set(soundKey,s.now);s.flashActor?.(message.shot.owner);if(message.shot.owner!==s.selfId)sound(message.shot.weapon,message.shot.position);}for(const [key,at]of soundedShots)if(s.now-at>5000)soundedShots.delete(key);const start=new THREE.Vector3(message.shot.position.x,message.shot.position.y,message.shot.position.z);if(message.shot.owner!==s.selfId){gunEffects.eject(start,new THREE.Vector3(message.shot.vx,message.shot.vy,message.shot.vz).normalize(),message.shot.weapon,(actorPosition(s,message.shot.owner)?.y??start.y-1.3));s.muzzle?.(start);{const last=soundedShots.get(soundKey+'-smoke');if(!last){soundedShots.set(soundKey+'-smoke',s.now);gunEffects.muzzle(start,new THREE.Vector3(message.shot.vx,message.shot.vy,message.shot.vz).normalize());}}}if(message.shot.owner!==s.selfId&&message.shot.weapon==='machine'&&message.shot.serial%4===0){const velocity=new THREE.Vector3(message.shot.vx,message.shot.vy,message.shot.vz).normalize(),end=s.world.cameraPosition(start,start.clone().addScaledVector(velocity,weaponById(message.shot.weapon).range),.01);trace(start,end);}return true;}

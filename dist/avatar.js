@@ -1,8 +1,8 @@
-import {createWeaponClearance} from './weapon-clearance.js?v=20261016-cinema106';
+import {createWeaponClearance} from './weapon-clearance.js?v=20261016-effects108';
 import {createGunActionMotion,stepGunActionMotion} from './gun-action-motion.js?v=20261016-cinema106';
 import {sampleKatanaPose} from './katana-motion.js?v=20261016-cinema106';
 import {sampleGunReload,shotHandKick} from './gun-hand-motion.js?v=20261016-cinema106';
-import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261016-cinema106';
+import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261016-effects108';
 import * as THREE from 'three';
 import {withLocalLighting} from './local-lighting.js?v=20261014-world96';
 import { sampleAttack,sampleCharge } from './combat-motion.js?v=20261013-life89b';
@@ -465,7 +465,9 @@ export async function createAvatar(url,{model=null}={}) {
       pelvis.position.x+=Math.sin(t*155)*amount;pelvis.position.z+=Math.sin(t*119+.8)*amount;pelvis.rotation.z+=Math.sin(t*142)*amount*.4;
     }
     if(state.prone&&!state.ragdoll&&!state.sleeping&&!state.seated){
-      pelvis.position.y=-legHeight*PX+.24;pelvis.position.z=0;pelvis.rotation.set(Math.PI/2,0,0);
+      // Rotating around the floor-level pelvis already lays the standing rig down.
+      // Subtracting standing leg height here buried the entire prone body.
+      pelvis.position.y=.24;pelvis.position.z=0;pelvis.rotation.set(Math.PI/2,0,0);
       torso.rotation.set(0,Math.sin(phase)*.025*motion,0);
       for(const [side,sign]of [['right',-1],['left',1]]){
        hips[side].rotation.set(Math.sin(phase+sign)*.10*motion,0,sign*.10);knees[side].rotation.set(.10+Math.max(0,Math.sin(phase+sign))*.22*motion,0,0);
@@ -511,6 +513,7 @@ export async function createAvatar(url,{model=null}={}) {
     head.rotation.y = damp(head.rotation.y, state.ragdoll||state.sleeping?0:clamp(state.lookYaw || 0, -.95, .95) - torso.rotation.y * .6, 12, dt);
     head.rotation.x = damp(head.rotation.x, state.ragdoll||state.sleeping?0:clamp(state.lookPitch || 0, -.65, .7) - torso.rotation.x * .65, 12, dt);
     head.rotation.z = -torso.rotation.z * .4;
+    if(state.prone&&!state.ragdoll&&!state.sleeping&&!state.seated)groundAvatarHitPose(root,pelvis,meshes);
     Object.assign(animation, { speed, motion, running, grounded, phase, prone:!!state.prone,crouched:!!state.crouched,gesture: gestureName,mantling:mantleBlend>.1 });
   }
 

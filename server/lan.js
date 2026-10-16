@@ -28,6 +28,7 @@ function send(socket, message) {
 }
 
 function broadcast(message, except = null) {
+    if(message.type==='state'&&!Number.isFinite(message.at))message={...message,at:Date.now()};
   for (const socket of players.keys()) {
     if (socket !== except) send(socket, message);
   }
@@ -122,8 +123,8 @@ sockets.on('connection', (socket, request) => {
   };
   Object.assign(player,rules.savedPosition(profile)||{});
   players.set(socket, { player, lastStateAt: 0,send:message=>send(socket,message) });
-  send(socket, { type: 'joined', version:SYNC_VERSION,protocol:SYNC_PROTOCOL, gunShots:rules.guns.shots, chat:rules.chat.page(), projectiles:rules.projectiles.map(({previous,match,...projectile})=>projectile), ...rules.joinedContent(), characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
-  broadcast({ type: 'player-joined', player }, socket);
+  send(socket, { type: 'joined', at:Date.now(), version:SYNC_VERSION,protocol:SYNC_PROTOCOL, gunShots:rules.guns.shots, chat:rules.chat.page(), projectiles:rules.projectiles.map(({previous,match,...projectile})=>projectile), ...rules.joinedContent(), characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
+  broadcast({ type: 'player-joined', at:Date.now(), player }, socket);
   send(socket,rules.snapshot());
 
   socket.on('message', raw => {

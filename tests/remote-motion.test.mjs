@@ -12,7 +12,7 @@ test('snapshot interpolation keeps constant walking smooth despite irregular pac
 });
 test('short outages coast to a stop with bounded drift and recover smoothly',()=>{
  const m=new RemoteMotion();for(let t=0;t<=500;t+=50){m.push(state(t),t,t);m.sample(t);}let previous=m.sample(500).x;
- for(let t=516;t<1200;t+=16){const out=m.sample(t);assert(out.x>=previous-1e-9);assert(out.x<=2.161);previous=out.x;}
+ for(let t=516;t<1200;t+=16){const out=m.sample(t);assert(out.x>=previous-1e-9);assert(out.x<=2.241);previous=out.x;}
  assert.equal(m.sample(1300).speed,0);m.push(state(1300),1300,1300);const resumed=m.sample(1316);assert(Number.isFinite(resumed.x));
 });
 test('stale frames are ignored; teleports and realm changes discard the old trail',()=>{

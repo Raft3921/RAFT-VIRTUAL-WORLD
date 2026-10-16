@@ -1,5 +1,5 @@
-import {compatibleSync} from './sync-protocol.js?v=20261016-cinema106';
-import {BUILD_ID,RELEASE_ID} from './build-info.js?v=20261016-cinema106';
+import {compatibleSync} from './sync-protocol.js?v=20261016-network107';
+import {BUILD_ID,RELEASE_ID} from './build-info.js?v=20261016-network107';
 export function startUpdateNotice({endpoint,version}){
  const notice=document.getElementById('updateNotice');let busy=false,clientUpdate=false,incompatible=false,explicit=false;
  const draw=()=>{notice.hidden=!(explicit||clientUpdate||incompatible);};

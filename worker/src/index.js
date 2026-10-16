@@ -67,8 +67,8 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
     this.players.set(server, { player, lastStateAt: 0,send:message=>{try{server.send(json(message));}catch{}} });
 
     this.roomContext.waitUntil(this.rules.characters.pending);
-    server.send(json({ type: 'joined', version:SYNC_VERSION,protocol:SYNC_PROTOCOL, gunShots:this.rules.guns.shots, chat:this.rules.chat.page(), projectiles:this.rules.projectiles.map(({previous,match,...projectile})=>projectile), ...this.rules.joinedContent(), characters:this.rules.characters.snapshots(), self: player, players: [...this.players.values()].map(entry => entry.player).filter(other => other.id !== id) }));
-    this.broadcast({ type: 'player-joined', player }, server);
+    server.send(json({ type: 'joined', at:Date.now(), version:SYNC_VERSION,protocol:SYNC_PROTOCOL, gunShots:this.rules.guns.shots, chat:this.rules.chat.page(), projectiles:this.rules.projectiles.map(({previous,match,...projectile})=>projectile), ...this.rules.joinedContent(), characters:this.rules.characters.snapshots(), self: player, players: [...this.players.values()].map(entry => entry.player).filter(other => other.id !== id) }));
+    this.broadcast({ type: 'player-joined', at:Date.now(), player }, server);
     server.send(json(this.rules.snapshot()));
     server.addEventListener('message', event => this.receive(server, event.data));
     server.addEventListener('close', () => this.remove(server));
@@ -101,6 +101,7 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
   }
 
   broadcast(message, except = null) {
+    if(message.type==='state'&&!Number.isFinite(message.at))message={...message,at:Date.now()};
     const data = json(message);
     for (const [socket] of this.players) {
       if (socket === except) continue;

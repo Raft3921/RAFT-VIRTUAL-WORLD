@@ -154,7 +154,7 @@ export async function createAvatar(url,{model=null}={}) {
     transparent: false, side: THREE.DoubleSide,
   });
   const skinCanvas=document.createElement('canvas');skinCanvas.width=image.width;skinCanvas.height=image.height;
-  const skinContext=skinCanvas.getContext('2d');skinContext.drawImage(image,0,0);
+  const skinContext=skinCanvas.getContext('2d',{willReadFrequently:true});skinContext.drawImage(image,0,0);
   const front=faceRects(parts.head.base,...parts.head.size,0,parts.head.size[1])[4];
   const pixel=skinContext.getImageData(Math.floor((front[0]+front[2]-1)*image.width/64),Math.floor((front[1]+front[3]-1)*image.height/64),1,1).data;
   const skinColor=new THREE.Color().setRGB(pixel[0]/255,pixel[1]/255,pixel[2]/255,THREE.SRGBColorSpace);
@@ -299,11 +299,14 @@ export async function createAvatar(url,{model=null}={}) {
     knees[side].rotation.x = damp(knees[side].rotation.x, kneeAngle, 22, dt);
   }
 
+  const handColors=new Map();
   function createSkinnedFiringHand({forearm=false,side='right',weapon='pistol'}={}){
     const arm=parts[side+'Arm']||parts.rightArm,full=arm.size[1],length=full/2,start=full-length;
-    const handRect=faceRects(arm.base,...arm.size,Math.max(0,full-2),2)[4],factor=image.width/64;
+    let color=handColors.get(side);
+    if(!color){const handRect=faceRects(arm.base,...arm.size,Math.max(0,full-2),2)[4],factor=image.width/64;
     const handPixel=skinContext.getImageData(Math.min(image.width-1,Math.max(0,Math.floor((handRect[0]+handRect[2]*.5)*factor))),Math.min(image.height-1,Math.max(0,Math.floor((handRect[1]+1)*factor))),1,1).data;
-    const color=new THREE.Color().setRGB(handPixel[0]/255,handPixel[1]/255,handPixel[2]/255,THREE.SRGBColorSpace),root=new THREE.Group(),grip=createFiringHand(color,{forearm:false,support:side==='left'});
+    color=new THREE.Color().setRGB(handPixel[0]/255,handPixel[1]/255,handPixel[2]/255,THREE.SRGBColorSpace);handColors.set(side,color);}
+    const root=new THREE.Group(),grip=createFiringHand(color,{forearm:false,support:side==='left'});
     root.name=side+' textured firing arm';if(side==='left')grip.scale.x=-1;root.add(grip);
     if(forearm){
       // The sleeve uses this character's actual left/right arm atlas, including its overlay.

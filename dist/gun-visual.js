@@ -1,4 +1,4 @@
-import {sampleGunReload} from './gun-hand-motion.js?v=20261015-spectacle104';
+import {sampleGunReload} from './gun-hand-motion.js?v=20261016-cinema106';
 import * as THREE from 'three';
 import {WEAPON_DIMENSIONS} from './weapon-dimensions.js?v=20261015-tactics99';
 import {cuboidGeometry} from './model-batching.js?v=20261014-fps94';
@@ -54,8 +54,8 @@ export function createGunModel(id){
  const muzzle=new THREE.Object3D();muzzle.name='barrel muzzle';muzzle.position.fromArray(WEAPON_DIMENSIONS[id]?.muzzle||WEAPON_DIMENSIONS.pistol.muzzle);root.add(muzzle);
  const flash=new THREE.Mesh(flashGeometry,flashMaterial);flash.visible=false;flash.renderOrder=4;muzzle.add(flash);root.userData.muzzle=muzzle;root.userData.flash=flash;root.userData.flashUntil=0;if(id==='sniper'){const lens=new THREE.Mesh(scopeLensGeometry,scopeGlass);lens.name='optical ocular lens';lens.position.set(0,.224,-.079);lens.rotation.y=Math.PI;root.add(lens);root.scopeLens=lens;}return root;
 }
-export function triggerGunFlash(model,now=performance.now()){if(!model)return;model.userData.flashUntil=now+90;model.userData.flash.visible=true;model.userData.flash.rotation.z=Math.random()*Math.PI;}
-export function updateGunFlash(model,now=performance.now()){if(!model)return;const remaining=model.userData.flashUntil-now,flash=model.userData.flash;flash.visible=remaining>0;if(flash.visible)flash.scale.setScalar(.85+remaining/90*1.15);}
+export function triggerGunFlash(model,now=performance.now()){if(!model)return;model.userData.flashUntil=now+42;model.userData.flash.visible=true;model.userData.flash.rotation.z=Math.random()*Math.PI;}
+export function updateGunFlash(model,now=performance.now()){if(!model)return;const remaining=model.userData.flashUntil-now,flash=model.userData.flash;flash.visible=remaining>0;if(flash.visible)flash.scale.setScalar(.50+remaining/42*.55);}
 export function createFiringHand(color='#bd9271',{forearm:showForearm=true,support=false}={}){
  const key=(color?.isColor?color.getHexString():String(color))+showForearm+support;if(!handCache.has(key)){
   const parts=[],skin=new THREE.Color(color),c=skin.getHexString(),shade=skin.clone().multiplyScalar(.82).getHexString(),highlight=skin.clone().multiplyScalar(1.08).getHexString();

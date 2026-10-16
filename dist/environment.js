@@ -321,6 +321,8 @@ export function createEnvironment(scene, renderer, { mobile = false, combatOnly 
     if(grass)grass.count = Math.floor(tier.clumps * settings.grassDensity);
   }
 
+  let cinematicOverview=false;
+  function setCinematicOverview(enabled){if(cinematicOverview===enabled)return;cinematicOverview=enabled;const span=enabled?76:19;sun.shadow.camera.left=sun.shadow.camera.bottom=-span;sun.shadow.camera.right=sun.shadow.camera.top=span;sun.shadow.camera.updateProjectionMatrix();sun.shadow.needsUpdate=true;}
   function applyLighting() {
     const elevation = THREE.MathUtils.degToRad(settings.sunHeight);
     sunOffset.set(-Math.cos(elevation) * .8, Math.sin(elevation), -Math.cos(elevation) * .6).multiplyScalar(70);
@@ -355,7 +357,7 @@ export function createEnvironment(scene, renderer, { mobile = false, combatOnly 
   applyLighting();
 
   return {
-    group, ground, sun, ambient, settings,
+    group, ground, sun, ambient, settings,setCinematicOverview,
     setMirrorView(value){mirrorView=!!value;sky.visible=!mirrorView;ground.visible=!mirrorView;if(grass)grass.visible=!mirrorView&&grassVisible;scene.fog=mirrorView?null:meadowFog;scene.background=mirrorView?voidBackground:meadowBackground;},
     get grass() { return grass; },
     setSettings,

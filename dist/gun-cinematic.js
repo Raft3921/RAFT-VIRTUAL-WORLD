@@ -1,57 +1,58 @@
+import {GUN_ZONE} from './gun-layout.js';
 import * as THREE from 'three';
 import {planCinematicRail} from './cinematic-rail.js?v=20261015-replay100';
-import {createGunEffects} from './gun-effects.js?v=20261015-spectacle104';
-import {createCinematicProjectile} from './cinematic-projectile.js?v=20261015-spectacle104';
+import {createGunEffects} from './gun-effects.js?v=20261016-cinema106';
 import {applyAvatarHitPose,groundAvatarHitPose} from './avatar-hit-pose.js?v=20261015-spectacle104';
-import {gunEliminationState} from './hit-reaction.js?v=20261015-spectacle104';
+import {gunEliminationState} from './hit-reaction.js?v=20261016-cinema106';
+import {sampleKatanaPose} from './katana-motion.js?v=20261016-cinema106';
+import {REPLAY_SHOOT_END,REPLAY_FINAL_AT,REPLAY_DURATION} from './replay-timing.js?v=20261016-cinema106';
 
 export function createGunCinematic({scene,camera,get,audio}){
- const stage=new THREE.Group();stage.name='Final shot cinematic';scene.add(stage);stage.visible=false;
- const effects=createGunEffects(stage,{showRadius:false}),clones=new Map(),hidden=[],focus=new THREE.Vector3(),lastSafe=new THREE.Vector3(),up=new THREE.Vector3(0,0,1);
- const timing=[0,3.4,5.6,7.8],hitAt=[.66,.4,.28,.45];
- let data=null,projectile=null,lastCut=-1,impacted=false,savedFov=55,elapsed=0,local=0,cutDuration=3.4,rail=null,cutChanged=false;
+ const stage=new THREE.Group();stage.name='Three camera match finish';stage.visible=false;scene.add(stage);
+ const effects=createGunEffects(stage,{showRadius:false,floorAt:p=>get().world?.floorAt(p,p.y+.05).y??0}),clones=new Map(),hidden=[],focus=new THREE.Vector3(),lastSafe=new THREE.Vector3();
+ let data=null,lastCut=-1,savedFov=55,elapsed=0,local=0,rail=null,fired=false,impacted=false,landed=false;
  const v=p=>new THREE.Vector3(p.x,p.y,p.z),smooth=t=>THREE.MathUtils.smoothstep(t,0,1);
- function stop(){afterRender();data=null;stage.visible=false;delete document.body.dataset.cinematic;delete document.body.dataset.cinematicCut;delete document.body.dataset.cinematicHit;projectile?.dispose();projectile=null;for(const clone of clones.values())clone.root.removeFromParent();clones.clear();camera.fov=savedFov;camera.updateProjectionMatrix();}
- function start(message){if(data?.id===message.id)return;const fov=camera.fov;stop();savedFov=fov;effects.update(5);lastSafe.copy(camera.position);data=message;lastCut=-1;impacted=false;elapsed=0;stage.visible=true;projectile=createCinematicProjectile(message.shot.weapon);stage.add(projectile.root);document.body.dataset.cinematic='true';}
+ const result=()=>document.getElementById('gunCinematicResult');
+ function stop(){afterRender();get().world?.setCinematicOverview?.(false);data=null;stage.visible=false;delete document.body.dataset.cinematic;delete document.body.dataset.cinematicCut;delete document.body.dataset.cinematicHit;if(result())result().hidden=true;for(const clone of clones.values())clone.root.removeFromParent();clones.clear();effects.update(5);camera.fov=savedFov;camera.updateProjectionMatrix();}
+ function start(message){if(data?.id===message.id)return;const fov=camera.fov;stop();savedFov=fov;data={...message,duration:message.duration||REPLAY_DURATION};lastSafe.copy(camera.position);lastCut=-1;fired=impacted=landed=false;stage.visible=true;document.body.dataset.cinematic='true';}
+ function seekFinal(startAt=get().now-REPLAY_FINAL_AT){if(!data)return;if(get().now-data.startAt<REPLAY_FINAL_AT)data.startAt=startAt;}
  function cameraOverride(){
-  if(!data)return false;const s=get();elapsed=Math.max(0,Math.min(data.duration,s.now-data.startAt));
-  const seconds=elapsed/1000,cut=seconds<3.4?0:seconds<5.6?1:seconds<7.8?2:3;cutDuration=cut===0?3.4:2.2;local=Math.min(1,(seconds-timing[cut])/cutDuration);cutChanged=cut!==lastCut;
-  if(cutChanged){lastCut=cut;impacted=false;effects.update(5);document.body.dataset.cinematicCut=String(cut);document.body.dataset.cinematicHit='false';}
-  const hit=v(data.impact.position),origin=v(data.shot.origin),direction=new THREE.Vector3(data.shot.vx,data.shot.vy,data.shot.vz).normalize(),distance=origin.distanceTo(hit);
-  const begin=hit.clone().addScaledVector(direction,-Math.min(distance,cut===0?18:12)),flight=Math.min(1,local/hitAt[cut]),travel=1-Math.pow(1-flight,2.1),position=begin.clone().lerp(hit,travel);
-  const owner=data.players.find(p=>p.id===data.owner),victim=data.players.find(p=>p.id===data.victims[0]),heading=Math.atan2(direction.x,direction.z),impactAge=Math.max(0,(local-hitAt[cut])*cutDuration),after=smooth((local-hitAt[cut])/(1-hitAt[cut]));
-  projectile.root.position.copy(position);projectile.root.quaternion.setFromUnitVectors(up,direction);projectile.root.visible=flight<1;projectile.update(seconds);
-  if(flight>=1&&!impacted){impacted=true;document.body.dataset.cinematicHit='true';for(const id of data.victims){const target=data.players.find(p=>p.id===id);if(target)effects.action('eliminate',v(target),1.5,direction);}if(cut===3)effects.celebrate(hit.clone().setY(Math.max(.12,hit.y-.8)),true);effects.impact(hit,data.impact.explosion,data.impact.radius||0);if(cut===0&&s.now-data.startAt<data.duration){if(data.impact.explosion)audio.explosion(hit,s);else audio.shot(hit,s);}}
-  function pose(t){
-   const f=Math.min(1,t/hitAt[cut]),a=smooth((t-hitAt[cut])/(1-hitAt[cut])),q=smooth(t),target=new THREE.Vector3();
-   if(cut===0){target.copy(begin).lerp(hit,1-Math.pow(1-f,2.1)).addScaledVector(direction,.12);return {target,distance:THREE.MathUtils.lerp(2.1,.85,smooth(f))+a*4,elevation:.32+a*1.9,heading:heading+Math.PI*.58+smooth(f)*.65-a*.35,fov:THREE.MathUtils.lerp(42,30,smooth(f))+a*25};}
-   if(cut===1&&owner){target.copy(v(owner));target.y+=1.18;target.addScaledVector(direction,q*.65);return {target,distance:5.2-q*2.2,elevation:.55+Math.sin(t*Math.PI)*.55,heading:heading+Math.PI*.9-q*1.05,fov:50-q*12};}
-   if(cut===2&&victim){target.copy(v(victim));target.y+=1.2-a*.65;return {target,distance:3.9-q*1.3+a*1.4,elevation:.65+a*.55,heading:heading+Math.PI*.22+q*.9,fov:44+a*9};}
-   target.copy(hit).addScaledVector(direction,-.65);target.y=Math.max(.8,target.y);return {target,distance:5.5+q*Math.max(13,(data.impact.radius||0)*1.65),elevation:1.7+q*9,heading:heading+Math.PI*.6+q*.8,fov:48+q*24};
+  if(!data)return false;const s=get();elapsed=THREE.MathUtils.clamp(s.now-data.startAt,0,data.duration);const cut=elapsed<REPLAY_SHOOT_END?0:elapsed<REPLAY_FINAL_AT?1:2;
+  const begin=cut===0?0:cut===1?REPLAY_SHOOT_END:REPLAY_FINAL_AT,duration=cut===0?REPLAY_SHOOT_END:cut===1?REPLAY_FINAL_AT-REPLAY_SHOOT_END:data.duration-REPLAY_FINAL_AT;local=THREE.MathUtils.clamp((elapsed-begin)/duration,0,1);
+  const changed=cut!==lastCut;if(changed){lastCut=cut;effects.update(5);document.body.dataset.cinematicCut=String(cut);s.world?.setCinematicOverview?.(cut===2);if(result())result().hidden=cut!==2;}
+  const owner=data.players.find(p=>p.id===data.owner),victim=data.players.find(p=>p.id===data.victims[0]),hit=v(data.impact.position),direction=new THREE.Vector3(data.shot.vx,data.shot.vy,data.shot.vz).normalize(),heading=Math.atan2(direction.x,direction.z);
+  if(cut===0&&!fired&&elapsed>=120){fired=true;if(elapsed<750){if(data.shot.weapon==='katana')audio.sword(v(data.shot.origin),s);else audio.shot(v(data.shot.origin),s);effects.muzzle(v(data.shot.origin),direction);effects.eject(v(data.shot.origin),direction,data.shot.weapon,owner?.y||0);}}
+  if(cut===1&&!impacted&&local>.035){impacted=true;effects.impact(hit,!!data.impact.explosion,data.impact.radius||0,direction.clone().negate(),data.impact.wall?'stone':'cloth');if(data.impact.explosion)audio.explosion(hit,s);}
+  if(cut===1&&!landed&&local>.75){landed=true;for(const id of data.victims){const p=data.players.find(p=>p.id===id);if(p)effects.action('land',v(p),.65,direction);}}
+  if(cut===2){
+   const xs=data.players.map(p=>p.x),zs=data.players.map(p=>p.z),minX=Math.min(GUN_ZONE.minX,...xs),maxX=Math.max(GUN_ZONE.maxX,...xs),minZ=Math.min(GUN_ZONE.minZ,...zs),maxZ=Math.max(GUN_ZONE.maxZ,...zs),span=Math.max(24,maxZ-minZ+18,(maxX-minX+18)/Math.max(.45,camera.aspect));
+   focus.set((minX+maxX)/2,.8,(minZ+maxZ)/2);const height=Math.max(29,span*.5/Math.tan(THREE.MathUtils.degToRad(29))+7),pull=1+smooth(local)*.065;
+   camera.position.set(focus.x+span*.055,height*pull,focus.z+span*.08);camera.lookAt(focus);camera.fov=58;
+   const member=data.players.find(p=>p.id===s.selfId),winner=data.winner??data.players.find(p=>p.id===data.owner)?.team,node=result();
+   if(node){node.textContent=winner===null?'DRAW':member&&Number.isInteger(member.team)?member.team===winner?'VICTORY':'DEFEAT':Number.isInteger(winner)?'TEAM '+String.fromCharCode(65+winner)+' WINS':'MATCH ENDED';node.dataset.result=member?.team===winner?'win':'lose';}
+  }else{
+   const subject=cut===0?owner||victim:victim||owner,subjectPoint=subject?v(subject):hit;
+   const pose=t=>{const q=smooth(t),target=subjectPoint.clone();target.y+=cut===0?(subject?.prone?.38:1.25):1.10-smooth(t/.65)*.65;return {target,distance:cut===0?3.25-q*.45:3.5+q*.20,elevation:cut===0?.40:.70,heading:cut===0?heading+Math.PI+.48:heading+Math.PI*.64,fov:cut===0?44:48};};
+   if(changed)rail=planCinematicRail(s.world,pose,lastSafe);const shotPose=pose(local);focus.copy(shotPose.target);rail.sample(local,lastSafe);camera.position.copy(lastSafe);camera.lookAt(focus);camera.fov=shotPose.fov;
+   const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches,age=Math.max(0,elapsed-120)/1000;if(cut===0&&!reduced)camera.rotateX(Math.exp(-age*7)*Math.sin(age*16)*.006);
   }
-  if(cutChanged)rail=planCinematicRail(s.world,pose,lastSafe);
-  const shotPose=pose(local);focus.copy(shotPose.target);rail.sample(local,lastSafe);camera.position.copy(lastSafe);camera.lookAt(focus);camera.fov=shotPose.fov;
-  // Rotation-only impact movement keeps the camera's collision clearance intact.
-  const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;const shake=impacted&&!reduced?Math.exp(-impactAge*8)*.036:0;camera.rotateX(Math.sin(impactAge*49)*shake);camera.rotateZ(Math.sin(local*Math.PI)*(reduced?0:cut===0?-.065:.035)+Math.sin(impactAge*37)*shake);
   camera.updateProjectionMatrix();camera.updateMatrixWorld();return true;
  }
  function duplicate(source){
-  const root=source.clone(true),base=[],meshes=[],guns=[];root.traverse(node=>{
-   base.push({node,position:node.position.clone(),rotation:node.rotation.clone(),scale:node.scale.clone(),visible:node.visible});if(node.isMesh&&/-(base|overlay)$/.test(node.name))meshes.push(node);if(node.name.startsWith('handheld-'))guns.push(node);
-  });
+  const root=source.clone(true),base=[],meshes=[],guns=[],flashes=[];root.traverse(node=>{base.push({node,position:node.position.clone(),rotation:node.rotation.clone(),scale:node.scale.clone(),visible:node.visible});if(node.isMesh&&/-(base|overlay)$/.test(node.name))meshes.push(node);if(node.name.startsWith('handheld-'))guns.push(node);if(node.isMesh&&node.parent?.name==='barrel muzzle')flashes.push(node);});
   const joints={pelvis:root.getObjectByName('pelvis'),torso:root.getObjectByName('waist'),head:root.getObjectByName('neck'),shoulders:{},elbows:{},hips:{},knees:{}};
   for(const side of ['right','left'])for(const [key,name]of [['shoulders','shoulder'],['elbows','elbow'],['hips','hip'],['knees','knee']])joints[key][side]=root.getObjectByName(side+'-'+name);
-  stage.add(root);return {root,base,joints,meshes,guns};
+  stage.add(root);return {root,base,joints,meshes,guns,flashes};
  }
  function beforeRender(){
-  if(!data)return;const s=get(),sources=s.cinematicActors||[],age=(local-hitAt[Math.max(0,lastCut)])*cutDuration*.65;
-  for(const p of data.players){const source=sources.find(a=>a.id===p.id)?.root;if(!source)continue;let clone=clones.get(p.id);if(!clone){clone=duplicate(source);clones.set(p.id,clone);}const {root,base,joints,meshes,guns}=clone;
-   for(const pose of base){pose.node.position.copy(pose.position);pose.node.rotation.copy(pose.rotation);pose.node.scale.copy(pose.scale);pose.node.visible=pose.visible;}root.visible=true;root.position.set(p.x,p.y,p.z);root.rotation.set(0,p.yaw,0);
-   if(data.victims.includes(p.id)&&age>=0){applyAvatarHitPose(joints,gunEliminationState(age));for(const gun of guns)gun.visible=false;groundAvatarHitPose(root,joints.pelvis,meshes);}
-   else if(p.id===data.owner){const recoil=Math.exp(-local*cutDuration*9)*Math.sin(local*cutDuration*20)*.055;joints.torso.rotation.x-=recoil;}
+  if(!data)return;const s=get(),sources=s.cinematicActors||[],fallAge=lastCut===0?-1:lastCut===1?Math.max(-.01,((elapsed-REPLAY_SHOOT_END)/1000-.10)*.34):1.7;
+  for(const p of data.players){const source=sources.find(a=>a.id===p.id)?.root;if(!source)continue;let clone=clones.get(p.id);if(!clone){clone=duplicate(source);clones.set(p.id,clone);}const {root,base,joints,meshes,guns,flashes}=clone;
+   for(const pose of base){pose.node.position.copy(pose.position);pose.node.rotation.copy(pose.rotation);pose.node.scale.copy(pose.scale);pose.node.visible=pose.visible;}root.visible=true;root.position.set(p.x,p.y,p.z);root.rotation.set(0,p.yaw,0);for(const flash of flashes)flash.visible=false;
+   if(data.victims.includes(p.id)&&fallAge>=0){applyAvatarHitPose(joints,gunEliminationState(fallAge));for(const gun of guns)gun.visible=false;groundAvatarHitPose(root,joints.pelvis,meshes);}
+   else if(p.id===data.owner&&lastCut===0){const age=(elapsed-120)/1000*.3;if(data.shot.weapon==='katana'){const pose=sampleKatanaPose(0,Math.max(0,age));joints.shoulders.right.rotation.set(...pose.shoulder);joints.elbows.right.rotation.set(...pose.elbow);joints.torso.rotation.y+=pose.torso[1];}else if(age>=0){const recoil=Math.exp(-age*15)*Math.sin(age*22)*.10;joints.torso.rotation.x-=recoil*.25;joints.shoulders.right.rotation.x-=recoil;joints.elbows.right.rotation.x-=recoil*.7;for(const flash of flashes)flash.visible=age<.045;}}
    hidden.push({root:source,visible:source.visible});source.visible=false;
   }
  }
  function afterRender(){for(const item of hidden)item.root.visible=item.visible;hidden.length=0;}
- return {start,stop,cameraOverride,beforeRender,afterRender,update(dt){if(data)effects.update(dt*.3);},get active(){return !!data;},get id(){return data?.id;}};
+ return {start,stop,seekFinal,cameraOverride,beforeRender,afterRender,update(dt){if(data)effects.update(dt*(lastCut===2?1:.34));},get focus(){return focus;},get final(){return !!data&&lastCut===2;},get active(){return !!data;},get id(){return data?.id;}};
 }

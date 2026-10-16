@@ -1,14 +1,15 @@
-import {createGunActionMotion,stepGunActionMotion} from './gun-action-motion.js?v=20261015-spectacle104';
-import {sampleKatanaPose} from './katana-motion.js?v=20261015-tactics99';
-import {sampleGunReload,shotHandKick} from './gun-hand-motion.js?v=20261015-spectacle104';
-import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261015-spectacle104';
+import {createWeaponClearance} from './weapon-clearance.js?v=20261016-cinema106';
+import {createGunActionMotion,stepGunActionMotion} from './gun-action-motion.js?v=20261016-cinema106';
+import {sampleKatanaPose} from './katana-motion.js?v=20261016-cinema106';
+import {sampleGunReload,shotHandKick} from './gun-hand-motion.js?v=20261016-cinema106';
+import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261016-cinema106';
 import * as THREE from 'three';
 import {withLocalLighting} from './local-lighting.js?v=20261014-world96';
 import { sampleAttack,sampleCharge } from './combat-motion.js?v=20261013-life89b';
 import {applyAvatarHitPose,groundAvatarHitPose} from './avatar-hit-pose.js?v=20261015-spectacle104';
 import { jemAvatarDefinition } from './jem-avatar.js?v=20261014-cinema93';
 
-const swordGhostMaterials=[.16,.10,.055].map(opacity=>new THREE.MeshBasicMaterial({color:'#d7eef4',transparent:true,opacity,depthWrite:false,blending:THREE.AdditiveBlending}));
+const swordGhostMaterials=[];
 const PX = 1 / 16;
 const TAU = Math.PI * 2;
 const clamp = THREE.MathUtils.clamp;
@@ -314,6 +315,7 @@ export async function createAvatar(url,{model=null}={}) {
   }
 
   const weaponGrip=new THREE.Group(),gunInverse=new THREE.Quaternion(),gunAim=new THREE.Quaternion();weaponGrip.name='right hand weapon grip';weaponGrip.position.set(0,-armHalf*PX+.04,0);elbows.right.add(weaponGrip);
+  const weaponClearance=createWeaponClearance(),weaponAnchor=new THREE.Vector3();
   let gunModel=null,gunGhosts=[],gunId=null,gunShotAt=-Infinity,gunChargeAt=null,gunReload=null;const gunEuler=new THREE.Euler(0,0,0,'YXZ');
   function update(dt, state = {}) {
     if (disposed) return;
@@ -477,7 +479,8 @@ export async function createAvatar(url,{model=null}={}) {
       // The world avatar holds the gun with its right hand. Keep the left arm's
       // normal idle/walk pose; the separate first-person rig has its own grip.
       torso.rotation.y=.015;torso.rotation.z=Math.sin(phase)*.006*motion;
-      if(gunId==='katana'){const pose=sampleKatanaPose(gunChargeAt===null?0:(now-gunChargeAt)/1000,(now-gunShotAt)/1000);shoulders.right.rotation.set(...pose.shoulder);shoulders.right.rotation.x-=aim*.65;shoulders.right.rotation.y+=look*.5;elbows.right.rotation.set(...pose.elbow);}
+      if(gunId==='katana'){const pose=sampleKatanaPose(gunChargeAt===null?0:(now-gunChargeAt)/1000,(now-gunShotAt)/1000);shoulders.right.rotation.set(...pose.shoulder);shoulders.right.rotation.x-=aim*.65;shoulders.right.rotation.y+=look*.5;elbows.right.rotation.set(...pose.elbow);torso.rotation.x+=pose.torso[0];torso.rotation.y+=pose.torso[1];torso.rotation.z+=pose.torso[2];}
+      if(state.prone){const crawl=Math.sin(phase)*motion;shoulders.right.rotation.x=-2.65-aim*.28+reload.weight*.25+crawl*.04;elbows.right.rotation.x=-.60-reload.weight*.35;}
       shoulders.right.rotation.x+=gunActionPose.pitch*.8;shoulders.right.rotation.y+=gunActionPose.yaw;shoulders.right.rotation.z+=gunActionPose.roll;elbows.right.rotation.x-=gunActionPose.land*.12+gunActionPose.jump*.10;
       gunInverse.copy(pelvis.quaternion).multiply(torso.quaternion).multiply(shoulders.right.quaternion).multiply(elbows.right.quaternion).invert();gunEuler.set(-aim-kick*.11+reload.tilt,look,reload.roll,'YXZ');
       if(gunId==='katana'){const pose=sampleKatanaPose(gunChargeAt===null?0:(now-gunChargeAt)/1000,(now-gunShotAt)/1000);gunEuler.x+=pose.rotation[0];gunEuler.y+=pose.rotation[1];gunEuler.z+=pose.rotation[2];}
@@ -505,7 +508,7 @@ export async function createAvatar(url,{model=null}={}) {
     head.rotation.y = damp(head.rotation.y, state.ragdoll||state.sleeping?0:clamp(state.lookYaw || 0, -.95, .95) - torso.rotation.y * .6, 12, dt);
     head.rotation.x = damp(head.rotation.x, state.ragdoll||state.sleeping?0:clamp(state.lookPitch || 0, -.65, .7) - torso.rotation.x * .65, 12, dt);
     head.rotation.z = -torso.rotation.z * .4;
-    Object.assign(animation, { speed, motion, running, grounded, phase, gesture: gestureName,mantling:mantleBlend>.1 });
+    Object.assign(animation, { speed, motion, running, grounded, phase, prone:!!state.prone,crouched:!!state.crouched,gesture: gestureName,mantling:mantleBlend>.1 });
   }
 
   function applyPlayPose(pose){
@@ -528,7 +531,7 @@ export async function createAvatar(url,{model=null}={}) {
 
   function dispose() {
     if (disposed) return;
-    disposed = true;
+    disposed = true;weaponClearance.dispose();
     root.removeFromParent();
     geometries.forEach(geometry => {if(!geometry.userData.avatarShared)geometry.dispose();});
     baseMaterial.dispose();
@@ -540,6 +543,7 @@ export async function createAvatar(url,{model=null}={}) {
   return {
     animation,
     root, update, applyPlayPose, dispose, head, setAppearance,gripColor:skinColor,createFirstPersonHand:options=>createSkinnedFiringHand({forearm:true,...options}),
+    constrainWeapon(world,dt){if(!gunModel?.visible)return;weaponAnchor.copy(root.position);weaponAnchor.y+=animation.prone?.39:(custom?(custom.headBottom+parts.head.size[1]*.5)*PX:1.68)-(animation.crouched?.52:0);const contact=weaponClearance.update(world,weaponAnchor,gunModel,dt);if(contact>.001){shoulders.right.rotation.x+=contact*.20;elbows.right.rotation.x-=contact*.65;gunModel.rotateX(contact*(animation.prone?.08:.40));gunModel.rotateY(contact*(animation.prone?.35:0));root.updateMatrixWorld(true);}},
     getGunMuzzle(target=new THREE.Vector3()){if(!gunModel?.visible)return null;root.updateMatrixWorld(true);return gunModel.userData.muzzle.getWorldPosition(target);},chargeGun(active){gunChargeAt=active?performance.now():null;},fireGun(){gunShotAt=performance.now();gunChargeAt=null;gunReload=null;if(gunId!=='katana')triggerGunFlash(gunModel);},reloadGun(event){gunReload=event?{weapon:event.weapon,duration:event.duration,start:performance.now()-(event.age||0)}:null;},
     reactHit(serial,strength=.2,age=0){if(!Number.isFinite(serial)||serial<=flinchSerial)return;flinchSerial=serial;if(age>=.24)return;flinchStart=elapsed-Math.max(0,age);flinchStrength=clamp(strength,0,1);},
     resetHitReaction(){flinchSerial=0;flinchStart=-Infinity;},

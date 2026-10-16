@@ -34,7 +34,7 @@ export function createWorld(scene,{physicsOnly=false,combatOnly=false}={}){
   const transform=new THREE.Object3D(),previous=new THREE.Vector3();
   const boardPickGeometry=new THREE.BoxGeometry(1.12,2.05,.24),boardPickMaterial=new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false});
   function box(x,y,z,w,h,d,color=WHITE,solid=true,extra={}){
-    const body={x,y,z,w,h,d,...extra};
+    const body={x,y,z,w,h,d,...extra,cinematicRoof:x>=120&&x<=244&&z>=-140&&z<=-44&&y>2.5&&h<.65&&w>4&&d>4};
     if(currentHouse){body.houseIndex=currentHouse.index;currentHouse.parts.push(body);}
     if(solid)bodies.push(body);
     if(extra.noRender||physicsOnly)return body;
@@ -273,7 +273,7 @@ export function createWorld(scene,{physicsOnly=false,combatOnly=false}={}){
   // Test the whole segment (not just its endpoint), preventing fast wall tunnelling.
   function cameraClear(point,radius=.32){
     if(point.y<radius+.12)return false;
-    for(const b of nearby(point)){if(b.disabled)continue;const q=localPoint(point,b);if(Math.abs(q.x)<b.w/2+radius&&Math.abs(point.y-b.y)<b.h/2+radius&&Math.abs(q.z)<b.d/2+radius)return false;}
+    for(const b of nearby(point)){if(b.disabled||b.cinematicHidden)continue;const q=localPoint(point,b);if(Math.abs(q.x)<b.w/2+radius&&Math.abs(point.y-b.y)<b.h/2+radius&&Math.abs(q.z)<b.d/2+radius)return false;}
     return true;
   }
   function cameraPosition(from,to,radius=.24,ignoreBoardId=null){
@@ -281,7 +281,7 @@ export function createWorld(scene,{physicsOnly=false,combatOnly=false}={}){
     const steps=Math.max(1,Math.ceil(length/5));
     for(let i=0;i<=steps;i++){sample.lerpVectors(from,to,i/steps);for(const b of nearby(sample))candidates.add(b);}
     for(const b of candidates){
-      if(b.disabled||(ignoreBoardId!==null&&b.boardId===ignoreBoardId))continue;
+      if(b.disabled||b.cinematicHidden||(ignoreBoardId!==null&&b.boardId===ignoreBoardId))continue;
       const a=localPoint(from,b),z=localPoint(to,b),start=[a.x,from.y-b.y,a.z],end=[z.x,to.y-b.y,z.z],half=[b.w/2+radius,b.h/2+radius,b.d/2+radius];
       // A focus point enclosed by its own surface must be allowed to escape.
       if(start.every((v,i)=>Math.abs(v)<half[i]))continue;
@@ -298,7 +298,7 @@ export function createWorld(scene,{physicsOnly=false,combatOnly=false}={}){
   }
   function surfaceNormal(point,incoming){let best=.65,result=incoming.clone().negate();for(const b of nearby(point)){if(b.disabled)continue;const q=localPoint(point,b),coords=[q.x,point.y-b.y,q.z],half=[b.w/2,b.h/2,b.d/2];if(coords.some((v,i)=>Math.abs(v)>half[i]+.3))continue;for(let axis=0;axis<3;axis++){const distance=Math.abs(Math.abs(coords[axis])-half[axis]);if(distance>=best)continue;best=distance;const sign=Math.sign(coords[axis])||1;if(axis===0)result.set(q.c*sign,0,-q.s*sign);else if(axis===1)result.set(0,sign,0);else result.set(q.s*sign,0,q.c*sign);}}if(point.y<.25&&best>.1)result.set(0,1,0);return result;}
   function cull(view){
-    for(const mesh of chunks){const sphere=mesh.boundingSphere,d=sphere.center.distanceTo(view);mesh.visible=d<160+sphere.radius;mesh.castShadow=!mesh.userData.noShadow&&mesh.visible&&d<55+sphere.radius;}
+    for(const mesh of chunks){const sphere=mesh.boundingSphere,d=sphere.center.distanceTo(view);const horizontal=Math.hypot(view.x-sphere.center.x,view.z-sphere.center.z);mesh.visible=cinematicOverview?horizontal<170+sphere.radius:d<160+sphere.radius;mesh.castShadow=!mesh.userData.noShadow&&mesh.visible&&(cinematicOverview?horizontal<85+sphere.radius:d<55+sphere.radius);}
     for(const b of boards)b.label.visible=!b.editorHidden&&Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<85;
     for(let i=0;i<balls.length;i++){const b=balls[i],visible=Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<130;transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,worldTime,worldTime*.8);transform.scale.setScalar(visible?b.radius:0);transform.updateMatrix();ballMesh.setMatrixAt(i,transform.matrix);}ballMesh.instanceMatrix.needsUpdate=true;
   }
@@ -314,10 +314,12 @@ export function createWorld(scene,{physicsOnly=false,combatOnly=false}={}){
     for(const h of hazards){if(h.spinner)h.rotation=t*.8+h.phase;else h.z=h.originZ+Math.sin(t*1.2+h.phase)*1.05;if(h.mesh.visible)sync(h);}
     for(const b of balls){const phase=((t+b.phase)*b.speed)%8;b.z=b.originZ+b.side*(4-phase);}
   }
+  let cinematicOverview=false;
+  function setCinematicOverview(enabled){if(cinematicOverview===enabled)return;cinematicOverview=enabled;cloudRoof.visible=!enabled;for(const b of bodies){if(!b.cinematicRoof||!b.mesh)continue;b.cinematicHidden=enabled;transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,b.rotation||0,0);transform.scale.set(enabled?0:b.w,enabled?0:b.h,enabled?0:b.d);transform.updateMatrix();b.mesh.setMatrixAt(b.instance,transform.matrix);b.mesh.instanceMatrix.needsUpdate=true;}}
   function setBackdrop(mode){if(!chromaMaterial)return;chromaMaterial.color.set(mode==='RB'?'#ff0000':mode==='BB'?'#0000ff':'#00ff00');}
   // Keep the inexpensive pool draw registered even during the day (alpha 0)
   // so its shader is not first compiled when night begins.
   function setNight(value){const night=THREE.MathUtils.clamp(value||0,0,1);if(nightLight.value===night&&lampMaterial.emissiveIntensity===night*1.8)return;nightLight.value=night;lampMaterial.emissiveIntensity=night*1.8;}
   const gunMap=createGunMapVisual(group,bodies);
-  const api={combatOnly,set portalPassage(fn){collision.portalPassage=fn;},get portalPassage(){return collision.portalPassage;},gunMap,cameraClear,canStand,nearby,setMovementBounds:collision.setMovementBounds,group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
+  const api={combatOnly,setCinematicOverview,set portalPassage(fn){collision.portalPassage=fn;},get portalPassage(){return collision.portalPassage;},gunMap,cameraClear,canStand,nearby,setMovementBounds:collision.setMovementBounds,group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
 }

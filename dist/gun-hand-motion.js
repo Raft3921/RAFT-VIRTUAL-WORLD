@@ -13,7 +13,7 @@ export function supportGrip(id){return id==='pistol'?[.082,-.008,-.016]:[.045,-.
 export function sampleGunReload(id,progress=null){
  const home=supportGrip(id),pose={weight:0,hand:home,rotation:[0,0,0],part:[0,0,0],partRotation:[0,0,0],dip:0,tilt:0,roll:0,clack:0};
  if(progress===null||progress<=0||progress>=1)return pose;
- const t=clamp(progress),weight=ease(t/.16)*(1-ease((t-.84)/.16));pose.weight=weight;pose.dip=-weight*.32;pose.tilt=weight*(id==='sniper'?.32:.46);pose.roll=weight*(id==='pistol'?-.46:-.27);
+ const t=clamp(progress),weight=ease(t/.16)*(1-ease((t-.84)/.16));pose.weight=weight;pose.dip=-weight*.18;pose.tilt=weight*(id==='sniper'?.20:.29);pose.roll=weight*(id==='pistol'?-.32:-.18);
  let frames;
  if(id==='pistol'||id==='machine'){
   const z=id==='pistol'?-.015:.22;

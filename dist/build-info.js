@@ -1,2 +1,2 @@
-export const BUILD_ID='vrs-smooth106';
-export const RELEASE_ID='vrs-smooth106';
+export const BUILD_ID='vrs-cinema106';
+export const RELEASE_ID='vrs-cinema106';

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {sampleHit} from './hit-reaction.js?v=20261015-spectacle104';
+import {sampleHit} from './hit-reaction.js?v=20261016-cinema106';
 const probe=new THREE.Vector3();
 // Shared by live avatars and the isolated cinematic duplicates.
 export function applyAvatarHitPose(joints,state){

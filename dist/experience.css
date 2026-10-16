@@ -60,27 +60,15 @@ body[data-cinematic=true] #scene{visibility:visible!important;pointer-events:non
 
 #gunReload{bottom:calc(105px + env(safe-area-inset-bottom))}#gunProne{position:fixed;z-index:15;right:calc(max(18px,env(safe-area-inset-right)) + 94px);bottom:calc(37px + env(safe-area-inset-bottom));width:76px;min-height:54px;padding:5px;background:#152934df;border:2px solid #8ca9aa;color:#d9ede6;font-size:11px;touch-action:manipulation}#gunProne[aria-pressed=true]{border-color:#b9f5d9;background:#25443d}#gunProne[hidden],body[data-clean=true] #gunProne{display:none!important}
 
-/* Pooled world effects carry the detail; these overlays keep the match readable. */
-#gunHitFeedback{position:fixed;z-index:58;left:50%;top:43%;opacity:0;pointer-events:none;color:#fff0a8;font:900 28px/1 DotGothic16,monospace;letter-spacing:.12em;text-shadow:3px 3px #162736,-2px -2px #162736;transform:translate(-50%,-50%)}
-#gunFinishFX{position:fixed;inset:0;z-index:59;pointer-events:none;visibility:hidden;overflow:hidden;background:radial-gradient(ellipse at center,transparent 27%,#15253580 100%)}
-#gunFinishFX[data-active=true]{visibility:visible;animation:finish-wash 3s ease-out both}
-#gunFinishFX i{position:absolute;left:50%;top:50%;width:9px;height:21px;background:#ffe193;box-shadow:0 0 0 2px #25394a;opacity:0}
-#gunFinishFX i:nth-child(3n){background:#9befff}#gunFinishFX[data-active=true] i{animation:finish-chip 2.6s var(--delay) cubic-bezier(.12,.6,.2,1) both}
-@keyframes finish-chip{0%{opacity:0;transform:translate(0,0) scale(.2)}10%{opacity:1}75%{opacity:.9}100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(var(--turn)) scale(.6)}}
-@keyframes finish-wash{0%{opacity:0}12%,65%{opacity:1}100%{opacity:0}}
-#gunResult{font-weight:900;filter:drop-shadow(0 8px 0 #101e2b);padding:.15em .25em;border-block:5px solid currentColor;background:#132635ba}
-#gunCinemaOverlay{display:none;position:fixed;z-index:80;inset:0;pointer-events:none;color:#ffe7b5;font:15px DotGothic16,monospace;letter-spacing:.16em}
-body[data-cinematic=true] #gunCinemaOverlay,body[data-cinematic=true] #gunCinemaOverlay *{visibility:visible!important;pointer-events:none!important}
-body[data-cinematic=true] #gunCinemaOverlay{display:block}
-#gunCinemaOverlay:before,#gunCinemaOverlay:after{content:'';position:absolute;left:0;right:0;height:6vh;background:#07131eea}#gunCinemaOverlay:before{top:0}#gunCinemaOverlay:after{bottom:0}
-#gunCinemaOverlay>span{position:absolute;left:5vw;top:8vh;font-size:clamp(24px,5vw,56px);text-shadow:4px 4px #102433}
-#gunCinemaOverlay>b{position:absolute;left:5vw;top:calc(8vh + 65px);font-size:13px;color:#9fdfff}#gunCinemaOverlay>b:after{content:' / 01 · BULLET TRACK'}
-body[data-cinematic-cut='1'] #gunCinemaOverlay>b:after{content:' / 02 · SHOOTER'}body[data-cinematic-cut='2'] #gunCinemaOverlay>b:after{content:' / 03 · IMPACT'}body[data-cinematic-cut='3'] #gunCinemaOverlay>b:after{content:' / 04 · FINISH'}
-#gunCinemaOverlay>small{position:absolute;right:5vw;bottom:8vh;color:#d6e4eb}#gunCinemaOverlay>em{position:absolute;left:50%;top:50%;width:20vmin;height:20vmin;border:6px solid #ffe3a0;border-radius:50%;opacity:0;transform:translate(-50%,-50%)}
-body[data-cinematic-hit=true] #gunCinemaOverlay>em{animation:cinema-impact .65s ease-out both}
-@keyframes cinema-impact{0%{opacity:.85;transform:translate(-50%,-50%) scale(.3)}100%{opacity:0;transform:translate(-50%,-50%) scale(3.5)}}
-@media(prefers-reduced-motion:reduce){#gunFinishFX i,#gunCinemaOverlay>em{display:none}#gunFinishFX[data-active=true]{animation-duration:1s}}
+/* World-contact footage: no arcade frames, cut labels or decorative particles. */
+#gunHitFeedback{position:fixed;z-index:24;left:50%;top:calc(50% + 30px);opacity:0;pointer-events:none;transform:translate(-50%,-50%);color:#e0ded5;font:500 11px/1.2 ui-sans-serif,system-ui,sans-serif;letter-spacing:.18em;text-shadow:0 1px 3px #000b}
+#gunHitFeedback[data-kill=true]{color:#d1bba2;letter-spacing:.22em}
+#gunResult,#gunCinematicResult{position:fixed;left:50%;top:auto;bottom:13vh;transform:translateX(-50%);z-index:70;padding:18px 34px;color:#e8e5dc!important;font:300 clamp(25px,4.8vw,54px)/1.2 ui-sans-serif,system-ui,sans-serif;letter-spacing:.24em;text-align:center;text-shadow:0 2px 18px #000a;white-space:nowrap;background:linear-gradient(90deg,transparent,#1013166b,transparent);border:0;box-shadow:none;filter:none;pointer-events:none}
+#gunCinematicResult:before,#gunResult:before{content:'';position:absolute;top:0;left:25%;width:50%;height:1px;background:linear-gradient(90deg,transparent,#e8e5dc70,transparent)}
+#gunCinematicResult[hidden]{display:none!important}
+body[data-cinematic=true] #gunCinemaOverlay,body[data-cinematic=true] #gunCinemaOverlay *{visibility:hidden!important;display:none!important}
+body[data-cinematic=true][data-cinematic-cut='2'] #gunCinematicResult{visibility:visible!important;animation:cinema-result-in 1s ease-out both}
+@keyframes cinema-result-in{from{opacity:0;filter:blur(3px)}to{opacity:1;filter:blur(0)}}
+@media(prefers-reduced-motion:reduce){body[data-cinematic=true][data-cinematic-cut='2'] #gunCinematicResult{animation-duration:.2s}}
 
-#gunSkipProgress{position:absolute;right:5vw;bottom:11vh;width:min(280px,70vw);height:5px;background:#ffffff35;border:1px solid #ffe7b577}
-#gunSkipProgress>i{display:block;width:100%;height:100%;background:#ffe7b5;transform:scaleX(0);transform-origin:left}
-body[data-cinematic=true]{touch-action:none;user-select:none;-webkit-user-select:none}
+#gunCountdown,#gunCountdown[data-start=true]{top:20%;font:300 clamp(28px,6vmin,50px)/1.2 ui-sans-serif,system-ui,sans-serif;letter-spacing:.12em;text-shadow:0 1px 12px #0009;color:#e8e5dc;}

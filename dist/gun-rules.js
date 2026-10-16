@@ -1,6 +1,6 @@
 import {REPLAY_FINAL_AT,REPLAY_DURATION} from './replay-timing.js?v=20261016-cinema106';
 import {solidExtents,segmentGunSolid} from './gun-solid.js?v=20261015-tactics99';
-import {gunDamage,gunHitBox} from './gun-posture.js?v=20261015-tactics99';
+import {gunDamage,gunHitBox} from './gun-posture.js?v=20261016-trails110';
 import {GUN_PROP_DEFS} from './gun-map-state.js?v=20261015-tactics99';
 import {GUN_SPAWNS,GUN_SOLIDS} from './gun-collision.js?v=20261015-tactics99';
 import {gunEliminationState} from './hit-reaction.js?v=20261016-cinema106';
@@ -71,6 +71,7 @@ export class GunRules{
   if(!lethal.size||new Set([...this.members.values()].filter(m=>!m.out&&!lethal.has(m.id)).map(m=>m.team)).size>1)return false;
   const players=this.players().filter(p=>this.members.has(p.id)).map(p=>({id:p.id,skin:p.skin,team:this.members.get(p.id)?.team,x:p.x,y:p.y,z:p.z,yaw:p.yaw||0,prone:!!p.prone,crouched:!!p.crouched,equippedWeapon:p.equippedWeapon,ragdoll:!!p.ragdoll}));
   const message={type:'gun-preview',id:'final-'+this.round+'-'+shot.id,round:this.round,startAt:now+450,duration:REPLAY_DURATION,winner:attacker.team,owner:owner.id,victims:[...lethal],players,shot:{...shot,position:{...shot.position},origin:{...(shot.origin||shot.position)}},impact};
+  if(shot.firingPose)message.shot.shooter={...shot.firingPose};
   for(const p of this.players())if(this.members.has(p.id))this.cancelReload(p,now);
   this.preview={message,owner,targets,shot,impact};this.phase='preview';this.shots=[];
   for(const p of this.players())if(this.members.has(p.id))p.speed=p.vx=p.vy=p.vz=p.verticalSpeed=0;
@@ -103,7 +104,11 @@ export class GunRules{
   const shoulder={x:p.x-Math.cos(p.yaw)*.3,y:p.y+(p.skin===7?1:1.4)-(p.prone?1.05:p.crouched?.52:0),z:p.z+Math.sin(p.yaw)*.3},fraction=this.blocked(shoulder,origin,(this.rules.settings.combatOnly?{}:this.rules.houses.snapshots()),.02);if(fraction!==null)origin=interpolate(shoulder,origin,fraction);
   for(let i=0;i<weapon.pellets;i++){
    const dx=aim.x/length+(Math.random()-.5)*weapon.spread*2,dy=aim.y/length+(Math.random()-.5)*weapon.spread*2,dz=aim.z/length+(Math.random()-.5)*weapon.spread*2,n=Math.hypot(dx,dy,dz);
-   const shot={id:'gun-'+(++this.sequence),owner:p.id,weapon:weapon.id,serial:message.serial,position:{...origin},origin:{...origin},vx:dx/n*weapon.speed,vy:dy/n*weapon.speed,vz:dz/n*weapon.speed,born:now,lastAt:now,life:weapon.range/weapon.speed,round:inGunZone(p)?this.round:null};this.shots.push(shot);this.send({type:'gun-shot',shot});
+   const shot={id:'gun-'+(++this.sequence),owner:p.id,weapon:weapon.id,serial:message.serial,position:{...origin},origin:{...origin},vx:dx/n*weapon.speed,vy:dy/n*weapon.speed,vz:dz/n*weapon.speed,born:now,lastAt:now,life:weapon.range/weapon.speed,round:inGunZone(p)?this.round:null};
+   // Keep the firing pose only in server memory until a final-hit replay needs it.
+   // Normal projectile broadcasts and late-join shot lists stay compact.
+   Object.defineProperty(shot,'firingPose',{value:{x:p.x,y:p.y,z:p.z,yaw:p.yaw||0,headYaw:p.headYaw||0,headPitch:p.headPitch||0,prone:!!p.prone,crouched:!!p.crouched,skin:p.skin,equippedWeapon:weapon.id}});
+   this.shots.push(shot);this.send({type:'gun-shot',shot});
   }this.ensureTimer();
  }
  advanceReload(p,now){
@@ -145,7 +150,7 @@ export class GunRules{
   if(!this.members.size&&!this.shots.length&&![...this.ammo.values()].some(a=>a.reloadAt)){clearInterval(this.timer);this.timer=null;this.finish?.();this.finish=null;}
  }
  resetMap(){
-  this.traces.clear();this.marks=[];this.shots=[];this.charges.clear();this.slashes.clear();this.mapRevision++;
+  this.rules.footprints?.clearArena();this.traces.clear();this.marks=[];this.shots=[];this.charges.clear();this.slashes.clear();this.mapRevision++;
   this.send({type:'gun-map',reset:true,mapRevision:this.mapRevision,traces:[]});this.persistMap();
  }
  persistMap(){

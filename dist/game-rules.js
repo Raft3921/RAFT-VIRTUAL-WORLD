@@ -1,3 +1,4 @@
+import {FootprintStore} from './footprint-store.js?v=20261016-trails110';
 import {combatSpawn,combatArea,COMBAT_MENU} from './world-mode.js?v=20261016-combatonly105';
 import {PlazaPlayStore} from './plaza-play-store.js?v=20261015-tactics99';
 import {LivingStore} from './living-store.js?v=20261013-life89b';
@@ -7,7 +8,7 @@ import {cleanMeal,describeDish} from './cooking-data.js?v=20261013-life89b';
 import {recognizeKitchens} from './kitchen-layout.js?v=20261013-life89b';
 import {buildDistrict} from './district.js?v=20261013-life89b';
 import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261015-tactics99';
-import {GunRules} from './gun-rules.js?v=20261016-cinema106';
+import {GunRules} from './gun-rules.js?v=20261016-trails110';
 import {weaponById} from './gun-layout.js?v=20261015-tactics99';
 import {WorldChatStore} from './world-chat-store.js?v=20261013-life89b';
 import { ARENA,insideArena } from './world-layout.js?v=20261013-life89b';
@@ -23,7 +24,7 @@ import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js?v=20261013-life
 import {furnitureAction} from './furniture-actions.js?v=20261013-life89b';
 const combatBoards=[COMBAT_MENU,GUN_ENTRY,...GUN_EXIT_BOARDS];
 let menuBoards=null;function worldMenuBoards(){if(!menuBoards){menuBoards=[{x:6,z:11},{x:ARENA.x+3,z:ARENA.z+20},...combatBoards,...HOUSES.slice(0,8).map(h=>({x:h.x-6,z:h.z+h.front*9}))];buildDistrict({box:()=>{},sign:()=>{},board:(x,y,z)=>menuBoards.push({x,y,z}),seats:[],clockHands:[]});}return menuBoards;}
-import {SYNC_VERSION,SYNC_PROTOCOL,compatibleSync} from './sync-protocol.js?v=20261016-network107';
+import {SYNC_VERSION,SYNC_PROTOCOL,compatibleSync} from './sync-protocol.js?v=20261016-trails110';
 export {SYNC_VERSION,SYNC_PROTOCOL,compatibleSync};
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -70,7 +71,7 @@ export class GameRules{
     this.optionalSystems={};const lazy=(name,create)=>Object.defineProperty(this,name,{get:()=>this.optionalSystems[name]??=(create())});
     lazy('houses',()=>new HousingStore(houses,saveHouses,broadcast));lazy('plazaPlay',()=>new PlazaPlayStore(this));this.chat=new WorldChatStore(chat,saveChat);
     this.projectiles=[];this.projectileTimer=null;this.projectileSequence=0;this.onAsyncWork=onAsyncWork;this.projectileFlight=null;this.finishFlight=null;lazy('cooking',()=>new CookingStore(this,kitchens,saveKitchens));
-    this.settings.cycle=cleanCycle(settings.cycle);this.pianoSteps=new Map();this.records=new Map();this.furnitureStates=new Map();this.furnitureSequence=0;this.guns=new GunRules(this);lazy('living',()=>new LivingStore(this,livingRecords,saveLiving));for(const record of Object.values(livingRecords))if(record.furnitureEvent)this.furnitureStates.set(record.index+':'+record.itemId,record.furnitureEvent);
+    this.settings.cycle=cleanCycle(settings.cycle);this.pianoSteps=new Map();this.records=new Map();this.furnitureStates=new Map();this.furnitureSequence=0;this.footprints=new FootprintStore(this);this.guns=new GunRules(this);lazy('living',()=>new LivingStore(this,livingRecords,saveLiving));for(const record of Object.values(livingRecords))if(record.furnitureEvent)this.furnitureStates.set(record.index+':'+record.itemId,record.furnitureEvent);
   }
   savedPosition(profile){if(this.settings.combatOnly)return combatSpawn(this.players.size);let p=this.settings.positions?.[profile];if(p?.mirrorRealm&&p.mirrorRealm!=='m|0|shared')p={...p,mirrorRealm:'m|0|shared',x:2000-39,y:.265,z:2000-45-8,yaw:Math.PI};return p&&[p.x,p.y,p.z,p.yaw].every(Number.isFinite)?{...p}:null;}
   savePosition(p,force=false){if(this.settings.combatOnly||!p.profile||p.ragdoll)return;const now=Date.now();this.positionTimes??=new Map();if(!force&&now-(this.positionTimes.get(p.profile)||0)<5000)return;this.positionTimes.set(p.profile,now);const position={x:p.x,y:p.y,z:p.z,yaw:p.yaw,mirrorRealm:p.mirrorRealm||null};this.settingsQueue=this.settingsQueue.then(async()=>{const settings={...this.settings,positions:{...this.settings.positions,[p.profile]:position}};try{await this.saveSettings(settings);this.settings=settings;}catch{}});this.onAsyncWork(this.settingsQueue);}
@@ -88,7 +89,7 @@ export class GameRules{
     p.skin=skin;p.guest=skin===GUEST_SKIN;Object.assign(p,this.character(skin,p.profile));this.broadcastCharacter(skin);this.broadcast({type:'state',player:p});return true;
   }
   inside(p){return insideArena(p);}
-  snapshot(){const combatOnly=this.settings.combatOnly;if(!combatOnly)this.pruneRecords();return {combatOnly,type:'world',version:SYNC_VERSION,protocol:SYNC_PROTOCOL,gunBattle:this.guns.snapshot(),gunMarks:this.guns.marks.filter(m=>Date.now()-m.at<20000),backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel,cycle:this.settings.cycle,serverNow:Date.now(),records:combatOnly?[]:[...this.records.values()],living:combatOnly?[]:this.living.snapshot(),plazaPlay:combatOnly?[]:this.plazaPlay.snapshot(),furnitureStates:combatOnly?[]:[...this.furnitureStates.values()]};}
+  snapshot(){const combatOnly=this.settings.combatOnly;if(!combatOnly)this.pruneRecords();return {combatOnly,type:'world',version:SYNC_VERSION,protocol:SYNC_PROTOCOL,gunBattle:this.guns.snapshot(),footprints:this.footprints.snapshot(),gunMarks:this.guns.marks.filter(m=>Date.now()-m.at<20000),backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel,cycle:this.settings.cycle,serverNow:Date.now(),records:combatOnly?[]:[...this.records.values()],living:combatOnly?[]:this.living.snapshot(),plazaPlay:combatOnly?[]:this.plazaPlay.snapshot(),furnitureStates:combatOnly?[]:[...this.furnitureStates.values()]};}
   setCombatOnly(p,value){
     if(typeof value!=='boolean'||p.guest){this.broadcast({type:'world-mode-error',playerId:p.id,message:'メンバーで接続して設定してください'});return;}
     this.settingsQueue=this.settingsQueue.then(async()=>{
@@ -122,9 +123,9 @@ export class GameRules{
     return this.settingsQueue;
   }
   cancel(){if(this.duel){this.duel=null;this.ready.clear();this.broadcast({type:'duel-cancel',reason:'プレイヤーが闘技場から離れたため終了しました'});}}
-  removed(id){if(!this.settings.combatOnly){this.plazaPlay.stop(id);this.onAsyncWork(this.living.remove(id));this.cooking.remove(id);}this.guns.remove(id);this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
+  removed(id){this.footprints.remove(id);if(!this.settings.combatOnly){this.plazaPlay.stop(id);this.onAsyncWork(this.living.remove(id));this.cooking.remove(id);}this.guns.remove(id);this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
   state(entry){
-    const p=entry.player;if(this.settings.combatOnly&&!combatArea(p)){this.guns.move(p,combatSpawn());entry.motion=null;}if(this.settings.combatOnly){p.flight=false;p.seated=false;p.sleeping=false;}this.guns.state(p);this.savePosition(p);
+    const p=entry.player;if(this.settings.combatOnly&&!combatArea(p)){this.guns.move(p,combatSpawn());entry.motion=null;}if(this.settings.combatOnly){p.flight=false;p.seated=false;p.sleeping=false;}this.guns.state(p);if(!this.guns.preview)this.footprints.step(p);this.savePosition(p);
     // One server-owned window per knockdown, never reset by repeat packets.
     // The full flight is also protected so attacks cannot restart a juggle.
     if(p.awaitingDown&&p.ragdoll&&['down','recover'].includes(p.hitPhase)){p.awaitingDown=false;p.protectedUntil=Date.now()+DOWN_PROTECTION_SECONDS*1000;}

@@ -2,17 +2,17 @@ import {RemoteMotion} from './remote-motion.js?v=20261016-network107';
 import {loadWorldMode,combatSpawn} from './world-mode.js?v=20261016-combatonly105';
 import {findMantle} from './player-mantle.js?v=20261015-mantle103';
 import {PlayerPrediction} from './player-prediction.js?v=20261015-mantle103';
-import {proneShape} from './gun-posture.js?v=20261015-tactics99';
+import {proneShape} from './gun-posture.js?v=20261016-trails110';
 import {createVideoSettings} from './video-settings.js?v=20261014-cinema92';
 import {furniturePose} from './housing-data.js?v=20261013-life89b';
 import {livingHome} from './living-shared.js?v=20261013-life89b';
-import {createWorldExperience} from './world-experience.js?v=20261016-effects108';
+import {createWorldExperience} from './world-experience.js?v=20261016-trails110';
 import {inGunZone,weaponById} from './gun-layout.js?v=20261015-tactics99';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261016-effects108';
+import {startUpdateNotice} from './update-notice.js?v=20261016-trails110';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261016-effects108';
+import { createAvatar } from './avatar.js?v=20261016-trails110';
 import { createEnvironment } from './environment.js?v=20261016-cinema106';
 import { createWorld } from './world.js?v=20261016-cinema106';
 import { ARENA,insideArena } from './world-layout.js?v=20261013-life89b';
@@ -21,7 +21,7 @@ import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261013-life89b';
 import { createHit,stepHit,hitShape,proneWeight,gunEliminationState } from './hit-reaction.js?v=20261016-cinema106';
 import { createCombatEffects } from './combat-effects.js?v=20261014-world96';
 import { createBrownProjectiles } from './brown-projectiles.js?v=20261014-world96';
-import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261016-network107';
+import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261016-trails110';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261013-life89b';
 import { cleanCharacter } from './character-store.js?v=20261013-life89b';
 // Versioned URL prevents a previously cached editor module from blocking startup.
@@ -106,7 +106,7 @@ const lockMarker=new THREE.Mesh(new THREE.RingGeometry(.62,.70,16),new THREE.Mes
 const playerPrediction=new PlayerPrediction();
 let roomSocket=null,roomCode='',roomSelfId='',lastRoomStateAt=0,roomFailure='';
 const remoteActors=new Map(),remoteLoading=new Map();
-let airWalk=false,lastJumpTapAt=-Infinity,flightAscend=false,flightDescend=false,crouchWanted=false,crouched=false,proneWanted=false,prone=false,crouchView=0,sprintWanted=false,lastForwardPress=-Infinity;
+let airWalk=false,lastJumpTapAt=-Infinity,flightAscend=false,flightDescend=false,crouchWanted=false,crouched=false,proneWanted=false,prone=false,crouchView=0,proneViewBlend=0,sprintWanted=false,lastForwardPress=-Infinity;
 const crouchDrop=actor=>Math.min(.52,(actor?.collisionShape?.height||1.9)*.3);
 function toggleCrouch(){if(!inStudio||paused()||airWalk||cameraMode==='free'||seated||sleeping||localRagdoll)return;if(prone){proneWanted=false;return;}crouchWanted=!crouchWanted;canvas.focus();}
 function toggleProne(){if(!inStudio||paused()||airWalk||cameraMode==='free'||seated||sleeping||localRagdoll||plazaPlay?.active)return;proneWanted=!proneWanted;crouchWanted=false;canvas.focus();}
@@ -120,7 +120,8 @@ function updateCrouch(enabled,dt){
  if(prone)crouched=false;
  else if(available&&enabled&&(crouchWanted||!!livingHome(actor?.root.position,housingView?.rooms)&&(keys.has('ShiftLeft')||keys.has('ShiftRight'))))crouched=true;
  else if(!available||!actor||world.canStand(actor.root.position,{...(actor.collisionShape||{width:.32,depth:.32,height:1.9}),yaw:actor.root.rotation.y}))crouched=false;
- crouchView=THREE.MathUtils.damp(crouchView,prone?Math.max(0,(actor?.eyeHeight||1.68)-.36):crouched?crouchDrop(actor):0,18,dt);
+ proneViewBlend=THREE.MathUtils.damp(proneViewBlend,prone?1:0,prone?7:5,dt);
+ crouchView=THREE.MathUtils.damp(crouchView,Math.max(0,(actor?.eyeHeight||1.68)-.36)*proneViewBlend+(crouched?crouchDrop(actor):0)*(1-proneViewBlend),18,dt);
  const button=$('crouchBtn');button.setAttribute('aria-pressed',String(crouched));button.textContent=crouched?'立つ':'しゃがむ';
  const crawl=$('gunProne');if(crawl){crawl.hidden=!available||!cachedCharacter().equippedWeapon;if(crawl.getAttribute('aria-pressed')!==String(prone))crawl.setAttribute('aria-pressed',String(prone));const text=prone?'立ち上がる':'匍匐前進';if(crawl.textContent!==text)crawl.textContent=text;crawl.title=prone&&!proneWanted?'天井が低いため立ち上がれません':'C · 匍匐前進';}
 }
@@ -304,7 +305,7 @@ function respawnCourse(){
 }
 function stopCourse(){if(!athleticActive||duelActive)return;if(athleticCheckpoint)saveCheckpoint(athleticCheckpoint.id);courseAwaitingSave=false;athleticActive=false;athleticCheckpoint=null;athleticPeak=0;seated=false;seat=null;sleeping=false;bed=null;airWalk=false;localImpact=null;localHit=null;localRagdoll=false;localImpulse.set(0,0,0);verticalSpeed=0;velocity.set(0,0,0);actors[selected].root.position.set(world.athletic.exit.x,.16,world.athletic.exit.z);grounded=true;setCameraMode('follow');closeWorldMenu();updateJumpButton();notify('アスレチックを終了 · CHECK '+cachedCharacter().checkpoint+' を保存');}
 
-function placeActors(){crouchWanted=crouched=proneWanted=prone=false;crouchView=0;housingView?.portals.reset();courseAwaitingSave=false;athleticActive=false;athleticCheckpoint=null;seated=false;seat=null;sleeping=false;bed=null;standingOn=null;localImpact=null;localRagdoll=false;localHit=null;restoreHitCamera=null;localImpulse.set(0,0,0);actors.forEach((a,i)=>{if(a){a.resetHitReaction();bodies[i].flinchSerial=0;bodies[i].protectedUntil=0;if(i===selected){a.root.position.set(0,0,0);a.root.rotation.set(0,0,0)}else{const angle=i*2.399+.4,radius=3.4+(i%3)*.85;a.root.position.set(Math.sin(angle)*radius,0,Math.cos(angle)*radius+1.2);a.root.rotation.set(0,Math.atan2(-a.root.position.x,-a.root.position.z),0)}}if(a&&i===selected&&combatOnly&&inStudio){const start=combatSpawn();a.root.position.set(start.x,start.y,start.z);a.root.rotation.y=start.yaw;}if(a&&world)a.root.position.y=world.floorAt(a.root.position,.5).y;bodies[i].vel.set(0,0,0);bodies[i].grounded=true;bodies[i].ragdoll=false;bodies[i].hit=null;bodies[i].travelRemaining=0});velocity.set(0,0,0);verticalSpeed=0;grounded=true;airWalk=false;lastJumpTapAt=-Infinity;updateJumpButton();cancelCharge();punchSwing=0;pendingAttack=null;queuedAttack=null;comboIndex=0;attackRushing=false;chainRemaining=0;targetLock=null}
+function placeActors(){crouchWanted=crouched=proneWanted=prone=false;crouchView=proneViewBlend=0;housingView?.portals.reset();courseAwaitingSave=false;athleticActive=false;athleticCheckpoint=null;seated=false;seat=null;sleeping=false;bed=null;standingOn=null;localImpact=null;localRagdoll=false;localHit=null;restoreHitCamera=null;localImpulse.set(0,0,0);actors.forEach((a,i)=>{if(a){a.resetHitReaction();bodies[i].flinchSerial=0;bodies[i].protectedUntil=0;if(i===selected){a.root.position.set(0,0,0);a.root.rotation.set(0,0,0)}else{const angle=i*2.399+.4,radius=3.4+(i%3)*.85;a.root.position.set(Math.sin(angle)*radius,0,Math.cos(angle)*radius+1.2);a.root.rotation.set(0,Math.atan2(-a.root.position.x,-a.root.position.z),0)}}if(a&&i===selected&&combatOnly&&inStudio){const start=combatSpawn();a.root.position.set(start.x,start.y,start.z);a.root.rotation.y=start.yaw;}if(a&&world)a.root.position.y=world.floorAt(a.root.position,.5).y;bodies[i].vel.set(0,0,0);bodies[i].grounded=true;bodies[i].ragdoll=false;bodies[i].hit=null;bodies[i].travelRemaining=0});velocity.set(0,0,0);verticalSpeed=0;grounded=true;airWalk=false;lastJumpTapAt=-Infinity;updateJumpButton();cancelCharge();punchSwing=0;pendingAttack=null;queuedAttack=null;comboIndex=0;attackRushing=false;chainRemaining=0;targetLock=null}
 function enterStudio(){if(!actors[selected])return;const query=shareSource();inStudio=true;showCast=false;$('showCast').checked=false;document.body.dataset.screen='studio';$('lobby').hidden=true;$('hud').hidden=false;placeActors();const saved=combatOnly?combatSpawn():experience?.restorePosition();if(saved&&[saved.x,saved.y,saved.z,saved.yaw].every(Number.isFinite)&&!saved.mirrorRealm){actors[selected].root.position.set(saved.x,saved.y,saved.z);yaw=saved.yaw;}focus.copy(actors[selected].root.position).y+=1.25;const sharedYaw=Number(query.get('yaw')),sharedPitch=Number(query.get('pitch'));yaw=combatOnly?combatSpawn().yaw:query.has('yaw')&&Number.isFinite(sharedYaw)?angleDelta(0,sharedYaw):saved?.yaw||0;pitch=query.has('pitch')&&Number.isFinite(sharedPitch)?clamp(sharedPitch,-1.15,1.1):-.14;setCameraMode(query.get('cam')||'follow');updateVisibility();canvas.focus();notify(touch?'左スティックで移動。パンチを長押しで溜め':'ドラッグで視点 / 右下の✊を長押しで溜めパンチ',3500);connectRoom();scheduleShare()}
 function returnLobby(){cooking?.end();plazaMap?.close();experience?.close();if(worldChat?.active)worldChat.close();leaveRoom();unlocked();setClean(false);inStudio=false;document.body.dataset.screen='lobby';$('hud').hidden=true;$('lobby').hidden=false;$('menu').hidden=$('master').hidden=$('worldMenu').hidden=true;gesture='none';$('gesture').value='idle';placeActors();updateSelection();updateVisibility();$('enter').focus()}
 function makeFace(url,el){const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=c.height=32;c.className='face';c.setAttribute('aria-hidden','true');const q=c.getContext('2d');q.imageSmoothingEnabled=false;const s=img.width/64;if(url.includes('models/gyoza/')){q.drawImage(img,8*s,8*s,18*s,9*s,0,8,32,16);q.drawImage(img,20*s,55*s,18*s,9*s,0,8,32,16);}else{q.drawImage(img,8*s,8*s,8*s,8*s,0,0,32,32);q.drawImage(img,40*s,8*s,8*s,8*s,0,0,32,32);}el.replaceChildren(c)};img.src=url}

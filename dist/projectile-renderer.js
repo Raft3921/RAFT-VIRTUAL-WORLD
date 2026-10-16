@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {projectileGeometry} from './cinematic-projectile.js?v=20261015-spectacle104';
+import {projectileGeometry} from './cinematic-projectile.js?v=20261016-trails110';
 const ids=['pistol','machine','sniper','shotgun','rocket'];
 export function createProjectileRenderer(scene,limit=96){
  const root=new THREE.Group(),material=new THREE.MeshStandardMaterial({vertexColors:true,metalness:.55,roughness:.34}),batches=new Map(),transform=new THREE.Object3D(),direction=new THREE.Vector3(),axis=new THREE.Vector3(0,0,1);scene.add(root);

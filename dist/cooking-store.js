@@ -75,8 +75,8 @@ export class CookingStore{
  });}
  recordBusy(record){return Object.values(record.state.vessels).some(v=>v.fire||v.temperature>20.01)||record.state.loose.some(b=>b.velocity<0)||Object.values(record.state.appliances).some(a=>a.remaining>0);}
  get busy(){return Object.values(this.data).some(r=>this.recordBusy(r))||!!this.eaters?.size;}
- advanceNow(){return this.enqueue(async()=>{const now=Date.now(),dt=Math.min(3600,Math.max(0,(now-this.lastTick)/1000));this.lastTick=now;await this.tick(dt);});}
- ensureTimer(){if(!this.busy||this.timer)return;if(!this.recovering)this.lastTick=Date.now();this.timer=setInterval(()=>{this.advanceNow().catch(()=>{});},500);this.timer.unref?.();}
+ advanceNow(){if(this.rules.settings?.combatOnly)return Promise.resolve();return this.enqueue(async()=>{if(this.rules.settings?.combatOnly)return;const now=Date.now(),dt=Math.min(3600,Math.max(0,(now-this.lastTick)/1000));this.lastTick=now;await this.tick(dt);});}
+ ensureTimer(){if(this.rules.settings?.combatOnly)return;if(!this.busy||this.timer)return;if(!this.recovering)this.lastTick=Date.now();this.timer=setInterval(()=>{this.advanceNow().catch(()=>{});},500);this.timer.unref?.();}
  async tick(dt){
   let busy=false;for(const [id,old]of Object.entries(this.data)){
    const zone=this.zone(old.state.index,old.state.kitchenId);if(!zone)continue;const next=copy(old),s=next.state,dt=Math.min(3600,Math.max(0,(Date.now()-(old.heatAt||old.state.at||Date.now()))/1000));let changed=false;const finishedMeals=[];s.elapsed+=dt;

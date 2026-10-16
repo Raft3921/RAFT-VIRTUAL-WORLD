@@ -13,6 +13,7 @@ export default {
     const url = new URL(request.url);
     if(url.pathname==='/version')return new Response(JSON.stringify({version:SYNC_VERSION,protocol:SYNC_PROTOCOL,buildId:env.DEPLOYMENT_REVISION||SYNC_VERSION}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
     if (url.pathname === '/health') return new Response('ok');
+    if(url.pathname==='/world-mode'){const id=env.ROOMS.idFromName('raft-studio-global-room');return env.ROOMS.get(id).fetch(request);}
     if (url.pathname !== '/room') return new Response('Not found', { status: 404 });
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('WebSocket upgrade required', { status: 426 });
@@ -36,10 +37,11 @@ export class Room extends DurableObject {
 this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.storage.put('scores',s),settings,s=>ctx.storage.put('settings',s),characters,s=>ctx.storage.put('characters',s),houses,s=>ctx.storage.put('houses',s),promise=>ctx.waitUntil(promise),chat,(message,removed)=>ctx.storage.transaction(async storage=>{await storage.put('chat:'+message.id,message);if(removed.length)await storage.delete(removed.map(old=>'chat:'+old.id));}),kitchens,async records=>{await ctx.storage.transaction(async storage=>{for(const [id,record]of Object.entries(records))if(record!==persistedKitchens[id])await storage.put('kitchen:'+id,record);});persistedKitchens=records;const busy=Object.values(records).some(record=>this.rules.cooking.recordBusy(record));if(busy)await ctx.storage.setAlarm(Date.now()+1000).catch(()=>{});else await ctx.storage.deleteAlarm().catch(()=>{});},living,(key,record,extra={})=>ctx.storage.transaction(async storage=>{await storage.put('living:'+key,record);for(const [id,value]of Object.entries(extra))await storage.put('living:'+id,value);}));this.playerPhysics=new ServerPlayerPhysics(this.rules);const keep=new Set(this.rules.chat.records.map(message=>message.id));const obsolete=chat.filter(message=>!keep.has(message.id));for(let i=0;i<obsolete.length;i+=100)await ctx.storage.delete(obsolete.slice(i,i+100).map(message=>'chat:'+message.id));});
   }
 
-  async alarm(){await this.ready;await this.rules.cooking.advanceNow();}
+  async alarm(){await this.ready;if(!this.rules.settings.combatOnly)await this.rules.cooking.advanceNow();}
 
   async fetch(request) {
     await this.ready;
+    if(new URL(request.url).pathname==='/world-mode')return new Response(JSON.stringify({combatOnly:this.rules.settings.combatOnly}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
     this.rules.disconnectPlayer=id=>{const match=[...this.players].find(([,e])=>e.player.id===id);if(!match)return;const [socket]=match;try{socket.send(json({type:'room-removed',reason:'メニューボードから退出しました'}));}catch{}this.remove(socket);try{socket.close(1000,'removed from menu board');}catch{}};
     if (this.players.size >= MAX_PLAYERS) return new Response('Room is full', { status: 409 });
 
@@ -65,7 +67,7 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
     this.players.set(server, { player, lastStateAt: 0,send:message=>{try{server.send(json(message));}catch{}} });
 
     this.roomContext.waitUntil(this.rules.characters.pending);
-    server.send(json({ type: 'joined', version:SYNC_VERSION,protocol:SYNC_PROTOCOL, gunShots:this.rules.guns.shots, chat:this.rules.chat.page(), projectiles:this.rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:this.rules.houses.snapshots(), kitchens:this.rules.cooking.snapshots(), characters:this.rules.characters.snapshots(), self: player, players: [...this.players.values()].map(entry => entry.player).filter(other => other.id !== id) }));
+    server.send(json({ type: 'joined', version:SYNC_VERSION,protocol:SYNC_PROTOCOL, gunShots:this.rules.guns.shots, chat:this.rules.chat.page(), projectiles:this.rules.projectiles.map(({previous,match,...projectile})=>projectile), ...this.rules.joinedContent(), characters:this.rules.characters.snapshots(), self: player, players: [...this.players.values()].map(entry => entry.player).filter(other => other.id !== id) }));
     this.broadcast({ type: 'player-joined', player }, server);
     server.send(json(this.rules.snapshot()));
     server.addEventListener('message', event => this.receive(server, event.data));
@@ -86,8 +88,9 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
 
     const requestedSkin = Number(message.state?.skin);
     const skin = playableSkin(requestedSkin,entry.player.skin);
-    const state = cleanState(message.state, skin, this.rules.houses.realms);
+    const state = cleanState(message.state, skin, (this.rules.settings.combatOnly?undefined:this.rules.houses.realms));
     if (!state) return;
+    if(this.rules.settings.combatOnly){state.flight=false;state.seated=false;state.sleeping=false;}
     if(state.skin!==entry.player.skin){if(!this.rules.selectCharacter(entry,state.skin))state.skin=entry.player.skin;this.roomContext.waitUntil(this.rules.characters.pending);}
     entry.lastStateAt = Date.now();
     this.playerPhysics.receive(entry,state,message.motion);

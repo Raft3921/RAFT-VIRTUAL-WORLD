@@ -270,7 +270,7 @@ function makeGrass(tier, uniforms) {
  * Settings: wind 0..2, grassDensity 0..1, sunHeight 8..82 degrees,
  * exposure .65..1.6, quality 'low' | 'medium' | 'high'.
  */
-export function createEnvironment(scene, renderer, { mobile = false } = {}) {
+export function createEnvironment(scene, renderer, { mobile = false, combatOnly = false } = {}) {
   const settings = {
     quality: mobile ? 'low' : 'high', wind: .75,
     grassDensity: 1, sunHeight: 48, exposure: 1.05,
@@ -299,8 +299,8 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
     uSpan: { value: TIERS[settings.quality].span },
     uFocus: { value: new THREE.Vector2() },
   };
-  let grass = makeGrass(TIERS[settings.quality], uniforms);
-  group.add(sky, ground, grass, ambient, sun, sun.target);
+  let grass = combatOnly?null:makeGrass(TIERS[settings.quality], uniforms);
+  group.add(sky, ground, ambient, sun, sun.target);if(grass)group.add(grass);
   scene.add(group);
   const meadowFog=new THREE.Fog('#abd5f2',120,1400),meadowBackground=scene.background,voidBackground=new THREE.Color('#000000');scene.fog=meadowFog;let mirrorView=false,grassVisible=true;
   renderer.shadowMap.enabled = true;
@@ -318,7 +318,7 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
     sun.shadow.needsUpdate = true;
     renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, tier.pixelRatio));
     uniforms.uSpan.value = tier.span;
-    grass.count = Math.floor(tier.clumps * settings.grassDensity);
+    if(grass)grass.count = Math.floor(tier.clumps * settings.grassDensity);
   }
 
   function applyLighting() {
@@ -335,11 +335,11 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
   function setSettings(next = {}) {
     if (next.quality && TIERS[next.quality] && next.quality !== settings.quality) {
       settings.quality = next.quality;
-      group.remove(grass);
+      if(grass){group.remove(grass);
       grass.geometry.dispose();
       grass.material.dispose();
       grass = makeGrass(TIERS[settings.quality], uniforms);
-      group.add(grass);
+      group.add(grass);}
       applyQuality();
     }
     if (Number.isFinite(next.wind)) settings.wind = clamp(next.wind, 0, 2);
@@ -347,7 +347,7 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
     if (Number.isFinite(next.sunHeight)) settings.sunHeight = clamp(next.sunHeight, 8, 82);
     if (Number.isFinite(next.exposure)) settings.exposure = clamp(next.exposure, .65, 1.6);
     uniforms.uWind.value = settings.wind;
-    grass.count = Math.floor(TIERS[settings.quality].clumps * settings.grassDensity);
+    if(grass)grass.count = Math.floor(TIERS[settings.quality].clumps * settings.grassDensity);
     applyLighting();
   }
 
@@ -356,7 +356,7 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
 
   return {
     group, ground, sun, ambient, settings,
-    setMirrorView(value){mirrorView=!!value;sky.visible=!mirrorView;ground.visible=!mirrorView;grass.visible=!mirrorView&&grassVisible;scene.fog=mirrorView?null:meadowFog;scene.background=mirrorView?voidBackground:meadowBackground;},
+    setMirrorView(value){mirrorView=!!value;sky.visible=!mirrorView;ground.visible=!mirrorView;if(grass)grass.visible=!mirrorView&&grassVisible;scene.fog=mirrorView?null:meadowFog;scene.background=mirrorView?voidBackground:meadowBackground;},
     get grass() { return grass; },
     setSettings,
     update(time, nextFocus,phase=null) {
@@ -371,7 +371,7 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
         settings.night=1-THREE.MathUtils.smoothstep(elevation,-.10,.08);
       }
       // Grass blades are subpixel from elevated parkour/free-camera viewpoints.
-      grassVisible=focus.y<18;grass.visible=!mirrorView&&grassVisible;
+      grassVisible=focus.y<18;if(grass)grass.visible=!mirrorView&&grassVisible;
       uniforms.uFocus.value.set(focus.x, focus.z);
       sun.position.copy(focus).add(sunOffset);
       sun.target.position.copy(focus);
@@ -381,14 +381,14 @@ export function createEnvironment(scene, renderer, { mobile = false } = {}) {
     },
     get stats() {
       return {
-        grassBlades: grass.count * (BLADES_PER_CLUMP + 4), grassClumps: grass.count, grassDrawCalls: 1,
-        grassTriangles: grass.count * (BLADES_PER_CLUMP + 4) * TIERS[settings.quality].segments * 2,
+        grassBlades: (grass?.count||0) * (BLADES_PER_CLUMP + 4), grassClumps: grass?.count||0, grassDrawCalls: grass?1:0,
+        grassTriangles: (grass?.count||0) * (BLADES_PER_CLUMP + 4) * TIERS[settings.quality].segments * 2,
         quality: settings.quality, grassImages: 0,
       };
     },
     dispose() {
       scene.remove(group);
-      [sky, ground, grass].forEach((mesh) => {
+      [sky, ground, grass].filter(Boolean).forEach((mesh) => {
         mesh.geometry.dispose();
         mesh.material.dispose();
       });

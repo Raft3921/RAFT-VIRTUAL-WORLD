@@ -64,6 +64,7 @@ const server = createServer((request, response) => {
     response.writeHead(400).end('Bad request');
     return;
   }
+  if(pathname==='/world-mode'){response.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}).end(JSON.stringify({combatOnly:rules.settings.combatOnly}));return;}
   if(pathname==='/version'){response.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}).end(JSON.stringify({version:SYNC_VERSION,protocol:SYNC_PROTOCOL,buildId:serverBuildId}));return;}
   if (pathname === '/health') {
     response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }).end('ok');
@@ -121,7 +122,7 @@ sockets.on('connection', (socket, request) => {
   };
   Object.assign(player,rules.savedPosition(profile)||{});
   players.set(socket, { player, lastStateAt: 0,send:message=>send(socket,message) });
-  send(socket, { type: 'joined', version:SYNC_VERSION,protocol:SYNC_PROTOCOL, gunShots:rules.guns.shots, chat:rules.chat.page(), projectiles:rules.projectiles.map(({previous,match,...projectile})=>projectile), houses:rules.houses.snapshots(), kitchens:rules.cooking.snapshots(), characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
+  send(socket, { type: 'joined', version:SYNC_VERSION,protocol:SYNC_PROTOCOL, gunShots:rules.guns.shots, chat:rules.chat.page(), projectiles:rules.projectiles.map(({previous,match,...projectile})=>projectile), ...rules.joinedContent(), characters:rules.characters.snapshots(), self: player, players: [...players.values()].map(entry => entry.player).filter(other => other.id !== player.id) });
   broadcast({ type: 'player-joined', player }, socket);
   send(socket,rules.snapshot());
 
@@ -134,8 +135,9 @@ sockets.on('connection', (socket, request) => {
     if(message.type!=='state'){rules.receive(entry,message);return;}
     if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;
     const requestedSkin = Number(message.state?.skin);
-    const state = cleanState(message.state, requestedSkin, rules.houses.realms);
+    const state = cleanState(message.state, requestedSkin, (rules.settings.combatOnly?undefined:rules.houses.realms));
     if (!state) return;
+    if(rules.settings.combatOnly){state.flight=false;state.seated=false;state.sleeping=false;}
     if(state.skin!==entry.player.skin&&!rules.selectCharacter(entry,state.skin))state.skin=entry.player.skin;
     playerPhysics.receive(entry,state,message.motion);
     applyPlayerState(entry.player,state);

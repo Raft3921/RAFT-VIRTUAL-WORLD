@@ -1,12 +1,13 @@
+import {combatSpawn,combatArea,COMBAT_MENU} from './world-mode.js?v=20261016-combatonly105';
 import {PlazaPlayStore} from './plaza-play-store.js?v=20261015-tactics99';
 import {LivingStore} from './living-store.js?v=20261013-life89b';
-import {CookingStore} from './cooking-store.js?v=20261013-life89b';
+import {CookingStore} from './cooking-store.js?v=20261016-combatonly105';
 import {cleanKitchenState,dishRating} from './cooking-state.js?v=20261013-life89b';
 import {cleanMeal,describeDish} from './cooking-data.js?v=20261013-life89b';
 import {recognizeKitchens} from './kitchen-layout.js?v=20261013-life89b';
 import {buildDistrict} from './district.js?v=20261013-life89b';
 import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261015-tactics99';
-import {GunRules} from './gun-rules.js?v=20261015-spectacle104';
+import {GunRules} from './gun-rules.js?v=20261016-combatonly105';
 import {weaponById} from './gun-layout.js?v=20261015-tactics99';
 import {WorldChatStore} from './world-chat-store.js?v=20261013-life89b';
 import { ARENA,insideArena } from './world-layout.js?v=20261013-life89b';
@@ -20,9 +21,9 @@ import {HOUSES,houseDescriptor,mirrorRealm,ROOM,furniturePose,FURNITURE_BY_ID} f
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261013-life89b';
 import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js?v=20261013-life89b';
 import {furnitureAction} from './furniture-actions.js?v=20261013-life89b';
-const menuBoards=[{x:6,z:11},{x:ARENA.x+3,z:ARENA.z+20},GUN_ENTRY,...GUN_EXIT_BOARDS,...HOUSES.slice(0,8).map(h=>({x:h.x-6,z:h.z+h.front*9}))];
-buildDistrict({box:()=>{},sign:()=>{},board:(x,y,z)=>menuBoards.push({x,y,z}),seats:[],clockHands:[]});
-import {SYNC_VERSION,SYNC_PROTOCOL,compatibleSync} from './sync-protocol.js?v=20261015-spectacle104';
+const combatBoards=[COMBAT_MENU,GUN_ENTRY,...GUN_EXIT_BOARDS];
+let menuBoards=null;function worldMenuBoards(){if(!menuBoards){menuBoards=[{x:6,z:11},{x:ARENA.x+3,z:ARENA.z+20},...combatBoards,...HOUSES.slice(0,8).map(h=>({x:h.x-6,z:h.z+h.front*9}))];buildDistrict({box:()=>{},sign:()=>{},board:(x,y,z)=>menuBoards.push({x,y,z}),seats:[],clockHands:[]});}return menuBoards;}
+import {SYNC_VERSION,SYNC_PROTOCOL,compatibleSync} from './sync-protocol.js?v=20261016-combatonly105';
 export {SYNC_VERSION,SYNC_PROTOCOL,compatibleSync};
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -64,14 +65,15 @@ export class GameRules{
   constructor(players,broadcast,scores={},save=()=>{},settings={},saveSettings=()=>{},characters={},saveCharacters=()=>{},houses={},saveHouses=()=>{},onAsyncWork=()=>{},chat=[],saveChat=()=>{},kitchens={},saveKitchens=()=>{},livingRecords={},saveLiving=async()=>{}){
     this.players=players;this.broadcast=broadcast;this.scores=scores;this.save=save;this.ready=new Map();this.duel=null;this.cooldowns=new Map();this.backdrop='GB';
     settings=settings&&typeof settings==='object'?settings:{};
-    const goal=Number(settings.goalDamage);this.settings={...settings,goalDamage:Number.isInteger(goal)&&goal>=1&&goal<=100?goal:11};this.saveSettings=saveSettings;this.settingsQueue=Promise.resolve();
+    const goal=Number(settings.goalDamage);this.settings={...settings,goalDamage:Number.isInteger(goal)&&goal>=1&&goal<=100?goal:11};this.settings.combatOnly=settings.combatOnly===true;this.saveSettings=saveSettings;this.settingsQueue=Promise.resolve();
     this.characters=new CharacterStore(characters,scores,saveCharacters,(skin,record)=>this.broadcastCharacter(skin,record),()=>this.broadcast({type:'character-save-error',message:'キャラクターの状態をサーバーに保存できませんでした。'}));
-    this.houses=new HousingStore(houses,saveHouses,broadcast);this.plazaPlay=new PlazaPlayStore(this);this.chat=new WorldChatStore(chat,saveChat);
-    this.projectiles=[];this.projectileTimer=null;this.projectileSequence=0;this.onAsyncWork=onAsyncWork;this.projectileFlight=null;this.finishFlight=null;this.cooking=new CookingStore(this,kitchens,saveKitchens);
-    this.settings.cycle=cleanCycle(settings.cycle);this.pianoSteps=new Map();this.records=new Map();this.furnitureStates=new Map();this.furnitureSequence=0;this.guns=new GunRules(this);this.living=new LivingStore(this,livingRecords,saveLiving);for(const record of Object.values(livingRecords))if(record.furnitureEvent)this.furnitureStates.set(record.index+':'+record.itemId,record.furnitureEvent);
+    this.optionalSystems={};const lazy=(name,create)=>Object.defineProperty(this,name,{get:()=>this.optionalSystems[name]??=(create())});
+    lazy('houses',()=>new HousingStore(houses,saveHouses,broadcast));lazy('plazaPlay',()=>new PlazaPlayStore(this));this.chat=new WorldChatStore(chat,saveChat);
+    this.projectiles=[];this.projectileTimer=null;this.projectileSequence=0;this.onAsyncWork=onAsyncWork;this.projectileFlight=null;this.finishFlight=null;lazy('cooking',()=>new CookingStore(this,kitchens,saveKitchens));
+    this.settings.cycle=cleanCycle(settings.cycle);this.pianoSteps=new Map();this.records=new Map();this.furnitureStates=new Map();this.furnitureSequence=0;this.guns=new GunRules(this);lazy('living',()=>new LivingStore(this,livingRecords,saveLiving));for(const record of Object.values(livingRecords))if(record.furnitureEvent)this.furnitureStates.set(record.index+':'+record.itemId,record.furnitureEvent);
   }
-  savedPosition(profile){let p=this.settings.positions?.[profile];if(p?.mirrorRealm&&p.mirrorRealm!=='m|0|shared')p={...p,mirrorRealm:'m|0|shared',x:2000-39,y:.265,z:2000-45-8,yaw:Math.PI};return p&&[p.x,p.y,p.z,p.yaw].every(Number.isFinite)?{...p}:null;}
-  savePosition(p,force=false){if(!p.profile||p.ragdoll)return;const now=Date.now();this.positionTimes??=new Map();if(!force&&now-(this.positionTimes.get(p.profile)||0)<5000)return;this.positionTimes.set(p.profile,now);const position={x:p.x,y:p.y,z:p.z,yaw:p.yaw,mirrorRealm:p.mirrorRealm||null};this.settingsQueue=this.settingsQueue.then(async()=>{const settings={...this.settings,positions:{...this.settings.positions,[p.profile]:position}};try{await this.saveSettings(settings);this.settings=settings;}catch{}});this.onAsyncWork(this.settingsQueue);}
+  savedPosition(profile){if(this.settings.combatOnly)return combatSpawn(this.players.size);let p=this.settings.positions?.[profile];if(p?.mirrorRealm&&p.mirrorRealm!=='m|0|shared')p={...p,mirrorRealm:'m|0|shared',x:2000-39,y:.265,z:2000-45-8,yaw:Math.PI};return p&&[p.x,p.y,p.z,p.yaw].every(Number.isFinite)?{...p}:null;}
+  savePosition(p,force=false){if(this.settings.combatOnly||!p.profile||p.ragdoll)return;const now=Date.now();this.positionTimes??=new Map();if(!force&&now-(this.positionTimes.get(p.profile)||0)<5000)return;this.positionTimes.set(p.profile,now);const position={x:p.x,y:p.y,z:p.z,yaw:p.yaw,mirrorRealm:p.mirrorRealm||null};this.settingsQueue=this.settingsQueue.then(async()=>{const settings={...this.settings,positions:{...this.settings.positions,[p.profile]:position}};try{await this.saveSettings(settings);this.settings=settings;}catch{}});this.onAsyncWork(this.settingsQueue);}
   entries(){return [...this.players.values()];}
   character(skin,profile,enabled=false){const {cookingDishes,kitchenStates,...record}=this.characters.get(skin,profile,enabled);return record;}
   broadcastCharacter(skin,record=this.characters.get(skin)){
@@ -86,7 +88,21 @@ export class GameRules{
     p.skin=skin;p.guest=skin===GUEST_SKIN;Object.assign(p,this.character(skin,p.profile));this.broadcastCharacter(skin);this.broadcast({type:'state',player:p});return true;
   }
   inside(p){return insideArena(p);}
-  snapshot(){this.pruneRecords();return {type:'world',version:SYNC_VERSION,protocol:SYNC_PROTOCOL,gunBattle:this.guns.snapshot(),gunMarks:this.guns.marks.filter(m=>Date.now()-m.at<20000),backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel,cycle:this.settings.cycle,serverNow:Date.now(),records:[...this.records.values()],living:this.living.snapshot(),plazaPlay:this.plazaPlay.snapshot(),furnitureStates:[...this.furnitureStates.values()]};}
+  snapshot(){const combatOnly=this.settings.combatOnly;if(!combatOnly)this.pruneRecords();return {combatOnly,type:'world',version:SYNC_VERSION,protocol:SYNC_PROTOCOL,gunBattle:this.guns.snapshot(),gunMarks:this.guns.marks.filter(m=>Date.now()-m.at<20000),backdrop:this.backdrop,goalDamage:this.settings.goalDamage,duel:this.duel,cycle:this.settings.cycle,serverNow:Date.now(),records:combatOnly?[]:[...this.records.values()],living:combatOnly?[]:this.living.snapshot(),plazaPlay:combatOnly?[]:this.plazaPlay.snapshot(),furnitureStates:combatOnly?[]:[...this.furnitureStates.values()]};}
+  setCombatOnly(p,value){
+    if(typeof value!=='boolean'||p.guest){this.broadcast({type:'world-mode-error',playerId:p.id,message:'メンバーで接続して設定してください'});return;}
+    this.settingsQueue=this.settingsQueue.then(async()=>{
+      if(value===this.settings.combatOnly)return;
+      if(this.guns.members.size||this.duel){this.broadcast({type:'world-mode-error',playerId:p.id,message:'対戦参加者が退出してから切り替えてください'});return;}
+      try{const settings={...this.settings,combatOnly:value};await this.saveSettings(settings);this.settings=settings;
+        if(value){const cooking=this.optionalSystems.cooking;if(cooking?.timer){clearInterval(cooking.timer);cooking.timer=null;}this.optionalSystems.plazaPlay?.sessions.clear();this.optionalSystems.plazaPlay?.motions.clear();this.optionalSystems.living?.runs.clear();this.records.clear();this.ready.clear();for(const shot of this.projectiles)this.endProjectile(shot,'mode',shot.previous);this.projectiles=[];this.stopProjectileTimer();}
+        else this.optionalSystems.cooking?.ensureTimer();
+        this.guns.configureSolids();let slot=0;for(const entry of this.entries()){entry.motion=null;entry.cooking=null;this.guns.move(entry.player,value?combatSpawn(slot++):{x:0,y:.16,z:3,yaw:0,mirrorRealm:null});}
+        this.onWorldModeChange?.();this.broadcast(this.snapshot());
+      }catch{this.broadcast({type:'world-mode-error',playerId:p.id,message:'ワールド設定を保存できませんでした'});}
+    });this.onAsyncWork(this.settingsQueue);return this.settingsQueue;
+  }
+  joinedContent(){const compact=this.settings.combatOnly;return {combatOnly:compact,houses:compact?{}:this.houses.snapshots(),kitchens:compact?[]:this.cooking.snapshots()};}
   flashlightPreference(profile){return this.settings.flashlights?.[profile]!==false;}
   setFlashlight(p,enabled){
     this.settingsQueue=this.settingsQueue.then(async()=>{try{const settings={...this.settings,flashlights:{...this.settings.flashlights,[p.profile]:enabled}};await this.saveSettings(settings);this.settings=settings;for(const entry of this.entries())if(entry.player.profile===p.profile){entry.player.flashlightEnabled=enabled;this.broadcast({type:'flashlight-state',id:entry.player.id,enabled});}}catch{this.broadcast({type:'flashlight-error',id:p.id,message:'懐中電灯の設定を保存できませんでした'});}});return this.settingsQueue;
@@ -105,9 +121,9 @@ export class GameRules{
     return this.settingsQueue;
   }
   cancel(){if(this.duel){this.duel=null;this.ready.clear();this.broadcast({type:'duel-cancel',reason:'プレイヤーが闘技場から離れたため終了しました'});}}
-  removed(id){this.plazaPlay.stop(id);this.onAsyncWork(this.living.remove(id));this.cooking.remove(id);this.guns.remove(id);this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
+  removed(id){if(!this.settings.combatOnly){this.plazaPlay.stop(id);this.onAsyncWork(this.living.remove(id));this.cooking.remove(id);}this.guns.remove(id);this.ready.delete(id);this.cooldowns.delete(id);if(this.duel?.ids.includes(id))this.cancel();for(const p of this.projectiles.filter(p=>p.owner===id))this.endProjectile(p,'left',p.previous);this.projectiles=this.projectiles.filter(p=>p.owner!==id);this.stopProjectileTimer();}
   state(entry){
-    const p=entry.player;this.guns.state(p);this.savePosition(p);
+    const p=entry.player;if(this.settings.combatOnly&&!combatArea(p)){this.guns.move(p,combatSpawn());entry.motion=null;}if(this.settings.combatOnly){p.flight=false;p.seated=false;p.sleeping=false;}this.guns.state(p);this.savePosition(p);
     // One server-owned window per knockdown, never reset by repeat packets.
     // The full flight is also protected so attacks cannot restart a juggle.
     if(p.awaitingDown&&p.ragdoll&&['down','recover'].includes(p.hitPhase)){p.awaitingDown=false;p.protectedUntil=Date.now()+DOWN_PROTECTION_SECONDS*1000;}
@@ -175,6 +191,9 @@ export class GameRules{
   }
   receive(entry,m,now=Date.now()){
     const p=entry.player;
+    if(typeof m.type!=='string')return;
+    if(m.type==='world-mode-settings')return this.setCombatOnly(p,m.combatOnly);
+    if(this.settings.combatOnly&&!m.type?.startsWith('gun-')&&!['chat-open','chat-post','chat-history','position-save','room-kick','flashlight-toggle','character-select','crown-toggle','character-camera','character-fisheye','character-depth-of-field','character-lightness','cycle-settings'].includes(m.type))return;
     if(m.type==='gun-preview-skip')return this.guns.receive(entry,m,now);
     if(this.guns.preview&&this.guns.members.has(p.id))return;
     if(m.type==='plaza-bounce')return this.plazaPlay.receiveBounce(entry,m,now);
@@ -207,7 +226,7 @@ export class GameRules{
     if(m.type==='character-fisheye'){if(m.skin===p.skin&&Number.isFinite(m.value)&&m.value>=0&&m.value<=2)return this.characters.change(p.skin,{fisheye:m.value});return;}
     if(m.type==='character-depth-of-field'){if(m.skin===p.skin&&typeof m.enabled==='boolean')return this.characters.change(p.skin,{depthOfField:m.enabled});return;}
     if(m.type==='character-lightness'){if(m.skin===p.skin&&Number.isFinite(m.value)&&m.value>=10&&m.value<=100)return this.characters.change(p.skin,{lightness:m.value});return;}
-    if(m.type==='room-kick'){if(!menuBoards.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<7&&Math.abs(p.y-(b.y||0))<5)||now-(p.lastKickAt||0)<1000)return;p.lastKickAt=now;if(typeof m.playerId==='string'&&this.entries().some(e=>e.player.id===m.playerId))this.disconnectPlayer?.(m.playerId);return;}
+    if(m.type==='room-kick'){if(!(this.settings.combatOnly?combatBoards:worldMenuBoards()).some(b=>Math.hypot(p.x-b.x,p.z-b.z)<7&&Math.abs(p.y-(b.y||0))<5)||now-(p.lastKickAt||0)<1000)return;p.lastKickAt=now;if(typeof m.playerId==='string'&&this.entries().some(e=>e.player.id===m.playerId))this.disconnectPlayer?.(m.playerId);return;}
     if(m.type==='chat-history'){this.broadcast({type:'chat-history',playerId:p.id,...this.chat.page(m.before)});return;}
     if(m.type==='position-save'){this.savePosition(p,true);return this.settingsQueue;}
     if(this.guns.receive(entry,m,now))return;

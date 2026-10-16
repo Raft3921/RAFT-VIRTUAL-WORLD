@@ -1,8 +1,9 @@
+import {combatArea} from './world-mode.js?v=20261016-combatonly105';
 import * as THREE from './vendor/three.module.js';
 import {ARENA,COURSE} from './world-layout.js';
 import {rampHeight} from './plaza-surfaces.js';
 
-export function createCollisionWorld(bodies,{moving=[],falling=[],pulsing=[]}={}){
+export function createCollisionWorld(bodies,{moving=[],falling=[],pulsing=[],combatOnly=false}={}){
  let worldTime=0; const previous=new THREE.Vector3(),movementBounds=new Map();
  let api;
   // Broad-phase buckets avoid scanning the 600 platforms during every physics substep.
@@ -15,7 +16,7 @@ export function createCollisionWorld(bodies,{moving=[],falling=[],pulsing=[]}={}
   }
   function nearby(p){const key=Math.floor(p.x/12)+','+Math.floor(p.z/12);if(!nearbyCache.has(key))nearbyCache.set(key,(buckets.get(key)||[]).concat(housingBuckets.get(key)||[]));return nearbyCache.get(key);}
   function localPoint(p,b){const c=Math.cos(b.rotation||0),s=Math.sin(b.rotation||0),x=p.x-b.x,z=p.z-b.z;return {x:c*x-s*z,z:s*x+c*z,c,s};}
-  function terrainHeight(p){const distance=Math.hypot(p.x-ARENA.x,p.z-ARENA.z);return distance<ARENA.radius?.24:distance<33.1?.12:0;}
+  function terrainHeight(p){if(combatOnly)return 0;const distance=Math.hypot(p.x-ARENA.x,p.z-ARENA.z);return distance<ARENA.radius?.24:distance<33.1?.12:0;}
   function floorAt(p,limit=p.y+.48){
     let floor=terrainHeight(p),body=null;
     for(const b of nearby(p)){const q=localPoint(p,b),top=b.ramp?rampHeight(b,q.z):b.y+b.h/2;if(!b.disabled&&Math.abs(q.x)<b.w/2+.12&&Math.abs(q.z)<b.d/2+.12&&top<=limit&&top>=floor){floor=top;body=b;}}
@@ -23,6 +24,7 @@ export function createCollisionWorld(bodies,{moving=[],falling=[],pulsing=[]}={}
   }
   // Read-only occupancy query for entering activities at an unobstructed spot.
   function canStand(p,shape=null,margin=.04){
+    if(combatOnly&&!combatArea(p))return false;
     for(const bound of movementBounds.values())if(Math.abs(p.x-bound.x)<70&&Math.abs(p.z-(bound.z-62.5))<55&&!bound.allowed(p.x,p.z))return false;
     const height=shape?.height||1.9,width=shape?.width||.32,depth=shape?.depth||.32,angle=shape?.yaw||0;
     for(const b of nearby(p)){
@@ -69,6 +71,7 @@ export function createCollisionWorld(bodies,{moving=[],falling=[],pulsing=[]}={}
         if(len>r){const nx=dx/len,ny=dy/len,nz=dz/len;p.set(ARENA.x+nx*r-offsetX,Math.max(.24,.24+ny*r-height/2),ARENA.z+nz*r-offsetZ);const dot=vel.x*nx+vel.y*ny+vel.z*nz;if(dot>0){const restitution=ragdoll?1.10:1,damping=ragdoll?.68:1;vel.x=(vel.x-dot*nx*restitution)*damping;vel.y=(vel.y-dot*ny*restitution)*damping;vel.z=(vel.z-dot*nz*restitution)*damping;}}
       }
       for(const bound of movementBounds.values())if(Math.abs(previous.x-bound.x)<70&&Math.abs(previous.z-(bound.z-62.5))<55&&!bound.allowed(p.x,p.z)){p.x=previous.x;p.z=previous.z;vel.x=0;vel.z=0;break;}
+      if(combatOnly&&!combatArea(p)){p.x=previous.x;p.z=previous.z;vel.x=vel.z=0;}
       const ground=terrainHeight(p);
       if(p.y<=ground){p.y=ground;vel.y=0;grounded=true;}
     }
@@ -80,5 +83,5 @@ export function createCollisionWorld(bodies,{moving=[],falling=[],pulsing=[]}={}
   for(const b of falling){const age=b.activatedAt===null?0:t-b.activatedAt;b.disabled=age>=.65;if(age>4){b.activatedAt=null;b.disabled=false;b.y=b.originY;}else if(b.disabled)b.y=b.originY-Math.min(8,(age-.65)**2*6);}
   for(const b of pulsing)b.disabled=(t+b.phase)%5>4;
  }
- api={get housingSeats(){return housingSeats;},get housingBeds(){return housingBeds;},setTime:t=>{worldTime=t;},move,floorAt,canStand,nearby,setHouseBodies,update,bodies,moving,falling,pulsing,setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);}};return api;
+ api={combatOnly,get housingSeats(){return housingSeats;},get housingBeds(){return housingBeds;},setTime:t=>{worldTime=t;},move,floorAt,canStand,nearby,setHouseBodies,update,bodies,moving,falling,pulsing,setMovementBounds:(key,bound)=>{if(bound)movementBounds.set(key,bound);else movementBounds.delete(key);}};return api;
 }

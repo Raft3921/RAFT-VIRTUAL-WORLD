@@ -94,12 +94,13 @@ export class GameRules{
     this.settingsQueue=this.settingsQueue.then(async()=>{
       if(value===this.settings.combatOnly)return;
       if(this.guns.members.size||this.duel){this.broadcast({type:'world-mode-error',playerId:p.id,message:'対戦参加者が退出してから切り替えてください'});return;}
+      this.worldModeChanging=true;
       try{const settings={...this.settings,combatOnly:value};await this.saveSettings(settings);this.settings=settings;
-        if(value){const cooking=this.optionalSystems.cooking;if(cooking?.timer){clearInterval(cooking.timer);cooking.timer=null;}this.optionalSystems.plazaPlay?.sessions.clear();this.optionalSystems.plazaPlay?.motions.clear();this.optionalSystems.living?.runs.clear();this.records.clear();this.ready.clear();for(const shot of this.projectiles)this.endProjectile(shot,'mode',shot.previous);this.projectiles=[];this.stopProjectileTimer();}
+        if(value){const cooking=this.optionalSystems.cooking,living=this.optionalSystems.living;for(const entry of this.entries())await Promise.allSettled([cooking?.remove(entry.player.id),living?.remove(entry.player.id)]);cooking?.eaters?.clear();if(cooking?.timer){clearInterval(cooking.timer);cooking.timer=null;}this.optionalSystems.plazaPlay?.sessions.clear();this.optionalSystems.plazaPlay?.motions.clear();this.optionalSystems.living?.runs.clear();this.records.clear();this.ready.clear();for(const shot of this.projectiles)this.endProjectile(shot,'mode',shot.previous);this.projectiles=[];this.stopProjectileTimer();}
         else this.optionalSystems.cooking?.ensureTimer();
         this.guns.configureSolids();let slot=0;for(const entry of this.entries()){entry.motion=null;entry.cooking=null;this.guns.move(entry.player,value?combatSpawn(slot++):{x:0,y:.16,z:3,yaw:0,mirrorRealm:null});}
         this.onWorldModeChange?.();this.broadcast(this.snapshot());
-      }catch{this.broadcast({type:'world-mode-error',playerId:p.id,message:'ワールド設定を保存できませんでした'});}
+      }catch{this.broadcast({type:'world-mode-error',playerId:p.id,message:'ワールド設定を保存できませんでした'});}finally{this.worldModeChanging=false;}
     });this.onAsyncWork(this.settingsQueue);return this.settingsQueue;
   }
   joinedContent(){const compact=this.settings.combatOnly;return {combatOnly:compact,houses:compact?{}:this.houses.snapshots(),kitchens:compact?[]:this.cooking.snapshots()};}
@@ -193,6 +194,7 @@ export class GameRules{
     const p=entry.player;
     if(typeof m.type!=='string')return;
     if(m.type==='world-mode-settings')return this.setCombatOnly(p,m.combatOnly);
+    if(this.worldModeChanging)return;
     if(this.settings.combatOnly&&!m.type?.startsWith('gun-')&&!['chat-open','chat-post','chat-history','position-save','room-kick','flashlight-toggle','character-select','crown-toggle','character-camera','character-fisheye','character-depth-of-field','character-lightness','cycle-settings'].includes(m.type))return;
     if(m.type==='gun-preview-skip')return this.guns.receive(entry,m,now);
     if(this.guns.preview&&this.guns.members.has(p.id))return;

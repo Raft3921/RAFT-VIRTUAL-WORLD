@@ -40,3 +40,10 @@ test('guests, active participants and failed storage cannot change world mode',a
  a.rules.guns.members.set(a.player.id,{id:a.player.id});await a.rules.setCombatOnly(a.player,false);assert(a.rules.settings.combatOnly);
  const b=fixture({combatOnly:false},()=>{throw Error('storage offline');});await b.rules.setCombatOnly(b.player,true);assert.equal(b.rules.settings.combatOnly,false);assert(b.events.some(m=>m.type==='world-mode-error'));assert(!b.events.some(m=>m.type==='world'&&m.combatOnly));
 });
+
+test('switching drains cooking hands and exercise sessions before suspending optional systems',async()=>{
+ const {rules,player}=fixture({combatOnly:false}),stopped=[];
+ rules.optionalSystems.cooking={timer:null,eaters:new Map([['dish',{}]]),async remove(id){stopped.push('cooking:'+id);}};
+ rules.optionalSystems.living={runs:new Map([['member',{}]]),async remove(id){stopped.push('living:'+id);}};
+ await rules.setCombatOnly(player,true);assert.deepEqual(stopped,['cooking:member','living:member']);assert.equal(rules.optionalSystems.cooking.eaters.size,0);assert.equal(rules.optionalSystems.living.runs.size,0);assert.equal(rules.worldModeChanging,false);
+});

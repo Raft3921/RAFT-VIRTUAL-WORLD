@@ -1,8 +1,8 @@
-import {parkourHandsBusy} from './player-parkour.js?v=20261017-turn130';
-import {GunHitTimeline,movingGunHit} from './gun-hit-timeline.js?v=20261017-bodyhit131';
+import {parkourHandsBusy} from './player-parkour.js?v=20261017-wallspin133';
+import {GunHitTimeline,movingGunHit} from './gun-hit-timeline.js?v=20261017-wallspin133';
 import {REPLAY_FINAL_AT,REPLAY_DURATION} from './replay-timing.js?v=20261016-cinema106';
 import {solidExtents,segmentGunSolid} from './gun-solid.js?v=20261015-tactics99';
-import {gunDamage,gunBulletBoxes,gunProjectileRadius} from './gun-posture.js?v=20261017-bodyhit131';
+import {gunDamage,gunBulletBoxes,gunProjectileRadius} from './gun-posture.js?v=20261017-wallspin133';
 import {gunCollision} from './gun-collision.js?v=20261017-settlement125';
 import {gunEliminationState} from './hit-reaction.js?v=20261016-cinema106';
 import {fallbackMuzzle} from './weapon-dimensions.js?v=20261015-tactics99';
@@ -24,7 +24,7 @@ export class GunRules{
  publish(){this.send({type:'gun-battle',battle:this.snapshot()});}
  assign(){if(this.phase==='active'||this.phase==='preview')return;const members=[...this.members.values()],pairs=this.mode==='teams'||this.mode==='auto'&&members.length===4;members.forEach((m,i)=>{if(!m.manual)m.team=pairs?Math.floor(i/Math.ceil(members.length/2)):i;});}
  teleport(p,team){const occupied=this.players().filter(q=>q.id!==p.id&&this.members.has(q.id));let points=this.spawns.filter(s=>occupied.every(q=>Math.hypot(q.x-s.x,q.z-s.z)>8));if(!points.length)points=this.spawns;const spawn={...points[Math.floor(Math.random()*points.length)],yaw:Math.random()*Math.PI*2};this.move(p,spawn);}
- move(p,position){p.gunTeleportSerial=(p.gunTeleportSerial||0)+1;const entry=this.rules.entries().find(e=>e.player===p);if(entry)entry.motion=null;Object.assign(p,position,{parkourKind:'',parkourAge:0,parkourDuration:0,parkourSerial:0,wallSide:0,wallNX:0,wallNZ:0,mantleProgress:0,hitSlideBlend:0,sliding:false,slideAir:false,sprintCharge:0,hitProneBlend:0,hitCrouchBlend:0,flight:false,prone:false,crouched:false,seated:false,sleeping:false,ragdoll:false,gunEliminated:false,grounded:true,mantling:false,speed:0,verticalSpeed:0,vx:0,vy:0,vz:0});this.hitTimeline.observe(p,Date.now());this.send({type:'gun-teleport',playerId:p.id,position,serial:p.gunTeleportSerial});}
+ move(p,position){p.gunTeleportSerial=(p.gunTeleportSerial||0)+1;const entry=this.rules.entries().find(e=>e.player===p);if(entry)entry.motion=null;Object.assign(p,position,{parkourKind:'',parkourAge:0,parkourDuration:0,parkourSerial:0,wallSide:0,wallNX:0,wallNZ:0,wallSpinYaw:0,wallSpinRise:0,wallSpinTilt:1,wallSpinFinish:-1,wallSpinFinishDuration:0,mantleProgress:0,hitSlideBlend:0,sliding:false,slideAir:false,sprintCharge:0,hitProneBlend:0,hitCrouchBlend:0,flight:false,prone:false,crouched:false,seated:false,sleeping:false,ragdoll:false,gunEliminated:false,grounded:true,mantling:false,speed:0,verticalSpeed:0,vx:0,vy:0,vz:0});this.hitTimeline.observe(p,Date.now());this.send({type:'gun-teleport',playerId:p.id,position,serial:p.gunTeleportSerial});}
  atBoard(p){return this.exitBoards.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<5&&p.y<4);}
  enter(p){if(this.members.has(p.id))return;if(this.phase==='active'||this.phase==='preview'||Math.hypot(p.x-GUN_ENTRY.x,p.z-GUN_ENTRY.z)>6||p.y>4)return;const c=this.record(p),weapon=c.ownedWeapons.includes(p.equippedWeapon)?p.equippedWeapon:c.ownedWeapons.at(-1);if(!weapon){this.send({type:'gun-error',playerId:p.id,message:'武器を持っていないため入場できません。PCのストアで購入してください'});return;}
   if(!this.members.size)this.resetMap();

@@ -1,5 +1,5 @@
 import {segmentBox} from './projectile-motion.js?v=20261017-bodyhit131';
-import {gunBulletBoxes} from './gun-posture.js?v=20261017-bodyhit131';
+import {gunBulletBoxes} from './gun-posture.js?v=20261017-wallspin133';
 export const MAX_GUN_REWIND=240;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const lerp=(a,b,t)=>a+(b-a)*t;
@@ -15,7 +15,7 @@ export class GunHitTimeline{
   if(previous&&at<previous.at)return;
   const seconds=previous?Math.max(0,at-previous.at)/1000:0,target=p.prone?1:0;
   const crouchTarget=p.crouched?1:0;
-  const frame={ragdoll:!!p.ragdoll,seated:!!p.seated,sleeping:!!p.sleeping,mantling:!!p.mantling,parkourKind:p.parkourKind||'',parkourAge:p.parkourAge||0,parkourDuration:p.parkourDuration||0,parkourSerial:p.parkourSerial||0,wallSide:p.wallSide||0,wallNX:p.wallNX||0,wallNZ:p.wallNZ||0,hitSlideBlend:p.hitSlideBlend||0,sliding:!!p.sliding,hitCrouchBlend:previous?lerp(previous.hitCrouchBlend,crouchTarget,1-Math.exp(-seconds*12)):crouchTarget,id:p.id,at,x:p.x,y:p.y,z:p.z,yaw:p.yaw||0,headYaw:p.headYaw||0,headPitch:p.headPitch||0,skin:p.skin,prone:!!p.prone,crouched:!!p.crouched,gunTeleportSerial:p.gunTeleportSerial||0,mirrorRealm:p.mirrorRealm,hitProneBlend:previous?lerp(previous.hitProneBlend,target,1-Math.exp(-seconds*(target?7:5))):target};
+  const frame={ragdoll:!!p.ragdoll,seated:!!p.seated,sleeping:!!p.sleeping,mantling:!!p.mantling,parkourKind:p.parkourKind||'',parkourAge:p.parkourAge||0,parkourDuration:p.parkourDuration||0,parkourSerial:p.parkourSerial||0,wallSide:p.wallSide||0,wallNX:p.wallNX||0,wallNZ:p.wallNZ||0,wallSpinYaw:p.wallSpinYaw??0,wallSpinRise:p.wallSpinRise??0,wallSpinTilt:p.wallSpinTilt??1,wallSpinFinish:p.wallSpinFinish??-1,wallSpinFinishDuration:p.wallSpinFinishDuration??0,hitSlideBlend:p.hitSlideBlend||0,sliding:!!p.sliding,hitCrouchBlend:previous?lerp(previous.hitCrouchBlend,crouchTarget,1-Math.exp(-seconds*12)):crouchTarget,id:p.id,at,x:p.x,y:p.y,z:p.z,yaw:p.yaw||0,headYaw:p.headYaw||0,headPitch:p.headPitch||0,skin:p.skin,prone:!!p.prone,crouched:!!p.crouched,gunTeleportSerial:p.gunTeleportSerial||0,mirrorRealm:p.mirrorRealm,hitProneBlend:previous?lerp(previous.hitProneBlend,target,1-Math.exp(-seconds*(target?7:5))):target};
   if(previous&&at===previous.at)frames[frames.length-1]=frame;else frames.push(frame);
   while(frames.length>32||frames.length>2&&frames[1].at<at-800)frames.shift();this.players.set(p.id,frames);p.hitProneBlend=frame.hitProneBlend;p.hitCrouchBlend=frame.hitCrouchBlend;
  }

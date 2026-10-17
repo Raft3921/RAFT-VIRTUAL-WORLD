@@ -1,4 +1,4 @@
-import {parkourPose} from './parkour-pose.js?v=20261017-turn130';
+import {parkourPose} from './parkour-pose.js?v=20261017-wallspin133';
 import {createCinematicProjectile} from './cinematic-projectile.js?v=20261016-trails110';
 import {GUN_ZONE} from './gun-layout.js';
 import * as THREE from 'three';

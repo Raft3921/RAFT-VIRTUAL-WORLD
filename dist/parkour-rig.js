@@ -1,4 +1,4 @@
-import {parkourPose} from './parkour-pose.js?v=20261017-bodyhit131';
+import {parkourPose} from './parkour-pose.js?v=20261017-wallspin133';
 const RIGS=[{"torso":{"size":[8,12,4],"pad":0.25},"head":{"size":[8,8,8],"pad":0.5},"rightArm":{"size":[3,12,4],"pad":0.25},"leftArm":{"size":[3,12,4],"pad":0.25},"rightLeg":{"size":[4,12,4],"pad":0.25},"leftLeg":{"size":[4,12,4],"pad":0.25}},{"torso":{"size":[8,8,4],"pad":0.25,"center":[-0.0,9.0],"pivot":[0,13],"bottom":5,"top":13},"head":{"size":[18,9,8],"pad":0.5,"center":[-0.0,17.5],"pivot":[0,13],"bottom":13,"top":22},"rightArm":{"size":[3,7,4],"pad":0.25,"center":[-5.5,9.5],"pivot":[-5,13],"bottom":6,"top":13},"leftArm":{"size":[3,7,4],"pad":0.25,"center":[5.5,9.5],"pivot":[5,13],"bottom":6,"top":13},"rightLeg":{"size":[4,5,4],"pad":0.25,"center":[-2.0,2.5],"pivot":[-2,5],"bottom":0,"top":5},"leftLeg":{"size":[4,5,4],"pad":0.25,"center":[2.0,2.5],"pivot":[2,5],"bottom":0,"top":5}}];
 const I=[1,0,0,0,1,0,0,0,1],PX=1/16;
 const mul=(a,b)=>Array.from({length:9},(_,i)=>{const r=Math.floor(i/3)*3,c=i%3;return a[r]*b[c]+a[r+1]*b[c+3]+a[r+2]*b[c+6];});

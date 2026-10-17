@@ -1,5 +1,5 @@
-import {parkourJoints} from './parkour-rig.js?v=20261017-bodyhit131';
-import {parkourPose} from './parkour-pose.js?v=20261017-turn130';
+import {parkourJoints} from './parkour-rig.js?v=20261017-wallspin133';
+import {parkourPose} from './parkour-pose.js?v=20261017-wallspin133';
 import {createWeaponClearance} from './weapon-clearance.js?v=20261016-effects108';
 import {createGunActionMotion,stepGunActionMotion} from './gun-action-motion.js?v=20261017-settlement125';
 import {sampleKatanaPose} from './katana-motion.js?v=20261016-cinema106';
@@ -521,7 +521,7 @@ export async function createAvatar(url,{model=null}={}) {
       const limbs=parkourJoints({...state,yaw:root.rotation.y,skin:custom?7:0});
       pelvis.position.set(park.shiftX,park.shiftY,park.shiftZ);pelvis.quaternion.fromArray(park.quaternion);torso.rotation.set(0,0,0);
       for(const side of ['right','left']){hips[side].rotation.set(...limbs[side].hip);knees[side].rotation.set(...limbs[side].knee);shoulders[side].rotation.set(...limbs[side].shoulder);elbows[side].rotation.set(...limbs[side].elbow);}
-      if(gunModel&&['backflip','sideflip','frontflip','slideflip','wallkick'].includes(park.kind))gunModel.visible=false;
+      if(gunModel&&['backflip','sideflip','frontflip','slideflip','wallspin','wallkick'].includes(park.kind))gunModel.visible=false;
       else if(gunModel&&park.kind==='wallrun'){gunInverse.copy(pelvis.quaternion).multiply(torso.quaternion).multiply(shoulders.right.quaternion).multiply(elbows.right.quaternion).invert();gunModel.quaternion.copy(gunInverse).multiply(gunAim);}
     }
     // Keep the supporting foot planted after the combat pose has been blended.

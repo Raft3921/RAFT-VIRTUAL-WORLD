@@ -1,6 +1,6 @@
-import {stepParkour,parkourDefaults,isParkourFlip} from './player-parkour.js?v=20261017-turn130';
+import {stepParkour,parkourDefaults,isParkourFlip} from './player-parkour.js?v=20261017-wallspin133';
 import {inGunZone} from './gun-layout.js?v=20261017-settlement125';
-import {proneShape} from './gun-posture.js?v=20261017-bodyhit131';
+import {proneShape} from './gun-posture.js?v=20261017-wallspin133';
 export const COMBAT_WALK=2.8,COMBAT_SPRINT_START=5.8,COMBAT_SPRINT_MAX=7.2,COMBAT_SPRINT_RAMP=.55;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export const slideShape=(yaw,width=.32)=>({width:Math.max(.32,width),depth:.95,height:1.16,yaw});
@@ -35,12 +35,12 @@ export function stepCombatMovement(world,body,input,dt){
   m.sprinting=sprint;
   if(!moving&&body.grounded&&!jump){m.vx=m.vz=m.sprintTime=0;}
   else if(!body.grounded||jump){
-   const steer=1-Math.exp(-dt*1.1);if(moving){m.vx+=(wx*Math.max(target,speed)-m.vx)*steer;m.vz+=(wz*Math.max(target,speed)-m.vz)*steer;}m.vx*=Math.exp(-dt*.08);m.vz*=Math.exp(-dt*.08);
+   const steer=1-Math.exp(-dt*1.1);if(moving&&m.parkourKind!=='wallspin'){m.vx+=(wx*Math.max(target,speed)-m.vx)*steer;m.vz+=(wz*Math.max(target,speed)-m.vz)*steer;}m.vx*=Math.exp(-dt*.08);m.vz*=Math.exp(-dt*.08);
   }else{m.slideAir=false;m.vx=wx*target;m.vz=wz*target;}
  }
  const parkour=stepParkour(world,body,{...input,slideJump:jump},m,dt);
  m.sprintCharge=clamp(m.sprintTime/COMBAT_SPRINT_RAMP,0,1);
  m.slideBlend+=(Number(m.sliding)-m.slideBlend)*(1-Math.exp(-dt*(m.sliding?14:9)));
- const current=Math.hypot(m.vx,m.vz);if(current>7.8){m.vx*=7.8/current;m.vz*=7.8/current;}
+ const limit=m.parkourKind==='wallspin'?(input.baseJumpSpeed||8.4)*2:7.8,current=Math.hypot(m.vx,m.vz);if(current>limit){m.vx*=limit/current;m.vz*=limit/current;}
  return {...parkour,vx:m.vx,vz:m.vz,prone:m.prone,sliding:m.sliding,jump,shape:m.sliding?slideShape(yaw,shape.width):m.prone?proneShape(yaw):input.crouched?{...shape,height:shape.height-Math.min(.52,shape.height*.3)}:shape};
 }

@@ -1,8 +1,8 @@
 // Shared contact-based acrobatics. The client submits only ordinary movement /
 // jump controls; wall normals, impulses and action budgets are server-derived.
-export function parkourDefaults(){return {parkourKind:'',parkourAge:0,parkourDuration:0,parkourSerial:0,wallSide:0,wallNX:0,wallNZ:0,wallTime:0,kickCooldown:0,flipCooldown:0,kicks:0,lastWallNX:0,lastWallNZ:0,airAction:false};}
-export const isParkourFlip=kind=>['backflip','sideflip','frontflip','slideflip'].includes(kind);
-export function parkourHandsBusy(p){return !!p.mantling||['backflip','sideflip','frontflip','slideflip','wallkick'].includes(p.parkourKind);}
+export function parkourDefaults(){return {parkourKind:'',parkourAge:0,parkourDuration:0,parkourSerial:0,wallSide:0,wallNX:0,wallNZ:0,wallTime:0,wallSpinYaw:0,wallSpinRise:0,wallSpinTilt:1,wallSpinFinish:-1,wallSpinFinishDuration:0,kickCooldown:0,flipCooldown:0,kicks:0,lastWallNX:0,lastWallNZ:0,airAction:false};}
+export const isParkourFlip=kind=>['backflip','sideflip','frontflip','slideflip','wallspin'].includes(kind);
+export function parkourHandsBusy(p){return !!p.mantling||['backflip','sideflip','frontflip','slideflip','wallspin','wallkick'].includes(p.parkourKind);}
 export function findParkourWall(world,p,shape,yaw=0){
  if(!world.nearby)return null;let best=null,bestGap=Infinity;
  for(const b of world.nearby(p)){
@@ -25,7 +25,13 @@ export function stepParkour(world,body,input,m,dt){
  if(body.grounded){m.wallTime=0;m.kicks=0;m.lastWallNX=m.lastWallNZ=0;m.airAction=false;if(!rotating)action(m,'',0);}
  // Finish the full turn even after an early landing or a released input.
  // No stance, wall transfer or new jump can replace an unfinished rotation.
- if(rotating)return {};
+ if(rotating){
+  if(m.parkourKind==='wallspin'&&m.wallSpinFinish<0){
+   const gravity=input.gravity||24,floor=world.floorAt(body.p,body.p.y+.02).y,drop=Math.max(0,body.p.y-floor),initial=(body.vy+Math.sqrt(body.vy*body.vy+2*gravity*drop))/gravity,predicted={x:body.p.x+m.vx*initial,y:body.p.y,z:body.p.z+m.vz*initial},landing=world.floorAt(predicted,body.p.y+.02).y,impact=(body.vy+Math.sqrt(body.vy*body.vy+2*gravity*Math.max(0,body.p.y-landing)))/gravity;
+   if(body.grounded||body.vy<0&&impact<.28){m.wallSpinFinish=m.parkourAge;m.wallSpinFinishDuration=body.grounded?.18:Math.max(.12,impact*.95);m.parkourDuration=m.wallSpinFinish+m.wallSpinFinishDuration;}
+  }
+  return {};
+ }
  if(body.mantle||m.prone||m.sliding||input.stop){action(m,'',0);return {};}
  // This flag is derived by shared slide state, never accepted from the wire.
  if(body.grounded&&input.slideJump){m.flipCooldown=1.1;m.airAction=true;action(m,'slideflip',.95);return {jumpMultiplier:Math.SQRT2};}
@@ -52,8 +58,12 @@ export function stepParkour(world,body,input,m,dt){
  m.wallNX=wall.nx;m.wallNZ=wall.nz;
  m.wallSide=-(wall.nx*-Math.cos(yaw)+wall.nz*Math.sin(yaw))>=0?1:-1;
  const sameWall=m.kicks>0&&m.lastWallNX*wall.nx+m.lastWallNZ*wall.nz>.8;
- if(input.jump&&m.kickCooldown===0&&m.kicks<6&&!sameWall){
+ if(input.jump&&m.kickCooldown===0&&m.kicks<6&&(!sameWall||m.parkourKind==='wallrun')){
   m.kicks++;m.kickCooldown=.30;m.lastWallNX=wall.nx;m.lastWallNZ=wall.nz;m.airAction=true;m.slideAir=true;
+  if(m.parkourKind==='wallrun'){
+   const entry=Math.max(0,Math.min(1,m.parkourAge/.14));m.wallSpinTilt=entry*entry*(3-2*entry);m.wallSpinYaw=yaw;m.wallSpinRise=Math.max(0,body.vy)/(input.gravity||24);m.wallSpinFinish=-1;m.wallSpinFinishDuration=0;
+   const launch=(input.baseJumpSpeed||8.4)*2;m.vx=wall.nx*launch;m.vz=wall.nz*launch;action(m,'wallspin',30);return {consumeJump:true};
+  }
   const dot=wx*wall.nx+wz*wall.nz;m.vx=wall.nx*6.2+(wx-dot*wall.nx)*3.5;m.vz=wall.nz*6.2+(wz-dot*wall.nz)*3.5;body.vy=7.4;action(m,'wallkick',.42);return {consumeJump:true};
  }
  if(m.kickCooldown>0||!input.sprint||input.aiming||input.crouched||amount<.25||m.wallTime>=2.4){if(m.parkourKind==='wallrun')action(m,'',0);return {};}

@@ -1,5 +1,5 @@
-import {isParkourFlip} from './player-parkour.js?v=20261017-turn130';
-import {stepCombatMovement} from './combat-movement.js?v=20261017-bodyhit131';
+import {isParkourFlip} from './player-parkour.js?v=20261017-wallspin133';
+import {stepCombatMovement} from './combat-movement.js?v=20261017-wallspin133';
 import {startMantle,stepMantle} from './player-mantle.js?v=20261015-mantle103';
 import * as THREE from './vendor/three.module.js';
 import {COURSE} from './world-layout.js';
@@ -13,8 +13,8 @@ export function stepPlayer(world,body,input){
  const dt=Math.max(0,Math.min(.05,input.dt)),params=jumpParameters(world,body.p);
  const rotating=isParkourFlip(body.combat?.parkourKind)&&body.combat.parkourAge<body.combat.parkourDuration;
  // Reachable, clearance-checked ledges catch automatically in midair.
- if(!body.grounded&&!body.mantle&&!rotating&&!input.prone&&!input.stop&&!body.combat?.sliding)startMantle(world,body,{...input,jump:true});
- const combat=stepCombatMovement(world,body,input,dt);
+ if(!body.grounded&&!body.mantle&&!rotating&&!input.prone&&!input.stop&&!body.combat?.sliding&&!(input.jump&&body.combat?.parkourKind==='wallrun'))startMantle(world,body,{...input,jump:true});
+ const combat=stepCombatMovement(world,body,{...input,baseJumpSpeed:params.jump,gravity:params.gravity},dt);
  if(combat)input={...input,vx:combat.vx,vz:combat.vz,prone:combat.prone,jump:combat.sliding||combat.consumeJump?false:combat.jump||input.jump,shape:combat.shape};
  if(body.mantle&&stepMantle(world,body,input,dt)){if(body.combat){body.combat.vx=body.combat.vz=body.combat.sprintTime=body.combat.sprintCharge=0;body.combat.sprinting=false;body.combat.parkourKind='';body.combat.sliding=body.combat.slideAir=false;}return {grounded:body.grounded,body:body.standingOn,bounceBody:null};}
  if(body.standingOn&&body.grounded&&!body.standingOn.disabled){

@@ -1,5 +1,5 @@
 import {segmentBox} from './projectile-motion.js?v=20261013-life89b';
-import {gunBulletBoxes} from './gun-posture.js?v=20261017-flipjump129';
+import {gunBulletBoxes} from './gun-posture.js?v=20261017-turn130';
 export const MAX_GUN_REWIND=240;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const lerp=(a,b,t)=>a+(b-a)*t;
@@ -23,7 +23,7 @@ export class GunHitTimeline{
   const frames=this.players.get(p.id),latest=frames?.at(-1);if(!latest||!sameEpoch(latest,p))return {...p,hitProneBlend:p.prone?1:0};
   // Never interpolate across a teleport, character change or an absent history interval.
   if(at<frames[0].at)return {...p,hitProneBlend:p.prone?1:0};
-  let a=frames[0];for(const b of frames){if(b.at>=at){const t=b.at===a.at?0:clamp((at-a.at)/(b.at-a.at),0,1),out={...(t<1?a:b)};for(const key of ['x','y','z','headPitch','hitProneBlend','hitCrouchBlend','hitSlideBlend','parkourAge','parkourDuration','wallSide'])out[key]=key==='parkourAge'&&a.parkourSerial!==b.parkourSerial?(t<1?a:b)[key]:lerp(a[key],b[key],t);out.yaw=angle(a.yaw,b.yaw,t);out.headYaw=angle(a.headYaw,b.headYaw,t);return out;}a=b;}
+  let a=frames[0];for(const b of frames){if(b.at>=at){const t=b.at===a.at?0:clamp((at-a.at)/(b.at-a.at),0,1),out={...(t<1?a:b)};for(const key of ['x','y','z','headPitch','hitProneBlend','hitCrouchBlend','hitSlideBlend','parkourAge','parkourDuration','wallSide'])out[key]=['parkourAge','parkourDuration','wallSide'].includes(key)&&a.parkourSerial!==b.parkourSerial?(key==='parkourAge'?Math.min((t<1?a:b).parkourDuration||0,((t<1?a:b).parkourAge||0)+(t<1?(at-a.at)/1000:0)):(t<1?a:b)[key]):lerp(a[key],b[key],t);out.yaw=angle(a.yaw,b.yaw,t);out.headYaw=angle(a.headYaw,b.headYaw,t);return out;}a=b;}
   return {...latest};
  }
  lags(message,now){

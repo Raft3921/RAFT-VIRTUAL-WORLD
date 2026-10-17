@@ -11,7 +11,7 @@ export function parkourPose(state){
   if(length>.5){const x=(c*nx-s*nz)/length,z=(s*nx+c*nz)/length;qx=z*Math.sin(angle/2);qz=-x*Math.sin(angle/2);qw=Math.cos(angle/2);offsetX=x*Math.max(0,pivot-.32)*u;offsetZ=z*Math.max(0,pivot-.32)*u;weight=u;}
  }else{const a=pitch/2,b=roll/2;qx=Math.cos(b)*Math.sin(a);qy=Math.sin(b)*Math.sin(a);qz=Math.sin(b)*Math.cos(a);qw=Math.cos(b)*Math.cos(a);}
  const matrix=[1-2*(qy*qy+qz*qz),2*(qx*qy-qz*qw),2*(qx*qz+qy*qw),2*(qx*qy+qz*qw),1-2*(qx*qx+qz*qz),2*(qy*qz-qx*qw),2*(qx*qz-qy*qw),2*(qy*qz+qx*qw),1-2*(qx*qx+qy*qy)];
- return {kind,tuck,weight,pivot,quaternion:[qx,qy,qz,qw],matrix,offsetX,offsetZ,shiftX:-matrix[1]*pivot+offsetX,shiftY:pivot*(1-matrix[4]),shiftZ:-matrix[7]*pivot+offsetZ};
+ return {kind,pitch,roll,tuck,weight,pivot,quaternion:[qx,qy,qz,qw],matrix,offsetX,offsetZ,shiftX:-matrix[1]*pivot+offsetX,shiftY:pivot*(1-matrix[4]),shiftZ:-matrix[7]*pivot+offsetZ};
 }
 // The same rotation and wall-contact offset drive avatar rendering and bullets.
 export function transformParkourBox(box,p){

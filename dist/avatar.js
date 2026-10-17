@@ -1,4 +1,4 @@
-import {parkourPose} from './parkour-pose.js?v=20261017-flipjump129';
+import {parkourPose} from './parkour-pose.js?v=20261017-turn130';
 import {createWeaponClearance} from './weapon-clearance.js?v=20261016-effects108';
 import {createGunActionMotion,stepGunActionMotion} from './gun-action-motion.js?v=20261017-settlement125';
 import {sampleKatanaPose} from './katana-motion.js?v=20261016-cinema106';

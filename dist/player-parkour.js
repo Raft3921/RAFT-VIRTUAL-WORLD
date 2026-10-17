@@ -1,6 +1,7 @@
 // Shared contact-based acrobatics. The client submits only ordinary movement /
 // jump controls; wall normals, impulses and action budgets are server-derived.
 export function parkourDefaults(){return {parkourKind:'',parkourAge:0,parkourDuration:0,parkourSerial:0,wallSide:0,wallNX:0,wallNZ:0,wallTime:0,kickCooldown:0,flipCooldown:0,kicks:0,lastWallNX:0,lastWallNZ:0,airAction:false};}
+export const isParkourFlip=kind=>['backflip','sideflip','frontflip','slideflip'].includes(kind);
 export function parkourHandsBusy(p){return !!p.mantling||['backflip','sideflip','frontflip','slideflip','wallkick'].includes(p.parkourKind);}
 export function findParkourWall(world,p,shape,yaw=0){
  if(!world.nearby)return null;let best=null,bestGap=Infinity;
@@ -20,7 +21,11 @@ export function stepParkour(world,body,input,m,dt){
  if(m.parkourKind===undefined)Object.assign(m,parkourDefaults());
  m.kickCooldown=Math.max(0,m.kickCooldown-dt);m.flipCooldown=Math.max(0,m.flipCooldown-dt);m.parkourAge+=dt;
  if(m.parkourKind&&m.parkourAge>=m.parkourDuration)action(m,'',0);
- if(body.grounded){if(m.airAction)action(m,'',0);m.wallTime=0;m.kicks=0;m.lastWallNX=m.lastWallNZ=0;m.airAction=false;if(!['backflip','sideflip'].includes(m.parkourKind))action(m,'',0);}
+ const rotating=isParkourFlip(m.parkourKind);
+ if(body.grounded){m.wallTime=0;m.kicks=0;m.lastWallNX=m.lastWallNZ=0;m.airAction=false;if(!rotating)action(m,'',0);}
+ // Finish the full turn even after an early landing or a released input.
+ // No stance, wall transfer or new jump can replace an unfinished rotation.
+ if(rotating)return {};
  if(body.mantle||m.prone||m.sliding||input.stop){action(m,'',0);return {};}
  // This flag is derived by shared slide state, never accepted from the wire.
  if(body.grounded&&input.slideJump){m.flipCooldown=1.1;m.airAction=true;action(m,'slideflip',.95);return {jumpMultiplier:Math.SQRT2};}
@@ -40,7 +45,6 @@ export function stepParkour(world,body,input,m,dt){
   m.flipCooldown=.8;m.airAction=true;action(m,'frontflip',.64);return {};
  }
  if(body.grounded)return {};
- if(['backflip','sideflip','slideflip'].includes(m.parkourKind))return {};
  const wall=findParkourWall(world,body.p,shape,yaw),speed=Math.hypot(m.vx,m.vz);
  if(!wall){if(m.parkourKind==='wallrun')action(m,'',0);return {};}
  const changedWall=m.wallNX*wall.nx+m.wallNZ*wall.nz<.8;

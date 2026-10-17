@@ -8,7 +8,4 @@ body:not([data-screen=studio]) .punch,body[data-clean=true] .punch{display:none!
 body[data-touch=true] .punch{display:block;position:fixed;right:110px;bottom:44px;width:70px;height:70px;border-radius:50%;background:#173b34b3;border:1px solid #fff7;z-index:5}
 @media(max-height:650px){.world-menu{bottom:10px;padding:14px;max-height:calc(100dvh - 20px)}.world-menu>button{margin-top:6px}}
 
-#parkourHint{position:fixed;left:50%;top:calc(50% + 82px);transform:translateX(-50%);max-width:min(420px,80vw);padding:7px 12px;color:#e9eeee;background:#10191fc4;border:1px solid #a1b0b32e;font:12px/1.5 system-ui,sans-serif;letter-spacing:.035em;pointer-events:none;z-index:7;text-align:center}
-#parkourHint i{display:block;width:100%;height:2px;margin-top:5px;background:#9eacb22e;overflow:hidden}#parkourHint b{display:block;width:100%;height:100%;background:#b6c5c9;transform-origin:left}
-#parkourHint[hidden],#parkourHint i[hidden],body[data-cinematic=true] #parkourHint,body[data-clean=true] #parkourHint{display:none!important}
 .parkour-controls{margin:12px 0;padding:9px 11px;border:1px solid #9fb5be45}.parkour-controls summary{cursor:pointer}.parkour-controls p{font-size:12px;line-height:1.7}

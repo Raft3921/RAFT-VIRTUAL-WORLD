@@ -1,4 +1,4 @@
-import {transformParkourBox} from './parkour-pose.js?v=20261017-flipjump129';
+import {transformParkourBox} from './parkour-pose.js?v=20261017-turn130';
 export const PRONE_HEIGHT=.62;
 export function proneShape(yaw=0){return {width:.30,depth:.78,height:PRONE_HEIGHT,yaw};}
 export function gunHitBox(p){const height=p.sliding?1.16:p.prone?PRONE_HEIGHT:p.crouched?1.28:1.8;return {x:p.x,y:p.y+height/2,z:p.z,w:p.prone?.62:.65,h:height,d:p.sliding?1.9:p.prone?1.6:.65,yaw:p.yaw||0};}

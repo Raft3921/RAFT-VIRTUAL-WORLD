@@ -16,3 +16,11 @@ artifacts/
 
 .room-living.json
 .room-living.json.tmp
+
+# Local publication receipts, locks and credentials
+.publish/
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*

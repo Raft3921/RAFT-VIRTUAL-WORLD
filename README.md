@@ -1,5 +1,12 @@
 # RAFT-VIRTUAL-WORLD
 
+## 一括公開と Codex 引き継ぎ
+
+- **公開**：ルートの `publish.command` をダブルクリック。プロジェクト内の変更をまとめてコミットし、GitHub・Cloudflare Worker・GitHub Pages に反映します。
+- **手順・失敗時の再開**：[公開ガイド](docs/publish.md)
+- **次の Codex**：[AGENTS.md](AGENTS.md) → [現在の引き継ぎ](docs/handoff/current.md) の順で読んでください。
+
+
 ## 銃撃戦・公園 — 2026-10-15 / tactics99
 
 連続回転するブランコ、銃・刀の腕の動作、自動合焦、銃撃戦マップの高低差と通路、匍匐前進、共有される破壊・切断跡、ライフ3〜100設定を追加。高層棟は折り返し階段で屋上へ上がれ、テントはトランポリンの3倍の跳躍高度です。操作・数値・検証は [更新記録](docs/tactics99.md) を参照してください。

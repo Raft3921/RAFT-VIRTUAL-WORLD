@@ -3,9 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lan": "node server/lan.js"
+    "lan": "node server/lan.js",
+    "publish:world": "node scripts/publish.mjs",
+    "publish:resume": "node scripts/publish.mjs --resume"
   },
   "dependencies": {
     "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "wrangler": "4.149.0"
   }
 }

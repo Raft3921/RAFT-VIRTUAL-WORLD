@@ -14,7 +14,7 @@ import {livingHome} from './living-shared.js?v=20261013-life89b';
 import {createWorldExperience} from './world-experience.js?v=20261017-armed134';
 import {inGunZone as mapContains,weaponById} from './gun-layout.js?v=20261017-settlement125';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261017-mantle135';
+import {startUpdateNotice} from './update-notice.js?v=20261017-200230';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261017-wallspin133';
@@ -26,7 +26,7 @@ import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261013-life89b';
 import { createHit,stepHit,hitShape,proneWeight,gunEliminationState } from './hit-reaction.js?v=20261016-cinema106';
 import { createCombatEffects } from './combat-effects.js?v=20261014-world96';
 import { createBrownProjectiles } from './brown-projectiles.js?v=20261017-bodyhit131';
-import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-mantle135';
+import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-200230';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261013-life89b';
 import { cleanCharacter } from './character-store.js?v=20261017-settlement125';
 // Versioned URL prevents a previously cached editor module from blocking startup.

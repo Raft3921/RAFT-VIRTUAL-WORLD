@@ -1,5 +1,5 @@
 import {segmentBox} from './projectile-motion.js?v=20261013-life89b';
-import {gunBulletBoxes} from './gun-posture.js?v=20261017-hit115';
+import {gunBulletBoxes} from './gun-posture.js?v=20261017-slide120';
 export const MAX_GUN_REWIND=240;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const lerp=(a,b,t)=>a+(b-a)*t;
@@ -15,7 +15,7 @@ export class GunHitTimeline{
   if(previous&&at<previous.at)return;
   const seconds=previous?Math.max(0,at-previous.at)/1000:0,target=p.prone?1:0;
   const crouchTarget=p.crouched?1:0;
-  const frame={hitCrouchBlend:previous?lerp(previous.hitCrouchBlend,crouchTarget,1-Math.exp(-seconds*12)):crouchTarget,id:p.id,at,x:p.x,y:p.y,z:p.z,yaw:p.yaw||0,headYaw:p.headYaw||0,headPitch:p.headPitch||0,skin:p.skin,prone:!!p.prone,crouched:!!p.crouched,gunTeleportSerial:p.gunTeleportSerial||0,mirrorRealm:p.mirrorRealm,hitProneBlend:previous?lerp(previous.hitProneBlend,target,1-Math.exp(-seconds*(target?7:5))):target};
+  const frame={hitSlideBlend:p.hitSlideBlend||0,sliding:!!p.sliding,hitCrouchBlend:previous?lerp(previous.hitCrouchBlend,crouchTarget,1-Math.exp(-seconds*12)):crouchTarget,id:p.id,at,x:p.x,y:p.y,z:p.z,yaw:p.yaw||0,headYaw:p.headYaw||0,headPitch:p.headPitch||0,skin:p.skin,prone:!!p.prone,crouched:!!p.crouched,gunTeleportSerial:p.gunTeleportSerial||0,mirrorRealm:p.mirrorRealm,hitProneBlend:previous?lerp(previous.hitProneBlend,target,1-Math.exp(-seconds*(target?7:5))):target};
   if(previous&&at===previous.at)frames[frames.length-1]=frame;else frames.push(frame);
   while(frames.length>32||frames.length>2&&frames[1].at<at-800)frames.shift();this.players.set(p.id,frames);p.hitProneBlend=frame.hitProneBlend;p.hitCrouchBlend=frame.hitCrouchBlend;
  }
@@ -23,7 +23,7 @@ export class GunHitTimeline{
   const frames=this.players.get(p.id),latest=frames?.at(-1);if(!latest||!sameEpoch(latest,p))return {...p,hitProneBlend:p.prone?1:0};
   // Never interpolate across a teleport, character change or an absent history interval.
   if(at<frames[0].at)return {...p,hitProneBlend:p.prone?1:0};
-  let a=frames[0];for(const b of frames){if(b.at>=at){const t=b.at===a.at?0:clamp((at-a.at)/(b.at-a.at),0,1),out={...(t<1?a:b)};for(const key of ['x','y','z','headPitch','hitProneBlend','hitCrouchBlend'])out[key]=lerp(a[key],b[key],t);out.yaw=angle(a.yaw,b.yaw,t);out.headYaw=angle(a.headYaw,b.headYaw,t);return out;}a=b;}
+  let a=frames[0];for(const b of frames){if(b.at>=at){const t=b.at===a.at?0:clamp((at-a.at)/(b.at-a.at),0,1),out={...(t<1?a:b)};for(const key of ['x','y','z','headPitch','hitProneBlend','hitCrouchBlend','hitSlideBlend'])out[key]=lerp(a[key],b[key],t);out.yaw=angle(a.yaw,b.yaw,t);out.headYaw=angle(a.headYaw,b.headYaw,t);return out;}a=b;}
   return {...latest};
  }
  lags(message,now){

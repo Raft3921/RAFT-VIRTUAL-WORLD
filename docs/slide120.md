@@ -1,0 +1,9 @@
+# Combat sprint and slide — slide120
+
+Gun-zone movement now uses a shared combat locomotion state inside player physics. A forward sprint builds from 4.62 to 7.2 m/s over 1.65 seconds, with acceleration and braking limits. Pressing C while grounded above 4.1 m/s with a charged sprint enters a friction-driven slide. At low speed or after 1.65 seconds, a held prone intent becomes prone. C can cancel into standing when there is headroom. Jumping during the slide stands only with head clearance, carries horizontal momentum (capped at 7.8 m/s), clears prone intent locally, and transitions to normal ground movement on landing. Cooldown, directional charging, friction and collision-derived velocity prevent repeated free boosts or building speed into a wall.
+
+The server processes the same raw movement wishes, sprint, aiming and prone intent as client prediction. Motion acknowledgments include the full combat state; reconciliation restores it before replaying unacknowledged inputs. Idle clients stop moving while server gravity continues. Movement outside the gun zone retains its existing behavior. Worker and LAN share these modules.
+
+Sliding has a distinct collision shape, leaning torso, extended legs and forward-facing head. The slide blend travels with remote interpolation and rewind hit geometry. Round teleports reset the new posture fields. Sliding suppresses walking footprints. Camera height, a bounded widening of field of view, subtle roll and head movement, weapon inertia and low ground dust communicate acceleration and sliding. ADS suppresses camera effects; reduced-motion settings reduce them. Dust uses the existing bounded effect pool.
+
+No tests, syntax checks, browser checks or multiplayer/visual verification were performed, following the user's earlier instruction. Source implementation and deployment do not establish runtime acceptance.

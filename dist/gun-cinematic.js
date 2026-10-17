@@ -2,7 +2,7 @@ import {createCinematicProjectile} from './cinematic-projectile.js?v=20261016-tr
 import {GUN_ZONE} from './gun-layout.js';
 import * as THREE from 'three';
 import {planCinematicRail} from './cinematic-rail.js?v=20261016-trails110';
-import {createGunEffects} from './gun-effects.js?v=20261016-trails110';
+import {createGunEffects} from './gun-effects.js?v=20261017-slide120';
 import {applyAvatarHitPose,groundAvatarHitPose} from './avatar-hit-pose.js?v=20261015-spectacle104';
 import {gunEliminationState} from './hit-reaction.js?v=20261016-cinema106';
 import {sampleKatanaPose} from './katana-motion.js?v=20261016-cinema106';

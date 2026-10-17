@@ -1,7 +1,7 @@
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const angle=(a,b,t)=>a+Math.atan2(Math.sin(b-a),Math.cos(b-a))*t;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
-const numeric=['y','speed','verticalSpeed','headPitch','hitProneBlend','hitCrouchBlend'];
+const numeric=['y','speed','verticalSpeed','headPitch','hitProneBlend','hitCrouchBlend','hitSlideBlend','sprintCharge'];
 // Bounded cubic interpolation follows endpoint velocities without overshooting
 // walls or reversing along an otherwise monotone snapshot segment.
 function position(a,b,va,vb,t,seconds){

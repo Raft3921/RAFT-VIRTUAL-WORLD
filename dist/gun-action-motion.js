@@ -11,12 +11,12 @@ export function stepGunActionMotion(state,input,dt){
  }
  state.accel+=(clamp((speed-state.speed)/Math.max(.001,dt)/22,-1,1)-state.accel)*(1-Math.exp(-dt*12));
  state.jump*=Math.exp(-dt*8);state.land*=Math.exp(-dt*10);state.primed=true;state.grounded=grounded;state.vy=vy;state.speed=speed;
- const phase=input.phase||0,walk=grounded?clamp(speed/4.6,0,1.5):0,sprint=clamp((speed-3.3)/3,0,1),air=grounded?0:clamp(-vy/14,-.65,.85),aim=1-clamp(input.ads||0,0,1)*.88;
+ const phase=input.phase||0,walk=grounded&&!input.sliding?clamp(speed/4.6,0,1.5):0,sprint=clamp((speed-3.3)/3,0,1),air=grounded?0:clamp(-vy/14,-.65,.85),aim=1-clamp(input.ads||0,0,1)*.88;
  return {event,strength,sprint,jump:state.jump,land:state.land,
   x:aim*(Math.sin(phase)*.025*walk+(input.strafe||0)*-.035),
-  y:aim*(Math.cos(phase*2)*.017*walk-state.jump*.045-state.land*.070-air*.04),
+  y:aim*(Math.cos(phase*2)*.017*walk-state.jump*.045-state.land*.070-air*.04-(input.sprintCharge||0)*.025+(input.sliding?.015:0)),
   z:aim*(state.accel*.028+state.land*.06+sprint*.04),
-  pitch:aim*(state.jump*.050+state.land*.085+air*.065+sprint*.08),
+  pitch:aim*(state.jump*.050+state.land*.085+air*.065+sprint*.08+(input.sliding?.045:0)),
   yaw:aim*Math.sin(phase)*.023*walk,
   roll:aim*(Math.sin(phase)*.025*walk-(input.strafe||0)*.045+state.land*.04),
  };

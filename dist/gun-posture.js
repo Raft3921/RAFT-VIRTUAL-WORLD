@@ -1,6 +1,6 @@
 export const PRONE_HEIGHT=.62;
 export function proneShape(yaw=0){return {width:.30,depth:.78,height:PRONE_HEIGHT,yaw};}
-export function gunHitBox(p){const height=p.prone?PRONE_HEIGHT:p.crouched?1.28:1.8;return {x:p.x,y:p.y+height/2,z:p.z,w:p.prone?.62:.65,h:height,d:p.prone?1.6:.65,yaw:p.yaw||0};}
+export function gunHitBox(p){const height=p.sliding?1.16:p.prone?PRONE_HEIGHT:p.crouched?1.28:1.8;return {x:p.x,y:p.y+height/2,z:p.z,w:p.prone?.62:.65,h:height,d:p.sliding?1.9:p.prone?1.6:.65,yaw:p.yaw||0};}
 export function gunDamage(id,charge=0){return id==='katana'?1+Math.min(1,Math.max(0,charge))*4:({rocket:2,machine:.5,sniper:1.5}[id]||1);}
 
 // Slim player geometry is 32/16=2m tall, not the old 1.8m box. Split the
@@ -19,6 +19,11 @@ export function gunBulletBoxes(p){
   if(i===2){const pivot=custom?13/16:1.5,half=custom?9/32:.25,tilt=angle*(1-blend)+Math.max(-.65,Math.min(.7,p.headPitch||0));localY=base+pivot*co-z*si+half*Math.cos(tilt);localZ=pivot*si+z*co+half*Math.sin(tilt)-(.13*crouch)*(1-blend);const oldH=h,oldD=d;h=Math.abs(oldH*Math.cos(tilt))+Math.abs(oldD*Math.sin(tilt));d=Math.abs(oldH*Math.sin(tilt))+Math.abs(oldD*Math.cos(tilt));}
   const box={x:p.x+c*x+s*localZ,y:p.y+localY,z:p.z-s*x+c*localZ,w,h:i===2?h:Math.abs(h*co)+Math.abs(d*si),d:i===2?d:Math.abs(h*si)+Math.abs(d*co),yaw:i===2?yaw+Math.max(-.95,Math.min(.95,p.headYaw||0)):yaw};
   if(i===0&&crouch>.001&&blend<.01){box.h=Math.max(.2,h-drop);box.y=p.y+box.h/2;}
+  const slide=Math.max(0,Math.min(1,p.hitSlideBlend??(p.sliding?1:0)));
+  if(slide>0){const co=Math.cos(-.95),si=Math.sin(-.95),pivot=custom?13/16:1.5,half=custom?9/32:.25,tilt=Math.max(-.65,Math.min(.7,p.headPitch||0));let sy=-.30+y*co,sz=.55+y*si,sh=Math.abs(h*co)+Math.abs(d*si),sd=Math.abs(h*si)+Math.abs(d*co);
+   if(i===0){sy=.17;sz=.30;sh=.34;sd=1.15;}if(i===2){sy=-.30+pivot*co+half*Math.cos(tilt);sz=.55+pivot*si+half*Math.sin(tilt);sh=h;sd=d;}
+   box.x+=(p.x+c*x+s*sz-box.x)*slide;box.y+=(p.y+sy-box.y)*slide;box.z+=(p.z-s*x+c*sz-box.z)*slide;box.h+=(sh-box.h)*slide;box.d+=(sd-box.d)*slide;
+  }
   return box;
  });
 }

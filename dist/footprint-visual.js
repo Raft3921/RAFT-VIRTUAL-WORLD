@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {footProfile,FOOTPRINT_LIMIT,FOOTPRINT_LIFETIME} from './footprint-store.js?v=20261016-trails110';
+import {footProfile,FOOTPRINT_LIMIT,FOOTPRINT_LIFETIME} from './footprint-store.js?v=20261017-slide120';
 export function createFootprints(scene){
  const canvas=document.createElement('canvas');canvas.width=canvas.height=64;const c=canvas.getContext('2d');
  // Square, block-model sole rather than an unrelated human shoe silhouette.

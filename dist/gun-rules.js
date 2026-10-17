@@ -1,7 +1,7 @@
-import {GunHitTimeline,movingGunHit} from './gun-hit-timeline.js?v=20261017-hit115';
+import {GunHitTimeline,movingGunHit} from './gun-hit-timeline.js?v=20261017-slide120';
 import {REPLAY_FINAL_AT,REPLAY_DURATION} from './replay-timing.js?v=20261016-cinema106';
 import {solidExtents,segmentGunSolid} from './gun-solid.js?v=20261015-tactics99';
-import {gunDamage,gunHitBox,gunBulletBoxes,gunProjectileRadius} from './gun-posture.js?v=20261017-hit115';
+import {gunDamage,gunHitBox,gunBulletBoxes,gunProjectileRadius} from './gun-posture.js?v=20261017-slide120';
 import {GUN_PROP_DEFS} from './gun-map-state.js?v=20261015-tactics99';
 import {GUN_SPAWNS,GUN_SOLIDS} from './gun-collision.js?v=20261015-tactics99';
 import {gunEliminationState} from './hit-reaction.js?v=20261016-cinema106';
@@ -24,7 +24,7 @@ export class GunRules{
  publish(){this.send({type:'gun-battle',battle:this.snapshot()});}
  assign(){if(this.phase==='active'||this.phase==='preview')return;const members=[...this.members.values()],pairs=this.mode==='teams'||this.mode==='auto'&&members.length===4;members.forEach((m,i)=>{if(!m.manual)m.team=pairs?Math.floor(i/Math.ceil(members.length/2)):i;});}
  teleport(p,team){const occupied=this.players().filter(q=>q.id!==p.id&&this.members.has(q.id));let points=GUN_SPAWNS.filter(s=>occupied.every(q=>Math.hypot(q.x-s.x,q.z-s.z)>8));if(!points.length)points=GUN_SPAWNS;const spawn={...points[Math.floor(Math.random()*points.length)],yaw:Math.random()*Math.PI*2};this.move(p,spawn);}
- move(p,position){p.gunTeleportSerial=(p.gunTeleportSerial||0)+1;Object.assign(p,position,{hitProneBlend:0,hitCrouchBlend:0,flight:false,prone:false,crouched:false,seated:false,sleeping:false,ragdoll:false,gunEliminated:false,vx:0,vy:0,vz:0});this.hitTimeline.observe(p,Date.now());this.send({type:'gun-teleport',playerId:p.id,position,serial:p.gunTeleportSerial});}
+ move(p,position){p.gunTeleportSerial=(p.gunTeleportSerial||0)+1;Object.assign(p,position,{hitSlideBlend:0,sliding:false,slideAir:false,sprintCharge:0,hitProneBlend:0,hitCrouchBlend:0,flight:false,prone:false,crouched:false,seated:false,sleeping:false,ragdoll:false,gunEliminated:false,vx:0,vy:0,vz:0});this.hitTimeline.observe(p,Date.now());this.send({type:'gun-teleport',playerId:p.id,position,serial:p.gunTeleportSerial});}
  atBoard(p){return GUN_EXIT_BOARDS.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<5&&p.y<4);}
  enter(p){if(this.members.has(p.id))return;if(this.phase==='active'||this.phase==='preview'||Math.hypot(p.x-GUN_ENTRY.x,p.z-GUN_ENTRY.z)>6||p.y>4)return;const c=this.record(p),weapon=c.ownedWeapons.includes(p.equippedWeapon)?p.equippedWeapon:c.ownedWeapons.at(-1);if(!weapon){this.send({type:'gun-error',playerId:p.id,message:'武器を持っていないため入場できません。PCのストアで購入してください'});return;}
   if(!this.members.size)this.resetMap();

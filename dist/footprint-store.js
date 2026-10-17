@@ -9,7 +9,7 @@ export class FootprintStore{
  clearArena(){const removed=this.marks.filter(m=>!m.realm&&m.x>120&&m.x<244&&m.z>-140&&m.z<-44).map(m=>m.id);if(!removed.length)return;const ids=new Set(removed);this.marks=this.marks.filter(m=>!ids.has(m.id));this.tracks.clear();this.rules.broadcast({type:'footprints-clear',ids:removed});}
  step(p,now=Date.now()){
   const previous=this.tracks.get(p.id),track={x:p.x,y:p.y,z:p.z,realm:p.mirrorRealm||null,teleport:p.gunTeleportSerial,at:now,distance:previous?.distance||0,side:previous?.side||0,last:previous?.last||0};this.tracks.set(p.id,track);
-  const canWalk=p.grounded!==false&&!p.flight&&!p.ragdoll&&!p.seated&&!p.sleeping&&!p.prone&&!p.mantling&&!p.gunEliminated;
+  const canWalk=p.grounded!==false&&!p.flight&&!p.ragdoll&&!p.seated&&!p.sleeping&&!p.prone&&!p.sliding&&!p.mantling&&!p.gunEliminated;
   const distance=previous?Math.hypot(p.x-previous.x,p.z-previous.z):0;
   if(!previous||!canWalk||previous.realm!==track.realm||previous.teleport!==track.teleport||now-previous.at>1000||distance>2||Math.abs(p.y-previous.y)>.4){track.distance=0;return;}
   if(distance<.001)return;

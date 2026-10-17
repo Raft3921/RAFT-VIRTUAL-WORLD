@@ -1,4 +1,4 @@
-import {FootprintStore} from './footprint-store.js?v=20261016-trails110';
+import {FootprintStore} from './footprint-store.js?v=20261017-slide120';
 import {combatSpawn,combatArea,COMBAT_MENU} from './world-mode.js?v=20261016-combatonly105';
 import {PlazaPlayStore} from './plaza-play-store.js?v=20261015-tactics99';
 import {LivingStore} from './living-store.js?v=20261013-life89b';
@@ -8,7 +8,7 @@ import {cleanMeal,describeDish} from './cooking-data.js?v=20261013-life89b';
 import {recognizeKitchens} from './kitchen-layout.js?v=20261013-life89b';
 import {buildDistrict} from './district.js?v=20261013-life89b';
 import {GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261015-tactics99';
-import {GunRules} from './gun-rules.js?v=20261017-hit115';
+import {GunRules} from './gun-rules.js?v=20261017-slide120';
 import {weaponById} from './gun-layout.js?v=20261015-tactics99';
 import {WorldChatStore} from './world-chat-store.js?v=20261013-life89b';
 import { ARENA,insideArena } from './world-layout.js?v=20261013-life89b';
@@ -24,7 +24,7 @@ import {cleanCycle,dayPhase,PIANO_MELODY} from './world-clock.js?v=20261013-life
 import {furnitureAction} from './furniture-actions.js?v=20261013-life89b';
 const combatBoards=[COMBAT_MENU,GUN_ENTRY,...GUN_EXIT_BOARDS];
 let menuBoards=null;function worldMenuBoards(){if(!menuBoards){menuBoards=[{x:6,z:11},{x:ARENA.x+3,z:ARENA.z+20},...combatBoards,...HOUSES.slice(0,8).map(h=>({x:h.x-6,z:h.z+h.front*9}))];buildDistrict({box:()=>{},sign:()=>{},board:(x,y,z)=>menuBoards.push({x,y,z}),seats:[],clockHands:[]});}return menuBoards;}
-import {SYNC_VERSION,SYNC_PROTOCOL,compatibleSync} from './sync-protocol.js?v=20261017-hit115';
+import {SYNC_VERSION,SYNC_PROTOCOL,compatibleSync} from './sync-protocol.js?v=20261017-slide120';
 export {SYNC_VERSION,SYNC_PROTOCOL,compatibleSync};
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -36,6 +36,7 @@ export function cleanState(s,skin,realms){
   return {gunTeleportSerial:Math.floor(n('gunTeleportSerial',0,1e9)),equippedWeapon:weaponById(s.equippedWeapon)?.id||null,mirrorRealm:realm?.key||null,x:s.x,y:s.y,z:s.z,yaw:s.yaw,skin:playableSkin(skin),
     headYaw:n('headYaw',-1,1),headPitch:n('headPitch',-.7,.7),vx:n('vx',-200,200),vy:n('vy',-200,200),vz:n('vz',-200,200),
     speed:n('speed',0,20),verticalSpeed:n('verticalSpeed',-200,200),grounded:s.grounded!==false,mantling:false,gunEliminated:false,flight:s.flight===true,
+    sliding:false,slideAir:false,sprintCharge:0,hitSlideBlend:0,
     prone:s.prone===true&&s.flight!==true&&s.ragdoll!==true&&s.seated!==true&&s.sleeping!==true,
     crouched:s.crouched===true&&s.flight!==true&&s.ragdoll!==true&&s.seated!==true&&s.sleeping!==true,ragdoll:s.ragdoll===true,seated:s.seated===true,sleeping:s.sleeping===true&&s.ragdoll!==true,crownEnabled:s.crownEnabled===true,
     attackKind:Math.floor(n('attackKind',0,12)),attackProgress:n('attackProgress',0,1),attackDuration:n('attackDuration',0,2),attackStrength:n('attackStrength',0,1),attackSerial:Math.floor(n('attackSerial',0,1e9)),
@@ -50,7 +51,7 @@ export function applyPlayerState(player,state){
   // Position packets queued before a board/round teleport must not undo it.
   const teleportSerial=player.gunTeleportSerial||0;
   if(state.gunTeleportSerial!==teleportSerial){
-    for(const key of ['x','y','z','yaw','mirrorRealm','grounded','flight','prone','crouched','ragdoll','seated','sleeping','vx','vy','vz','speed','verticalSpeed'])if(player[key]!==undefined)state[key]=player[key];
+    for(const key of ['x','y','z','yaw','mirrorRealm','grounded','flight','prone','crouched','sliding','slideAir','hitSlideBlend','sprintCharge','ragdoll','seated','sleeping','vx','vy','vz','speed','verticalSpeed'])if(player[key]!==undefined)state[key]=player[key];
   }
   state.gunTeleportSerial=teleportSerial;
   const serial=player.hitSerial||0;

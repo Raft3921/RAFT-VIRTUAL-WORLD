@@ -1,6 +1,6 @@
 import {createSoftwareRenderer} from './software-renderer.js?v=20261017-canvas114';
 import {createCompatControls} from './compat-controls.js?v=20261017-canvas114';
-import {createGamepadControls} from './gamepad-controls.js?v=20261017-pcpad118';
+import {createGamepadControls} from './gamepad-controls.js?v=20261017-pro119';
 import {RemoteMotion} from './remote-motion.js?v=20261017-hit115';
 import {loadWorldMode,combatSpawn} from './world-mode.js?v=20261016-combatonly105';
 import {findMantle} from './player-mantle.js?v=20261015-mantle103';
@@ -12,7 +12,7 @@ import {livingHome} from './living-shared.js?v=20261013-life89b';
 import {createWorldExperience} from './world-experience.js?v=20261017-sight117';
 import {inGunZone,weaponById} from './gun-layout.js?v=20261015-tactics99';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261017-pcpad118';
+import {startUpdateNotice} from './update-notice.js?v=20261017-pro119';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261017-sight117';

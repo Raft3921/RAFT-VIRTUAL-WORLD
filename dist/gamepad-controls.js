@@ -1,3 +1,4 @@
+import {createProControllerHid} from './pro-controller-hid.js?v=20261017-pro119';
 // Bind actions to physical standard-Gamepad positions; render device-specific names.
 export function gamepadStick(x=0,y=0,deadzone=.14,curve=1,outer=.96){
  x=Number.isFinite(x)?x:0;y=Number.isFinite(y)?y:0;
@@ -17,7 +18,7 @@ export function createGamepadControls({get,action,look,release,onActivate}){
  let bindings={...DEFAULT};try{const saved=JSON.parse(read('bindings','null'));if(saved&&Object.keys(DEFAULT).every(k=>Number.isInteger(saved[k])&&saved[k]>=0&&saved[k]<32)&&new Set(Object.keys(DEFAULT).map(k=>saved[k])).size===Object.keys(DEFAULT).length)bindings=Object.fromEntries(Object.keys(DEFAULT).map(k=>[k,saved[k]]));}catch{}
  const panel=document.createElement('div');panel.className='gamepad-settings';
  panel.innerHTML=`<h3>コントローラー</h3><p id="gamepadStatus" role="status"></p><p class="help">PC（Windows・Mac）でも操作できます。USBケーブル、またはPCのBluetooth設定で接続し、このページを開いた状態でコントローラーのボタンを押してください。</p>
- <div class="pad-connect"><button type="button" class="pad-rescan">PCのコントローラーを再検出</button></div><p class="pad-connection-message" role="status"></p>
+ <div class="pad-connect"><button type="button" class="pad-rescan">PCのコントローラーを再検出</button><button type="button" class="pad-direct">Pro Controllerを直接接続</button><button type="button" class="pad-direct-close" hidden>直接接続を解除</button></div><p class="pad-connection-message" role="status"></p><p class="pad-direct-help help"></p><details><summary>接続の診断</summary><pre class="pad-diagnostics"></pre></details>
  <label>使用するコントローラー<select class="pad-device"><option value="auto">自動（操作したパッドを使用）</option></select></label>
  <label>ボタン表示<select data-pad="layout"><option value="auto">自動</option><option value="nintendo">Nintendo</option><option value="playstation">PlayStation</option><option value="xbox">Xbox / その他</option></select></label>
  <label>メニューの決定ボタン<select data-pad="confirm"><option value="auto">自動（Nintendoは右、その他は下）</option><option value="south">下のボタンで決定</option><option value="east">右のボタンで決定</option></select></label>
@@ -36,16 +37,21 @@ export function createGamepadControls({get,action,look,release,onActivate}){
  <details><summary>入力の状態を見る</summary><p class="help">手を離しても値が動く場合は、対応するスティックの遊びを増やしてください。</p><pre class="pad-monitor"></pre></details>
  <p class="help">メニュー：十字キー・左スティックで選択、左右で設定変更、右スティック上下でスクロール。PCではブラウザーのページを選択して操作してください。接続が見つからない場合はデータ通信対応のUSBケーブルやPCのBluetooth接続を確認し、ボタンを押してから再検出してください。Steam等の入力変換で二重に検出される場合は、使用するパッドを選択できます。</p>`;
  document.querySelector('[data-world-panel="controls"]').prepend(panel);
- const device=panel.querySelector('.pad-device'),connectionMessage=panel.querySelector('.pad-connection-message');
+ const device=panel.querySelector('.pad-device'),connectionMessage=panel.querySelector('.pad-connection-message'),directButton=panel.querySelector('.pad-direct'),directClose=panel.querySelector('.pad-direct-close'),diagnostics=panel.querySelector('.pad-diagnostics');
  const status=panel.querySelector('#gamepadStatus'),hint=document.createElement('div');hint.id='gamepadHint';hint.hidden=true;document.body.append(hint);
  const lobbyStatus=document.createElement('p');lobbyStatus.className='help';document.querySelector('#lobby .lobby-panel').append(lobbyStatus);
  const help=document.createElement('p');help.className='help';document.getElementById('controlHelp').after(help);
  const quick=document.createElement('button');quick.textContent='コントローラー設定';document.getElementById('controlHelp').before(quick);quick.onclick=()=>action('settings');
  const lobbyConnect=document.createElement('button');lobbyConnect.type='button';lobbyConnect.textContent='PCのコントローラーを接続・確認';lobbyStatus.after(lobbyConnect);lobbyConnect.onclick=()=>action('settings');
  const bindingMessage=panel.querySelector('.pad-binding-message'),cancelBinding=panel.querySelector('.pad-bind-cancel'),monitor=panel.querySelector('.pad-monitor');
- let preferredIndex=null,devicesKey='',connectionNotice='',activity=new Map();
+ let preferredIndex=null,devicesKey='',connectionNotice='',detectionUntil=0,activity=new Map();
  let index=null,identity='',buttons=[],physical=[],latches=[],needsLatch=true,context='',repeatAt=0,repeatDir='',active=false,sprinting=false,aiming=false,focused=true;
  let move={x:0,y:0},loadout='',display='xbox',rate={x:0,y:0},generation=0,bindingTarget=null,bindingDeadline=0,uiAt=0,menuRoot=null,triggerActive=false;
+ const direct=createProControllerHid(message=>{setText(connectionMessage,message);uiAt=0;devicesKey='';if(direct.sample()){preferredIndex=1000;identity='';}directClose.hidden=!direct.opened;});
+ directButton.disabled=!direct.supported;
+ panel.querySelector('.pad-direct-help').textContent=direct.supported?'MacのBluetoothで接続済みでも未検出の場合は「Pro Controllerを直接接続」を押し、機器選択画面でPro Controllerを選んでください。純正Nintendo Pro Controllerに対応します。':'このブラウザーは直接接続に非対応です。Chrome / Edgeで開くと、Pro Controllerの直接接続を利用できます。';
+ directButton.onclick=async()=>{directButton.disabled=true;reset();setText(connectionMessage,'ブラウザーの機器選択画面でPro Controllerを選んでください。');try{await direct.connect();}catch(error){setText(connectionMessage,'直接接続できませんでした：'+(error.message||String(error)));}finally{directButton.disabled=!direct.supported;directClose.hidden=!direct.opened;uiAt=0;}};
+ directClose.onclick=()=>{void direct.close();preferredIndex=null;identity='';reset();uiAt=0;};
  const bindingButtons=new Map();
  const setText=(el,text)=>{if(el.textContent!==text)el.textContent=text;};
  const name=i=>LABELS[display][i]||'ボタン '+i;
@@ -97,7 +103,9 @@ export function createGamepadControls({get,action,look,release,onActivate}){
   focusItem(items[(at+step+items.length)%items.length]);
  }
  function poll(){
-  try{const getter=typeof navigator.getGamepads==='function'?navigator.getGamepads:navigator.webkitGetGamepads;return {supported:typeof getter==='function',pads:getter?Array.from(getter.call(navigator)||[]):[],error:false};}catch{return {supported:true,pads:[],error:true};}
+  let native=[],nativeSupported=false,error=null;
+  try{const getter=typeof navigator.getGamepads==='function'?navigator.getGamepads:navigator.webkitGetGamepads;nativeSupported=typeof getter==='function';if(nativeSupported)native=Array.from(getter.call(navigator)||[]).filter(p=>p&&p.connected!==false);}catch(reason){error=reason;}
+  const hid=direct.sample();return {supported:nativeSupported||direct.supported,nativeSupported,nativeCount:native.length,pads:hid?[...native,hid]:native,error:hid?false:!!error,errorName:error?.name||''};
  }
  function refreshDevices(pads){
   const key=pads.map(p=>p.index+':'+p.id).join('|');if(key===devicesKey)return;devicesKey=key;
@@ -107,7 +115,8 @@ export function createGamepadControls({get,action,look,release,onActivate}){
   device.value=preferredIndex===null?'auto':String(preferredIndex);
  }
  device.onchange=()=>{preferredIndex=device.value==='auto'?null:Number(device.value);identity='';reset();uiAt=0;};
- panel.querySelector('.pad-rescan').onclick=()=>{const result=poll(),pads=result.pads.filter(p=>p&&p.connected!==false);refreshDevices(pads);reset();identity='';uiAt=0;connectionNotice=!result.supported?'このブラウザーはコントローラー入力APIに対応していません。':result.error?'ブラウザーから入力を読み取れません。HTTPSのページとブラウザーの権限を確認してください。':pads.length?pads.length+'台を検出しました。パッドのボタンを一度押して離すと操作に切り替わります。':'未検出です。PCのUSB / Bluetooth接続を確認し、このページでパッドのボタンを押してから再検出してください。';setText(connectionMessage,connectionNotice);};
+ panel.querySelector('.pad-rescan').onclick=()=>{const result=poll(),pads=result.pads.filter(p=>p&&p.connected!==false);refreshDevices(pads);reset();identity='';uiAt=0;focused=true;detectionUntil=performance.now()+15000;connectionNotice=!result.supported?'このブラウザーは入力APIに対応していません。':result.error?'ブラウザーから入力を読み取れません。接続の診断をご覧ください。':pads.length?pads.length+'台から入力を取得しました。パッドのボタンを押して離してください。':'15秒間、入力の公開を待っています。このページをクリックし、パッドのAボタンを押して離してください。Macで接続済みなのに表示されない場合は「Pro Controllerを直接接続」をお試しください。';setText(connectionMessage,connectionNotice);};
+
  function recentInput(pad){
   const before=activity.get(pad.index),pressed=Array.from(pad.buttons||[],b=>typeof b==='number'?b>.5:b?.pressed||b?.value>.5),axes=Array.from(pad.axes||[]),used=pressed.some(Boolean)||axes.some(a=>Math.abs(a)>.6);
   const fresh=pressed.some((v,i)=>v&&!before?.pressed[i])||axes.some((v,i)=>Math.abs(v)>.6&&Math.abs(v-(before?.axes[i]||0))>.25);
@@ -129,8 +138,12 @@ export function createGamepadControls({get,action,look,release,onActivate}){
   if(mode!==context){reset();context=mode;repeatDir='';menuRoot=null;if(bindingTarget)cancelCapture();}
   if(now>=uiAt){
    uiAt=now+150;
-   const label=!result.supported?'このブラウザーは入力APIに非対応です':result.error?'入力APIへのアクセスが制限されています。HTTPSとブラウザーの権限を確認してください':!pad?'未検出 · 接続してボタンを押してください':!usable?'配置を認識できません。必要なら「未認識パッドを標準配置として使用」を選択':`接続中：${pad.id} · ${active?'操作中':'ボタンを押すと操作開始'}`;
+   const label=!result.supported?'このブラウザーは入力APIに非対応です':result.error?'入力APIへのアクセスが制限されています。HTTPSとブラウザーの権限を確認してください':!pad?'ブラウザーからの入力なし（MacのBluetooth接続状態とは別です）':!usable?'配置を認識できません。必要なら「未認識パッドを標準配置として使用」を選択':`接続中：${pad.id} · ${active?'操作中':'ボタンを押すと操作開始'}`;
    setText(status,label);setText(lobbyStatus,'コントローラー：'+label);
+   let policy='不明';try{const permissions=document.permissionsPolicy||document.featurePolicy;if(permissions?.allowsFeature)policy=permissions.allowsFeature('gamepad')?'許可':'制限';}catch{}
+   setText(diagnostics,`Gamepad API：${result.nativeSupported?'あり':'なし'} / 公開された機器：${result.nativeCount}台\n直接接続：${direct.supported?'利用可能':'非対応'} / 入力受信：${direct.sample()?'あり':direct.opened?'機器を開いていますが最新入力なし':'なし'}\nHTTPS：${isSecureContext?'はい':'いいえ'} / ページ：${document.hasFocus()?'選択中':'未選択'} / Gamepad権限：${policy}\n${navigator.userAgent}${result.errorName?'\n取得エラー：'+result.errorName:''}`);
+   if(detectionUntil){if(pad){setText(connectionMessage,'入力を取得しました：'+pad.id);detectionUntil=0;}else if(now>detectionUntil){setText(connectionMessage,'通常のGamepad APIには入力が現れませんでした。Bluetoothを再接続する前に「Pro Controllerを直接接続」をお試しください。');detectionUntil=0;}}
+
    const description=`左スティック：移動 / 右：視点 / ${name(bindings.attack)}：射撃 / ${name(bindings.aim)}：構え・拡大 / ${name(bindings.jump)}：ジャンプ / ${name(bindings.crouch)}：しゃがむ / ${name(bindings.reload)}：リロード / ${name(bindings.interact)}：使う / ${name(bindings.sprint)}：ダッシュ / ${name(bindings.prone)}：匍匐 / ${name(bindings.menu)}：メニュー`;
    setText(help,description);
    const confirm=settings.confirm==='east'||settings.confirm==='auto'&&display==='nintendo'?1:0,back=1-confirm;

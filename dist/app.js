@@ -1,4 +1,4 @@
-import {createGamepadControls} from './gamepad-controls.js?v=20261017-pad112';
+import {createGamepadControls} from './gamepad-controls.js?v=20261017-pad113';
 import {RemoteMotion} from './remote-motion.js?v=20261016-network107';
 import {loadWorldMode,combatSpawn} from './world-mode.js?v=20261016-combatonly105';
 import {findMantle} from './player-mantle.js?v=20261015-mantle103';
@@ -7,10 +7,10 @@ import {proneShape} from './gun-posture.js?v=20261016-trails110';
 import {createVideoSettings} from './video-settings.js?v=20261014-cinema92';
 import {furniturePose} from './housing-data.js?v=20261013-life89b';
 import {livingHome} from './living-shared.js?v=20261013-life89b';
-import {createWorldExperience} from './world-experience.js?v=20261017-pad112';
+import {createWorldExperience} from './world-experience.js?v=20261017-pad113';
 import {inGunZone,weaponById} from './gun-layout.js?v=20261015-tactics99';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261017-pad112';
+import {startUpdateNotice} from './update-notice.js?v=20261017-pad113';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261016-trails110';
@@ -419,6 +419,7 @@ gamepad=createGamepadControls({
  release:()=>{experience?.controllerAim(false);cancelCharge();},
  look:(dx,dy)=>{yaw+=dx;pitch=clamp(pitch+dy,-1.15,1.1);},
  action:(kind,value)=>{
+  if(kind==='settings'){openWorldMenu();showWorldMenuTab('controls');document.querySelector('.gamepad-settings select')?.focus();return;}
   if(kind==='back'){controllerBack();return;}
   if(kind==='skip'){experience?.skipPreview();return;}
   if(kind==='menu'){openMenu();return;}
@@ -586,7 +587,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
       const my=enabled?((keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-stick.y-(gamepad?.move.y||0)):0;
       direction.set(Math.sin(yaw),0,Math.cos(yaw));right.set(-Math.cos(yaw),0,Math.sin(yaw));
       movement.copy(direction).multiplyScalar(my).addScaledVector(right,mx);if(movement.length()>1)movement.normalize();
-      run=!prone&&!crouched&&(gamepad?.sprint||sprintWanted&&keys.has('KeyW')||(!livingHome(p.position,housingView?.rooms)&&(keys.has('ShiftLeft')||keys.has('ShiftRight')))||(touch&&Math.hypot(stick.x,stick.y)>.94));
+      run=!prone&&!crouched&&!(gamepad?.aiming)&&(gamepad?.sprint||sprintWanted&&keys.has('KeyW')||(!livingHome(p.position,housingView?.rooms)&&(keys.has('ShiftLeft')||keys.has('ShiftRight')))||(touch&&Math.hypot(stick.x,stick.y)>.94));
       if(world.inAthletic(p.position)&&!athleticActive){
         athleticActive=true;courseAwaitingSave=!roomSelfId;athleticCheckpoint=world.athletic.checkpoints[cachedCharacter().checkpoint-1];airWalk=false;verticalSpeed=0;grounded=false;athleticPeak=p.position.y;updateJumpButton();
         if(athleticCheckpoint.id>1||p.position.y>athleticCheckpoint.y+5)respawnCourse();else notify('アスレチック開始 · CHECK 1 · ジャンプ力1.5倍');

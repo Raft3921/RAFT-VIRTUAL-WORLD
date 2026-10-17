@@ -25,6 +25,10 @@ export class ServerPlayerPhysics{
   for(const b of this.world.bodies)if(b.gunPropId)b.disabled=this.rules.guns.traces.has(b.gunPropId);
  }
  receive(entry,state,motion,now=Date.now()){
+  // A board/round teleport is a server-owned boundary. In-flight packets from
+  // before it must never restart a movement stream or overwrite its destination.
+  if(state.gunTeleportSerial!==(entry.player.gunTeleportSerial||0)){entry.motion=null;this.entries.delete(entry);this.hold(entry,state);return;}
+  if(entry.motion&&entry.motion.teleport!==(entry.player.gunTeleportSerial||0)){entry.motion=null;this.entries.delete(entry);}
   if(!motion||!Number.isInteger(motion.epoch)||!Array.isArray(motion.inputs)||motion.inputs.length>MOVEMENT_BATCH){if(entry.motion)this.apply(entry.motion,state);else if(inGunZone(entry.player,this.rules.settings.gunMap))this.hold(entry,state);return;}
   this.syncGeometry();const p=entry.player;
   // Seated activities, portal travel, flight and knockback retain their existing

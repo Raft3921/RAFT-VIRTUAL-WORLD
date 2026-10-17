@@ -1,0 +1,7 @@
+# Teleport movement barrier — entry123
+
+Public read-only metadata confirmed that both the Worker and Pages were running authority122. The user clarified that entry occurs and is immediately undone. Source inspection found movement state could survive a gun teleport: the gun move changed player coordinates and serial without clearing entry.motion, and the client teleport handler relied on the next-frame distance reset. An inactive packet in that gap could apply the previous motion position while carrying the new teleport serial, bypassing the later old-serial position safeguard.
+
+Every server gun teleport now clears its entry motion immediately and resets movement/posture values. Before any server physics processing (including inactive/malformed motion handling), state packets with an old teleport serial are held at the current authority position. A leftover motion stream with a different teleport serial is also discarded. The client teleport handler resets prediction synchronously, clears stance/camera offsets and schedules a fresh state packet, so a new input epoch starts at the teleport destination. This covers entry, exit and round/map relocation.
+
+Live /version and /release.json metadata were checked for the reported deployment question. No gameplay, browser, automated or multiplayer tests were performed; the fix follows the concrete stale-motion path in source. Gameplay acceptance remains unverified.

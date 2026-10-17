@@ -14,7 +14,7 @@ import {livingHome} from './living-shared.js?v=20261013-life89b';
 import {createWorldExperience} from './world-experience.js?v=20261017-authority122';
 import {inGunZone as mapContains,weaponById} from './gun-layout.js?v=20261017-authority122';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261017-authority122';
+import {startUpdateNotice} from './update-notice.js?v=20261017-entry123';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261017-slide120';
@@ -26,7 +26,7 @@ import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261013-life89b';
 import { createHit,stepHit,hitShape,proneWeight,gunEliminationState } from './hit-reaction.js?v=20261016-cinema106';
 import { createCombatEffects } from './combat-effects.js?v=20261014-world96';
 import { createBrownProjectiles } from './brown-projectiles.js?v=20261014-world96';
-import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-authority122';
+import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-entry123';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261013-life89b';
 import { cleanCharacter } from './character-store.js?v=20261017-authority122';
 // Versioned URL prevents a previously cached editor module from blocking startup.
@@ -335,7 +335,7 @@ experience=createWorldExperience({scene,camera,openMap:()=>plazaMap?.open(),name
  openChat:()=>{closeWorldMenu();worldChat.open();if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'chat-open'}));},openMenu:openWorldMenu,
  onModal:active=>{if(active){if(housingEditor?.active)housingEditor.close();worldGuide?.close(false);closeWorldMenu();$('menu').hidden=$('master').hidden=true;unlocked();setClean(false);}clearInput();},
  onCharacter:value=>cacheCharacter(selected,value),onAim:(up,side)=>{pitch=clamp(pitch+up,-1.15,1.1);yaw+=side;},
- onTeleport:(position,serial)=>{if(Number.isInteger(serial))localGunTeleportSerial=serial;const p=actors[selected]?.root;if(!p)return;p.position.set(position.x,position.y,position.z);p.rotation.y=position.yaw;yaw=position.yaw;velocity.set(0,0,0);verticalSpeed=0;airWalk=false;grounded=true;standingOn=null;seated=false;seat=null;localRagdoll=false;localHit=null;localImpact=null;clearInput();updateJumpButton();focus.copy(p.position).y+=1.25;}
+ onTeleport:(position,serial)=>{playerPrediction.reset();if(Number.isInteger(serial))localGunTeleportSerial=serial;const p=actors[selected]?.root;if(!p)return;p.position.set(position.x,position.y,position.z);p.rotation.y=position.yaw;yaw=position.yaw;velocity.set(0,0,0);verticalSpeed=0;airWalk=false;grounded=true;standingOn=null;seated=false;seat=null;localRagdoll=false;localHit=null;localImpact=null;proneWanted=prone=crouchWanted=crouched=false;proneViewBlend=slideViewBlend=crouchView=0;lastRoomStateAt=0;clearInput();updateJumpButton();focus.copy(p.position).y+=1.25;}
 });
 $('enter').onclick=enterStudio;$('resume').onclick=()=>{$('menu').hidden=true;clearInput();canvas.focus()};$('changeCharacter').onclick=$('masterCharacter').onclick=returnLobby;
 $('openVideo').onclick=()=>{openWorldMenu();showWorldMenuTab('video');};

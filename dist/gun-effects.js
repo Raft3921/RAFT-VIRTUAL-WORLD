@@ -63,7 +63,7 @@ export function createGunEffects(scene,{showRadius=false,floorAt=()=>0}={}){
    puff(position,aim.clone().multiplyScalar(.4),.125,.055,true,0,position,'#ffe5b3');
    for(let i=0;i<3;i++)puff(position,aim.clone().multiplyScalar(.20+Math.random()*.25).add(new THREE.Vector3((Math.random()-.5)*.12,.14,(Math.random()-.5)*.12)),.067,.40+Math.random()*.30,false,0,position,'#8a8981');
   },
-  impact(position,explosion,radius=12,normal=new THREE.Vector3(0,1,0),surface='stone'){
+  impact(position,explosion,radius=8.4,normal=new THREE.Vector3(0,1,0),surface='stone'){
    const ground=floorAt(position);
    if(!explosion){
     for(let i=0;i<(surface==='cloth'?4:9);i++){const v=normal.clone().multiplyScalar(surface==='cloth'?.18:.6+Math.random()*1.3).add(new THREE.Vector3((Math.random()-.5)*.7,Math.random()*.6,(Math.random()-.5)*.7));puff(position,v,.055+Math.random()*.040,.28+Math.random()*.3,false,0,position,surface==='cloth'?'#6f7169':surface==='metal'?'#8a8a85':'#b7a18a',1.4);if(i<4&&surface!=='cloth')chip(position,v.clone().multiplyScalar(.7),new THREE.Vector3(.015,.02,.025),ground,surface==='metal'?'#686d70':'#9d8569');}

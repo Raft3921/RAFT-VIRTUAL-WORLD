@@ -1,5 +1,5 @@
 import {isParkourFlip} from './player-parkour.js?v=20261017-wallspin133';
-import {stepCombatMovement} from './combat-movement.js?v=20261017-armed134';
+import {stepCombatMovement} from './combat-movement.js?v=20261017-211143';
 import {startMantle,stepMantle} from './player-mantle.js?v=20261017-mantle135';
 import * as THREE from './vendor/three.module.js';
 import {COURSE} from './world-layout.js';

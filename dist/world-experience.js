@@ -11,15 +11,15 @@ import {sampleGunReload,shotHandKick,stepGunSway} from './gun-hand-motion.js?v=2
 import {createRifleScope} from './rifle-scope.js?v=20261014-optics95';
 import {createFpsHud} from './fps-hud.js?v=20261017-ads116';
 import {createProjectileRenderer} from './projectile-renderer.js?v=20261016-trails110';
-import {createGunCinematic} from './gun-cinematic.js?v=20261017-wallspin133';
-import {createGunEffects} from './gun-effects.js?v=20261017-parkour126';
+import {createGunCinematic} from './gun-cinematic.js?v=20261017-211143';
+import {createGunEffects} from './gun-effects.js?v=20261017-211143';
 import {createBodycam} from './bodycam.js?v=20261015-tactics99';
 import {createWorldAudio} from './world-audio.js?v=20261016-audio111';
 import {createWorldInteraction} from './world-interaction.js?v=20261013-life89b';
 import {fallbackMuzzle} from './weapon-dimensions.js?v=20261015-tactics99';
 import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261013-life89b';
 import * as THREE from 'three';
-import {WEAPONS,weaponById,GUN_ZONE,inGunZone as mapContains} from './gun-layout.js?v=20261017-settlement125';
+import {WEAPONS,weaponById,GUN_ZONE,inGunZone as mapContains} from './gun-layout.js?v=20261017-211143';
 import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload,updateFiringArm} from './gun-visual.js?v=20261017-sight117';
 export function createWorldExperience({scene,camera,get,send,notify,openChat,openMenu,onModal,onTeleport,onCharacter,onAim,makeFace,skinURL,names,openMap}){
  const inGunZone=p=>mapContains(p,get().world?.gunMapId);

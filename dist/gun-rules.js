@@ -3,10 +3,10 @@ import {GunHitTimeline,movingGunHit} from './gun-hit-timeline.js?v=20261017-wall
 import {REPLAY_FINAL_AT,REPLAY_DURATION} from './replay-timing.js?v=20261016-cinema106';
 import {solidExtents,segmentGunSolid} from './gun-solid.js?v=20261015-tactics99';
 import {gunDamage,gunBulletBoxes,gunProjectileRadius} from './gun-posture.js?v=20261017-wallspin133';
-import {gunCollision} from './gun-collision.js?v=20261017-settlement125';
+import {gunCollision} from './gun-collision.js?v=20261017-211143';
 import {gunEliminationState} from './hit-reaction.js?v=20261016-cinema106';
 import {fallbackMuzzle} from './weapon-dimensions.js?v=20261015-tactics99';
-import {WEAPONS,weaponById,inGunZone,GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261017-settlement125';
+import {WEAPONS,weaponById,inGunZone,GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261017-211143';
 import {segmentBox,boxLocalPoint,projectileWallFraction} from './projectile-motion.js?v=20261017-bodyhit131';
 import {buildDistrict} from './district.js?v=20261013-life89b';
 let district=null;function districtSolids(){if(!district){district=[];buildDistrict({box:(x,y,z,w,h,d,color,solid=true)=>{if(solid)district.push({x,y,z,w,h,d});},board:()=>{},sign:()=>{},seats:[],clockHands:[]});}return district;}
@@ -48,7 +48,7 @@ export class GunRules{
  }
  damage(owner,victim,shot,now,{deferResolve=false,previewed=false}={}){
   const attacker=this.members.get(owner.id),target=this.members.get(victim.id),damage=gunDamage(shot.weapon,shot.charge);
-  if(inGunZone(owner)||inGunZone(victim)){
+  if(attacker||target||inGunZone(owner,this.rules.settings.gunMap)||inGunZone(victim,this.rules.settings.gunMap)){
    if(this.phase!=='active'||!attacker||!target||attacker.out||target.out||attacker.team===target.team)return;
    target.damage=Math.min(this.maxLife,target.damage+damage);target.out=target.damage>=this.maxLife;if(target.out){this.cancelReload(victim,now);target.outAt=now-(previewed?1800:0);target.outPosition={x:victim.x,y:victim.y,z:victim.z};Object.assign(victim,gunEliminationState(previewed?1.8:0),{vx:0,vy:0,vz:0});const length=Math.hypot(shot.vx||victim.x-owner.x,shot.vz||victim.z-owner.z)||1;this.send({type:'gun-eliminated',settled:previewed,playerId:victim.id,attacker:owner.id,weapon:shot.weapon,position:target.outPosition,direction:{x:(shot.vx||victim.x-owner.x)/length,z:(shot.vz||victim.z-owner.z)/length},at:now});}
   }else if(this.rules.duel?.ids.includes(owner.id)||this.rules.duel?.ids.includes(victim.id))return;
@@ -57,7 +57,15 @@ export class GunRules{
   this.send({type:'gun-damage',previewed,playerId:victim.id,attacker:owner.id,damage,weapon:shot.weapon,remaining:target?Math.max(0,this.maxLife-target.damage):null});
   if(target&&!deferResolve){this.publish();this.resolve();}
  }
- inBlast(q,point,radius){return gunBulletBoxes(q).some(box=>{const [x,y,z]=boxLocalPoint(point,box);return Math.hypot(Math.max(0,Math.abs(x)-box.w/2),Math.max(0,Math.abs(y)-box.h/2),Math.max(0,Math.abs(z)-box.d/2))<=radius;});}
+ inBlast(q,point,radius,layouts){return gunBulletBoxes(q).some(box=>{
+  const local=boxLocalPoint(point,box),half=[box.w/2,box.h/2,box.d/2],near=local.map((v,i)=>Math.max(-half[i],Math.min(half[i],v)));
+  if(Math.hypot(...local.map((v,i)=>v-near[i]))>radius)return false;
+  const [x,y,z]=near,m=box.basis,c=Math.cos(box.yaw||0),s=Math.sin(box.yaw||0);
+  const closest=m?{x:box.x+m[0]*x+m[1]*y+m[2]*z,y:box.y+m[3]*x+m[4]*y+m[5]*z,z:box.z+m[6]*x+m[7]*y+m[8]*z}:{x:box.x+c*x+s*z,y:box.y+y,z:box.z-s*x+c*z};
+  // A nearby limb counts only when the blast can reach it through open space.
+  // Check the closest surface and centre so partial cover can expose a body part.
+  return [closest,box].some(end=>Math.hypot(end.x-point.x,end.y-point.y,end.z-point.z)<=radius&&this.blocked(point,end,layouts,.01)===null);
+ });}
 
  applyImpact(owner,victims,shot,impact,now){
   this.impact(impact);
@@ -141,11 +149,11 @@ export class GunRules{
   if(this.phase==='finished'&&now>=this.nextRoundAt){this.phase='waiting';this.resetMap();this.assign();this.startAt=this.members.size>=2?now+3000:0;this.publish();}
   for(const shot of this.shots){const owner=players.find(p=>p.id===shot.owner);if(!owner||shot.round!==null&&(this.phase!=='active'||shot.round!==this.round))continue;
    const stepStart=shot.lastAt??shot.born,stepEnd=Math.min(now,shot.born+shot.life*1000),shotDt=Math.max(0,(stepEnd-stepStart)/1000);shot.lastAt=stepEnd;const a=shot.position,b={x:a.x+shot.vx*shotDt,y:a.y+shot.vy*shotDt,z:a.z+shot.vz*shotDt},weapon=weaponById(shot.weapon),radius=gunProjectileRadius(shot.weapon);let first=this.blocked(a,b,layouts,radius),victim=null;
-   for(const q of players){if(q.id===owner.id)continue;const own=this.members.get(owner.id),target=this.members.get(q.id);if(shot.round!==null&&(!target||target.out||target.team===own?.team))continue;if(shot.round===null&&inGunZone(q))continue;
+   for(const q of players){if(q.id===owner.id)continue;const own=this.members.get(owner.id),target=this.members.get(q.id);if(shot.round!==null&&(!target||target.out||target.team===own?.team))continue;if(shot.round===null&&(target||inGunZone(q,this.rules.settings.gunMap)))continue;
     const lag=shot.viewLags?.get(q.id)||0;const fraction=movingGunHit(a,b,q,stepStart-lag,stepEnd-lag,this.hitTimeline,radius);if(fraction!==null&&(first===null||fraction<first)){first=fraction;victim=q;}}
    if(first!==null){
     const point=interpolate(a,b,first),impact={type:'gun-impact',id:shot.id,position:point,explosion:!!weapon.radius,radius:weapon.radius||0,velocity:{x:shot.vx,y:shot.vy,z:shot.vz},wall:!victim};
-    const victims=weapon.radius?players.filter(q=>q.id!==owner.id&&this.inBlast(q,point,weapon.radius)):victim?[victim]:[];
+    const victims=weapon.radius?players.filter(q=>q.id!==owner.id&&this.inBlast(q,point,weapon.radius,layouts)):victim?[victim]:[];
     if(this.reserveFinalHit(owner,victims,shot,impact,now)){remaining.length=0;break;}
     if(!victim)this.breakAt(point,shot,now);this.applyImpact(owner,victims,shot,impact,now);continue;
    }
@@ -191,7 +199,7 @@ export class GunRules{
   }
   for(const {def,fraction,end}of contacts.sort((a,b)=>a.fraction-b.fraction)){const obstruction=this.blocked(origin,end,layouts,.02);if(obstruction!==null&&obstruction<fraction-.10)break;this.changeProp(def.id,'cut',normal,now);}
   for(const q of this.players()){
-   if(q.id===p.id||!inGunZone(p,this.rules.settings.gunMap)&&inGunZone(q))continue;
+   if(q.id===p.id||!inGunZone(p,this.rules.settings.gunMap)&&inGunZone(q,this.rules.settings.gunMap))continue;
    // Sweep the blade through the actual limbs, once per victim. Empty space
    // where a standing torso used to be cannot take melee damage during a flip.
    let contact=null;const bodyBoxes=gunBulletBoxes(this.hitTimeline.sample(q,now-(viewLags.get(q.id)||0)));

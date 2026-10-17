@@ -1,11 +1,11 @@
 import {createGunWeather} from './gun-weather.js?v=20261017-maps121';
 import {gunMap as gunMapDefinition} from './gun-maps.js?v=20261017-maps121';
-import {COMBAT_MENU} from './world-mode.js?v=20261017-maps121';
-import {createCollisionWorld} from './world-collision.js?v=20261017-maps121';
+import {COMBAT_MENU} from './world-mode.js?v=20261017-211143';
+import {createCollisionWorld} from './world-collision.js?v=20261017-211143';
 import {sandTexture} from './sand-texture.js?v=20261017-maps121';
 import {createGunMapVisual} from './gun-map-visual.js?v=20261017-props124';
 import {rampHeight} from './plaza-surfaces.js?v=20261013-life89b';
-import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261017-settlement125';
+import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261017-211143';
 import * as THREE from './vendor/three.module.js';
 import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261013-life89b';
 import { buildDistrict } from './district.js?v=20261013-life89b';

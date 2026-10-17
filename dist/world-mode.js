@@ -1,5 +1,5 @@
 import {gunMap} from './gun-maps.js?v=20261017-maps121';
-import {GUN_ENTRY} from './gun-layout.js';
+import {GUN_ENTRY} from './gun-layout.js?v=20261017-211143';
 // An open staging area outside the combat boundary, facing its entrance.
 export const COMBAT_SPAWN=Object.freeze({x:GUN_ENTRY.x-6,y:.12,z:GUN_ENTRY.z+3,yaw:Math.PI/2,mirrorRealm:null});
 export const COMBAT_MENU=Object.freeze({x:GUN_ENTRY.x-3,z:GUN_ENTRY.z+6});

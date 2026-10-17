@@ -11,7 +11,7 @@ export const WEAPONS=[
  {id:'machine',name:'マシンガン',price:3,magazine:30,interval:100,speed:1900,pellets:1,spread:.013,range:420,damage:.5,require:1},
  {id:'sniper',name:'スナイパー',price:5,magazine:5,interval:1000,speed:2600,pellets:1,spread:0,range:800,damage:1.5,require:5},
  {id:'shotgun',name:'ショットガン',price:7,magazine:8,interval:850,speed:1600,pellets:4,spread:.055,range:180,require:10},
- {id:'rocket',name:'ロケットランチャー',price:10,magazine:1,interval:1200,speed:24,pellets:1,spread:0,range:320,radius:12,damage:2,require:15},
+ {id:'rocket',name:'ロケットランチャー',price:10,magazine:1,interval:1200,speed:24,pellets:1,spread:0,range:320,radius:8.4,damage:2,require:15},
  {id:'katana',name:'日本刀',price:1,magazine:1,interval:560,speed:0,pellets:1,spread:0,range:2.8,damage:1,melee:true,require:0}
 ];
 export const weaponById=id=>WEAPONS.find(w=>w.id===id);

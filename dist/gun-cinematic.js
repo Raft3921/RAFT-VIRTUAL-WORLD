@@ -1,9 +1,9 @@
 import {parkourPose} from './parkour-pose.js?v=20261017-wallspin133';
 import {createCinematicProjectile} from './cinematic-projectile.js?v=20261016-trails110';
-import {GUN_ZONE} from './gun-layout.js';
+import {GUN_ZONE} from './gun-layout.js?v=20261017-211143';
 import * as THREE from 'three';
 import {planCinematicRail} from './cinematic-rail.js?v=20261016-trails110';
-import {createGunEffects} from './gun-effects.js?v=20261017-parkour126';
+import {createGunEffects} from './gun-effects.js?v=20261017-211143';
 import {applyAvatarHitPose,groundAvatarHitPose} from './avatar-hit-pose.js?v=20261015-spectacle104';
 import {gunEliminationState} from './hit-reaction.js?v=20261016-cinema106';
 import {sampleKatanaPose} from './katana-motion.js?v=20261016-cinema106';

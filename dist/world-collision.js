@@ -1,4 +1,4 @@
-import {combatArea} from './world-mode.js?v=20261017-maps121';
+import {combatArea} from './world-mode.js?v=20261017-211143';
 import * as THREE from './vendor/three.module.js';
 import {ARENA,COURSE} from './world-layout.js';
 import {rampHeight} from './plaza-surfaces.js';

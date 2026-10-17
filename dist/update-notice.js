@@ -1,5 +1,5 @@
-import {compatibleSync} from './sync-protocol.js?v=20261017-201205';
-import {BUILD_ID,RELEASE_ID} from './build-info.js?v=20261017-201205';
+import {compatibleSync} from './sync-protocol.js?v=20261017-211143';
+import {BUILD_ID,RELEASE_ID} from './build-info.js?v=20261017-211143';
 export function startUpdateNotice({endpoint,version}){
  const notice=document.getElementById('updateNotice');let busy=false,clientUpdate=false,incompatible=false,explicit=false;
  const draw=()=>{notice.hidden=!(explicit||clientUpdate||incompatible);};
@@ -7,7 +7,7 @@ export function startUpdateNotice({endpoint,version}){
  const serverURL=new URL(endpoint.replace(/^ws/,'http'));serverURL.pathname='/version';serverURL.search='';
  async function refresh(){if(document.hidden||busy)return;busy=true;try{
   await Promise.allSettled([
-   fetch(new URL('./release.json?v=20261017-201205',import.meta.url),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(release=>{if(!release)return;clientUpdate=release.releaseId?release.releaseId!==RELEASE_ID:!!release.buildId&&release.buildId!==BUILD_ID;}),
+   fetch(new URL('./release.json?v=20261017-211143',import.meta.url),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(release=>{if(!release)return;clientUpdate=release.releaseId?release.releaseId!==RELEASE_ID:!!release.buildId&&release.buildId!==BUILD_ID;}),
    fetch(serverURL,{cache:'no-store'}).then(r=>r.ok?r.json():null).then(release=>{if(release)incompatible=!compatibleSync(release);})
   ]);draw();
  }finally{busy=false;}}

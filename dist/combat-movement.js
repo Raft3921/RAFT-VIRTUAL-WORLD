@@ -1,5 +1,5 @@
 import {stepParkour,parkourDefaults,isParkourFlip} from './player-parkour.js?v=20261017-wallspin133';
-import {inGunZone,weaponById} from './gun-layout.js?v=20261017-settlement125';
+import {inGunZone,weaponById} from './gun-layout.js?v=20261017-211143';
 import {proneShape} from './gun-posture.js?v=20261017-wallspin133';
 export function combatMovementEnabled(position,map,weaponId){const weapon=weaponById(weaponId);return inGunZone(position,map)||!!weapon&&!weapon.melee;}
 export const COMBAT_WALK=2.8,COMBAT_SPRINT_START=5.8,COMBAT_SPRINT_MAX=7.2,COMBAT_SPRINT_RAMP=.55;

@@ -2,10 +2,9 @@ import {ARENA} from './world-layout.js?v=20261013-life89b';
 import {HOUSES,houseDescriptor,ROOM,FURNITURE_BY_ID,furniturePose} from './housing-data.js?v=20261013-life89b';
 export const BROWN_PROJECTILE={speed:15,up:1.2,gravity:2,radius:.19,life:1.5,damage:2};
 export function projectileAt(p,now){const t=Math.max(0,Math.min(BROWN_PROJECTILE.life,(now-p.born)/1000));return {x:p.x+p.vx*t,y:p.y+p.vy*t-BROWN_PROJECTILE.gravity*t*t/2,z:p.z+p.vz*t};}
+export function boxLocalPoint(p,box){const x=p.x-box.x,y=p.y-box.y,z=p.z-box.z,m=box.basis;if(m)return [m[0]*x+m[3]*y+m[6]*z,m[1]*x+m[4]*y+m[7]*z,m[2]*x+m[5]*y+m[8]*z];const c=Math.cos(box.yaw||0),s=Math.sin(box.yaw||0);return [c*x-s*z,y,s*x+c*z];}
 export function segmentBox(a,b,box,radius=0){
-  const yaw=box.yaw||0,c=Math.cos(yaw),s=Math.sin(yaw);
-  const local=p=>{const x=p.x-box.x,z=p.z-box.z;return [c*x-s*z,p.y-box.y,s*x+c*z];};
-  const start=local(a),end=local(b),half=[box.w/2+radius,box.h/2+radius,box.d/2+radius];let enter=0,leave=1;
+  const start=boxLocalPoint(a,box),end=boxLocalPoint(b,box),half=[box.w/2+radius,box.h/2+radius,box.d/2+radius];let enter=0,leave=1;
   for(let axis=0;axis<3;axis++){const delta=end[axis]-start[axis];if(Math.abs(delta)<1e-8){if(Math.abs(start[axis])>half[axis])return null;continue;}let lo=(-half[axis]-start[axis])/delta,hi=(half[axis]-start[axis])/delta;if(lo>hi)[lo,hi]=[hi,lo];enter=Math.max(enter,lo);leave=Math.min(leave,hi);if(enter>leave)return null;}
   return enter>=0&&enter<=1?enter:null;
 }

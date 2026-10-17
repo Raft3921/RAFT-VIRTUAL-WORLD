@@ -41,7 +41,7 @@ export class RemoteMotion{
   // The least delayed recent packet estimates the clock; slew corrections avoid
   // making an unlucky first packet a permanent latency penalty.
   if(this.offsets.length)this.offset+=clamp(Math.max(...this.offsets)-this.offset,-dt*.02,dt*.02);
-  const desired=now+this.offset-(combat?Math.min(this.delay,75):this.delay);
+  const desired=now+this.offset-(combat?clamp(this.interval*.9+this.jitter,16,55):this.delay);
   if(this.playhead===null||now-this.lastRender>1000)this.playhead=desired;
   else this.playhead+=dt*clamp(1+(desired-this.playhead-dt)/500,.92,1.08);
   this.lastRender=now;

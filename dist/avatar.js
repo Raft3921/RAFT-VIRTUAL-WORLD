@@ -1,3 +1,4 @@
+import {parkourJoints} from './parkour-rig.js?v=20261017-bodyhit131';
 import {parkourPose} from './parkour-pose.js?v=20261017-turn130';
 import {createWeaponClearance} from './weapon-clearance.js?v=20261016-effects108';
 import {createGunActionMotion,stepGunActionMotion} from './gun-action-motion.js?v=20261017-settlement125';
@@ -164,7 +165,7 @@ export async function createAvatar(url,{model=null}={}) {
   const meshes = [];
   const root = new THREE.Group();
   root.name = custom?'gyoza-jem-player':'java-slim-player';
-  const pelvis = group('pelvis', root),parkourRotation=new THREE.Quaternion();
+  const pelvis = group('pelvis', root);
   const torso = group('waist', pelvis, 0, bodyBottom);
 
   function addPart(parent, name, x, y, start = 0, length = parts[name].size[1]) {
@@ -347,6 +348,7 @@ export async function createAvatar(url,{model=null}={}) {
     const wantsProne=!!state.prone&&!state.ragdoll&&!state.sleeping&&!state.seated;
     slideBlend=Number.isFinite(state.hitSlideBlend)?clamp(state.hitSlideBlend,0,1):damp(slideBlend,state.sliding?1:0,state.sliding?14:9,dt);if(slideBlend<.001)slideBlend=0;
     proneBlend=Number.isFinite(state.hitProneBlend)?clamp(state.hitProneBlend,0,1):damp(proneBlend,wantsProne?1:0,wantsProne?7:5,dt);if(proneBlend<.001)proneBlend=0;
+    if(park.weight>0&&!state.ragdoll&&!state.seated&&!state.sleeping&&!state.mantling)crouchBlend=proneBlend=slideBlend=0;
     const stride = (.24 + running * .08) * motion*motionScale*(1-crouchBlend*.52);
     const breathing = Math.sin(elapsed * 1.7);
     const bob = (1 - Math.cos(phase * 2)) * .0055 * motion;
@@ -516,9 +518,9 @@ export async function createAvatar(url,{model=null}={}) {
       if(gunModel&&mantleBlend>.1)gunModel.visible=false;
     }
     if(park.weight>0&&!state.ragdoll&&!state.sleeping&&!state.seated&&!state.mantling){
-      if(['backflip','sideflip','frontflip','slideflip','wallkick'].includes(park.kind))for(const side of ['left','right']){gestureJoint(hips[side],-.95*park.tuck,0,0,1);gestureJoint(knees[side],1.55*park.tuck,0,0,1);gestureJoint(shoulders[side],-.8-park.tuck,0,side==='left'?.18:-.18,1);gestureJoint(elbows[side],-.75,0,0,1);}
-      if(park.kind==='wallrun'){for(const [side,sign]of [['right',-1],['left',1]]){gestureJoint(hips[side],-.5+Math.sin(phase+(sign>0?Math.PI:0))*.6,0,sign*.16,park.weight);gestureJoint(knees[side],.7+Math.max(0,Math.sin(phase))* .4,0,0,park.weight);}gestureJoint(shoulders.left,-.9,0,.25,park.weight);gestureJoint(elbows.left,-.45,0,0,park.weight);}
-      parkourRotation.fromArray(park.quaternion);pelvis.quaternion.premultiply(parkourRotation);pelvis.position.x+=park.shiftX;pelvis.position.y+=park.shiftY;pelvis.position.z+=park.shiftZ;
+      const limbs=parkourJoints({...state,yaw:root.rotation.y,skin:custom?7:0});
+      pelvis.position.set(park.shiftX,park.shiftY,park.shiftZ);pelvis.quaternion.fromArray(park.quaternion);torso.rotation.set(0,0,0);
+      for(const side of ['right','left']){hips[side].rotation.set(...limbs[side].hip);knees[side].rotation.set(...limbs[side].knee);shoulders[side].rotation.set(...limbs[side].shoulder);elbows[side].rotation.set(...limbs[side].elbow);}
       if(gunModel&&['backflip','sideflip','frontflip','slideflip','wallkick'].includes(park.kind))gunModel.visible=false;
       else if(gunModel&&park.kind==='wallrun'){gunInverse.copy(pelvis.quaternion).multiply(torso.quaternion).multiply(shoulders.right.quaternion).multiply(elbows.right.quaternion).invert();gunModel.quaternion.copy(gunInverse).multiply(gunAim);}
     }
@@ -536,6 +538,7 @@ export async function createAvatar(url,{model=null}={}) {
       headCounter.copy(pelvis.quaternion).multiply(torso.quaternion).invert().multiply(headAim);head.quaternion.slerp(headCounter,Math.max(proneBlend,slideBlend,park.kind==='wallrun'?park.weight:0));
       if(proneBlend>0||slideBlend>0)groundAvatarHitPose(root,pelvis,meshes);
     }
+    if(park.weight>0&&!state.ragdoll&&!state.seated&&!state.sleeping&&!state.mantling){headLook.set(clamp(state.lookPitch||0,-.65,.7),clamp(state.lookYaw||0,-.95,.95),0);headAim.setFromEuler(headLook);if(park.kind==='wallrun')head.quaternion.copy(pelvis.quaternion).invert().multiply(headAim);else head.quaternion.copy(headAim);}
     Object.assign(animation, { speed, motion, running, grounded, phase, parkourKind:state.parkourKind,parkourAge:state.parkourAge,parkourDuration:state.parkourDuration,wallSide:state.wallSide,wallNX:state.wallNX,wallNZ:state.wallNZ,sliding:!!state.sliding,slideBlend,prone:!!state.prone,proneBlend,crouched:!!state.crouched,gesture: gestureName,mantling:mantleBlend>.1 });
   }
 

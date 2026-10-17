@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {cuboidGeometry} from './model-batching.js?v=20261014-fps94';
-import {BROWN_PROJECTILE,projectileAt} from './projectile-motion.js?v=20261013-life89b';
+import {BROWN_PROJECTILE,projectileAt} from './projectile-motion.js?v=20261017-bodyhit131';
 
 export function createBrownProjectiles(scene,{world=()=>null,targets=()=>[],onLocalHit=()=>{},onImpact=()=>{}}={}){
   const limit=24,parts=[[0,0,0,.31,.28,.32],[-.13,.04,.02,.18,.19,.24],[.12,.06,-.03,.2,.22,.2],[0,.13,.01,.22,.15,.25],[.03,-.1,.04,.24,.12,.23],[-.1,.15,-.06,.1,.08,.09],[.14,-.01,.14,.08,.09,.07]];

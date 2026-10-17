@@ -1,6 +1,6 @@
 import {stepParkour,parkourDefaults,isParkourFlip} from './player-parkour.js?v=20261017-turn130';
 import {inGunZone} from './gun-layout.js?v=20261017-settlement125';
-import {proneShape} from './gun-posture.js?v=20261017-turn130';
+import {proneShape} from './gun-posture.js?v=20261017-bodyhit131';
 export const COMBAT_WALK=2.8,COMBAT_SPRINT_START=5.8,COMBAT_SPRINT_MAX=7.2,COMBAT_SPRINT_RAMP=.55;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export const slideShape=(yaw,width=.32)=>({width:Math.max(.32,width),depth:.95,height:1.16,yaw});

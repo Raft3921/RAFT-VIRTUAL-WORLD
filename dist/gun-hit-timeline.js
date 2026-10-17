@@ -1,5 +1,5 @@
-import {segmentBox} from './projectile-motion.js?v=20261013-life89b';
-import {gunBulletBoxes} from './gun-posture.js?v=20261017-turn130';
+import {segmentBox} from './projectile-motion.js?v=20261017-bodyhit131';
+import {gunBulletBoxes} from './gun-posture.js?v=20261017-bodyhit131';
 export const MAX_GUN_REWIND=240;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const lerp=(a,b,t)=>a+(b-a)*t;
@@ -15,7 +15,7 @@ export class GunHitTimeline{
   if(previous&&at<previous.at)return;
   const seconds=previous?Math.max(0,at-previous.at)/1000:0,target=p.prone?1:0;
   const crouchTarget=p.crouched?1:0;
-  const frame={parkourKind:p.parkourKind||'',parkourAge:p.parkourAge||0,parkourDuration:p.parkourDuration||0,parkourSerial:p.parkourSerial||0,wallSide:p.wallSide||0,wallNX:p.wallNX||0,wallNZ:p.wallNZ||0,hitSlideBlend:p.hitSlideBlend||0,sliding:!!p.sliding,hitCrouchBlend:previous?lerp(previous.hitCrouchBlend,crouchTarget,1-Math.exp(-seconds*12)):crouchTarget,id:p.id,at,x:p.x,y:p.y,z:p.z,yaw:p.yaw||0,headYaw:p.headYaw||0,headPitch:p.headPitch||0,skin:p.skin,prone:!!p.prone,crouched:!!p.crouched,gunTeleportSerial:p.gunTeleportSerial||0,mirrorRealm:p.mirrorRealm,hitProneBlend:previous?lerp(previous.hitProneBlend,target,1-Math.exp(-seconds*(target?7:5))):target};
+  const frame={ragdoll:!!p.ragdoll,seated:!!p.seated,sleeping:!!p.sleeping,mantling:!!p.mantling,parkourKind:p.parkourKind||'',parkourAge:p.parkourAge||0,parkourDuration:p.parkourDuration||0,parkourSerial:p.parkourSerial||0,wallSide:p.wallSide||0,wallNX:p.wallNX||0,wallNZ:p.wallNZ||0,hitSlideBlend:p.hitSlideBlend||0,sliding:!!p.sliding,hitCrouchBlend:previous?lerp(previous.hitCrouchBlend,crouchTarget,1-Math.exp(-seconds*12)):crouchTarget,id:p.id,at,x:p.x,y:p.y,z:p.z,yaw:p.yaw||0,headYaw:p.headYaw||0,headPitch:p.headPitch||0,skin:p.skin,prone:!!p.prone,crouched:!!p.crouched,gunTeleportSerial:p.gunTeleportSerial||0,mirrorRealm:p.mirrorRealm,hitProneBlend:previous?lerp(previous.hitProneBlend,target,1-Math.exp(-seconds*(target?7:5))):target};
   if(previous&&at===previous.at)frames[frames.length-1]=frame;else frames.push(frame);
   while(frames.length>32||frames.length>2&&frames[1].at<at-800)frames.shift();this.players.set(p.id,frames);p.hitProneBlend=frame.hitProneBlend;p.hitCrouchBlend=frame.hitCrouchBlend;
  }
@@ -35,13 +35,15 @@ export class GunHitTimeline{
 // Relative motion sweeps a projectile against the moving body's occupied interval.
 // Short slices also follow turns and posture changes, rather than testing only a tick endpoint.
 export function movingGunHit(a,b,p,startAt,endAt,timeline,radius){
- const steps=Math.max(1,Math.min(32,Math.ceil((endAt-startAt)/20)));let earliest=null;
+ const steps=Math.max(1,Math.min(48,Math.ceil((endAt-startAt)/5)));let earliest=null;
  for(let step=0;step<steps;step++){
-  const lo=step/steps,hi=(step+1)/steps,s=timeline.sample(p,lerp(startAt,endAt,lo)),e=timeline.sample(p,lerp(startAt,endAt,hi));
-  const from={x:lerp(a.x,b.x,lo),y:lerp(a.y,b.y,lo),z:lerp(a.z,b.z,lo)},to={x:lerp(a.x,b.x,hi),y:lerp(a.y,b.y,hi),z:lerp(a.z,b.z,hi)};
-  const first=gunBulletBoxes(s),last=gunBulletBoxes(e);
-  for(let i=0;i<first.length;i++){const box=first[i],end=last[i]||box,relative={x:to.x-(end.x-box.x),y:to.y-(end.y-box.y),z:to.z-(end.z-box.z)},extent={...box,w:Math.max(box.w,end.w),h:Math.max(box.h,end.h),d:Math.max(box.d,end.d)};
-   const hit=segmentBox(from,relative,extent,radius);if(hit!==null){const fraction=lerp(lo,hi,hit);if(earliest===null||fraction<earliest)earliest=fraction;}
+  const lo=step/steps,hi=(step+1)/steps,mid=(lo+hi)/2,s=timeline.sample(p,lerp(startAt,endAt,lo)),e=timeline.sample(p,lerp(startAt,endAt,hi)),pose=timeline.sample(p,lerp(startAt,endAt,mid));
+  const from={x:lerp(a.x,b.x,lo),y:lerp(a.y,b.y,lo),z:lerp(a.z,b.z,lo)},to={x:lerp(a.x,b.x,hi)-(e.x-s.x),y:lerp(a.y,b.y,hi)-(e.y-s.y),z:lerp(a.z,b.z,hi)-(e.z-s.z)};
+  // Mid-slice orientation keeps rotated limbs tight. Sweep only root motion,
+  // never the enlarged union of differently rotated endpoints or part indices.
+  for(const part of gunBulletBoxes(pose)){
+   const box={...part,x:part.x+s.x-pose.x,y:part.y+s.y-pose.y,z:part.z+s.z-pose.z},hit=segmentBox(from,to,box,radius);
+   if(hit!==null){const fraction=lerp(lo,hi,hit);if(earliest===null||fraction<earliest)earliest=fraction;}
   }
   if(earliest!==null)break;
  }

@@ -136,7 +136,7 @@ sockets.on('connection', (socket, request) => {
     try { message = JSON.parse(raw.toString()); } catch { return; }
     if(!validRoomMessage(message,raw.length))return;
     if(message.type!=='state'){rules.receive(entry,message);return;}
-    if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;
+    if (message.type !== 'state' || Date.now() - entry.lastStateAt < 12) return;
     if(rules.worldModeChanging)return;
     const requestedSkin = Number(message.state?.skin);
     const state = cleanState(message.state, requestedSkin, (rules.settings.combatOnly?undefined:rules.houses.realms));

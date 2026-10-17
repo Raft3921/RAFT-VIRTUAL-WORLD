@@ -24,15 +24,16 @@ export function createVideoSettings({canvas,getRenderer,getEnvironment,onQuality
  function sync(){for(const el of panel.querySelectorAll('[data-video]')){const key=el.dataset.video;if(el.type==='checkbox')el.checked=settings[key];else el.value=settings[key];}for(const el of panel.querySelectorAll('[data-out]'))el.textContent=settings[el.dataset.out]+(el.dataset.out==='exposure'?'×':'%');}
  function save(){try{localStorage.setItem(KEY,JSON.stringify(settings));}catch{}}
  function apply(){const renderer=getRenderer(),environment=getEnvironment();if(!renderer||!environment)return;
+  for(const key of ['shadows','postResolution','motionBlur','depthOfField'])panel.querySelector('[data-video="'+key+'"]').disabled=!!renderer.isSoftwareRenderer;
   const autoCap=settings.quality==='auto'?({low:1,medium:1.25,high:2,ultra:3}[environment.settings.quality]||2):2,base=Math.min(devicePixelRatio||1,mobile?1:autoCap),limit=Math.min(4,renderer.capabilities.maxTextureSize/Math.max(innerWidth,innerHeight)),ratio=Math.max(.5,Math.min(limit,base*settings.scale/100));renderer.setPixelRatio(ratio);
   const size=Math.min(renderer.capabilities.maxTextureSize,{off:512,low:512,medium:1024,high:2048,ultra:4096}[settings.shadows]),shadow=environment.sun.shadow;
-  renderer.shadowMap.enabled=settings.shadows!=='off';environment.sun.castShadow=settings.shadows!=='off';
+  renderer.shadowMap.enabled=!renderer.isSoftwareRenderer&&settings.shadows!=='off';environment.sun.castShadow=renderer.shadowMap.enabled;
   if(shadow.mapSize.x!==size){shadow.mapSize.set(size,size);shadow.map?.dispose();shadow.map=null;shadow.needsUpdate=true;}
   renderer.toneMapping=settings.color==='natural'?THREE.ReinhardToneMapping:THREE.ACESFilmicToneMapping;
   environment.setSettings({exposure:settings.exposure});
   const saturation=settings.saturation/100*(settings.color==='vivid'?1.15:1),contrast=settings.contrast/100;
   canvas.style.filter=`saturate(${saturation}) contrast(${contrast})`;
-  document.getElementById('videoStatus').textContent=`描画 ${Math.round(innerWidth*ratio)} × ${Math.round(innerHeight*ratio)} · 設定はこの端末のみ`;
+  document.getElementById('videoStatus').textContent=renderer.isSoftwareRenderer?'互換描画：簡易3D / 最大24 FPS / 影・映像効果なし':`描画 ${Math.round(innerWidth*ratio)} × ${Math.round(innerHeight*ratio)} · 設定はこの端末のみ`;
  }
  for(const el of panel.querySelectorAll('[data-video]'))el.addEventListener(el.type==='range'?'input':'change',()=>{const key=el.dataset.video;settings[key]=el.type==='checkbox'?el.checked:['scale','fps','exposure','saturation','contrast'].includes(key)?Number(el.value):el.value;
   if(key==='quality'){const presets={low:[75,'low','1280'],medium:[100,'medium','1280'],high:[100,'high','native'],ultra:[100,'ultra','native']},preset=presets[settings.quality];if(preset){[settings.scale,settings.shadows,settings.postResolution]=preset;}onQuality(settings.quality);}sync();apply();save();});

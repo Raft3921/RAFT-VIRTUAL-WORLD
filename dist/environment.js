@@ -75,8 +75,8 @@ function makeSky() {
   return sky;
 }
 
-function makeGround() {
-  const geometry = new THREE.PlaneGeometry(2800, 2800, 160, 160);
+function makeGround(simple=false) {
+  const geometry = new THREE.PlaneGeometry(2800, 2800, simple?1:160, simple?1:160);
   geometry.rotateX(-Math.PI / 2);
   const positions = geometry.attributes.position;
   for (let i = 0; i < positions.count; i++) {
@@ -85,7 +85,7 @@ function makeGround() {
     const ramp = THREE.MathUtils.smoothstep(Math.hypot(x, z), 360, 600);
     const hills = 3.4 + Math.sin(x * .033 + .7) * Math.cos(z * .021) * 4.6
       + Math.sin(x * .014 - z * .025 + 1.8) * 3.8;
-    positions.setY(i, Math.max(0, hills) * ramp - .015);
+    positions.setY(i, simple?-.015:Math.max(0, hills) * ramp - .015);
   }
   geometry.computeVertexNormals();
   const material = new THREE.MeshStandardMaterial({
@@ -277,7 +277,7 @@ export function createEnvironment(scene, renderer, { mobile = false, combatOnly 
   };
   const group = new THREE.Group();
   group.name = 'Meadow environment';
-  const sky = makeSky(), ground = makeGround();
+  const sky = makeSky(), ground = makeGround(renderer.isSoftwareRenderer);
   const ambient = new THREE.HemisphereLight('#e3f1ff', '#728153', 1.6);
   const sun = new THREE.DirectionalLight('#fff7e3', 2.5);
   sun.castShadow = true;
@@ -299,7 +299,7 @@ export function createEnvironment(scene, renderer, { mobile = false, combatOnly 
     uSpan: { value: TIERS[settings.quality].span },
     uFocus: { value: new THREE.Vector2() },
   };
-  let grass = combatOnly?null:makeGrass(TIERS[settings.quality], uniforms);
+  let grass = combatOnly||renderer.isSoftwareRenderer?null:makeGrass(TIERS[settings.quality], uniforms);
   group.add(sky, ground, ambient, sun, sun.target);if(grass)group.add(grass);
   scene.add(group);
   const meadowFog=new THREE.Fog('#abd5f2',120,1400),meadowBackground=scene.background,voidBackground=new THREE.Color('#000000');scene.fog=meadowFog;let mirrorView=false,grassVisible=true;

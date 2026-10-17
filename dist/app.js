@@ -14,7 +14,7 @@ import {livingHome} from './living-shared.js?v=20261013-life89b';
 import {createWorldExperience} from './world-experience.js?v=20261017-bodyhit131';
 import {inGunZone as mapContains,weaponById} from './gun-layout.js?v=20261017-settlement125';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261017-bodyhit131';
+import {startUpdateNotice} from './update-notice.js?v=20261017-bodyhit132';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261017-bodyhit131';
@@ -26,7 +26,7 @@ import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261013-life89b';
 import { createHit,stepHit,hitShape,proneWeight,gunEliminationState } from './hit-reaction.js?v=20261016-cinema106';
 import { createCombatEffects } from './combat-effects.js?v=20261014-world96';
 import { createBrownProjectiles } from './brown-projectiles.js?v=20261017-bodyhit131';
-import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-bodyhit131';
+import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-bodyhit132';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261013-life89b';
 import { cleanCharacter } from './character-store.js?v=20261017-settlement125';
 // Versioned URL prevents a previously cached editor module from blocking startup.
@@ -689,7 +689,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
   if(sleeping&&bed&&inStudio&&!housingEditor?.active){camera.position.set(bed.x,bed.y+.26,bed.z);camera.up.set(Math.sin(bed.yaw),0,Math.cos(bed.yaw));camera.lookAt(camera.position.clone().add(new THREE.Vector3(0,1,0)));camera.updateMatrixWorld();}else camera.up.set(0,1,0);
   if(inStudio&&!housingEditor?.active&&!experience?.watching)housingView?.portals.adjustCamera(camera);
   if(playerPrediction.active&&(airWalk||localRagdoll||localImpact||seated||sleeping||plazaPlay?.active||living?.exercise||punchSwing>0||!inStudio)){playerPrediction.reset();}
-  if(roomSocket?.readyState===WebSocket.OPEN&&p&&inStudio&&now-lastRoomStateAt>=1000/60){lastRoomStateAt=now;roomSocket.send(JSON.stringify({type:'state',motion:playerPrediction.packet(),state:{gunTeleportSerial:localGunTeleportSerial,equippedWeapon:cachedCharacter().equippedWeapon,mirrorRealm:housingView?.portals.realm||null,x:p.position.x,y:p.position.y,z:p.position.z,yaw:p.rotation.y,headYaw:clamp(angleDelta(p.rotation.y,yaw),-.95,.95),headPitch:clamp(-pitch,-.65,.7),vx:localImpact?0:localRagdoll?localImpulse.x:velocity.x,vy:localImpact?0:localRagdoll?localImpulse.y:verticalSpeed,vz:localImpact?0:localRagdoll?localImpulse.z:velocity.z,skin:playableSkin(selected),gesture,speed:velocity.length(),grounded,verticalSpeed,flight:airWalk,prone,crouched,ragdoll:localRagdoll,seated,sleeping,crownEnabled,hitSerial:localHitSerial,hitPhase:localHit?.phase||'none',hitTime:localHit?.elapsed||0,hitDownTime:localHit?.downTime||0,hitRecovery:localHit?.recovery||0,hitStrength:localHit?.strength||0,punchCharge:charging?chargeTime/PUNCH.maxCharge:0,attackDuration,attackRushing,attackKind,attackProgress:punchSwing,attackStrength,attackSerial}}))}
+  if(roomSocket?.readyState===WebSocket.OPEN&&p&&inStudio&&now-lastRoomStateAt>=1000/60){lastRoomStateAt=now-((now-lastRoomStateAt)%(1000/60));roomSocket.send(JSON.stringify({type:'state',motion:playerPrediction.packet(),state:{gunTeleportSerial:localGunTeleportSerial,equippedWeapon:cachedCharacter().equippedWeapon,mirrorRealm:housingView?.portals.realm||null,x:p.position.x,y:p.position.y,z:p.position.z,yaw:p.rotation.y,headYaw:clamp(angleDelta(p.rotation.y,yaw),-.95,.95),headPitch:clamp(-pitch,-.65,.7),vx:localImpact?0:localRagdoll?localImpulse.x:velocity.x,vy:localImpact?0:localRagdoll?localImpulse.y:verticalSpeed,vz:localImpact?0:localRagdoll?localImpulse.z:velocity.z,skin:playableSkin(selected),gesture,speed:velocity.length(),grounded,verticalSpeed,flight:airWalk,prone,crouched,ragdoll:localRagdoll,seated,sleeping,crownEnabled,hitSerial:localHitSerial,hitPhase:localHit?.phase||'none',hitTime:localHit?.elapsed||0,hitDownTime:localHit?.downTime||0,hitRecovery:localHit?.recovery||0,hitStrength:localHit?.strength||0,punchCharge:charging?chargeTime/PUNCH.maxCharge:0,attackDuration,attackRushing,attackKind,attackProgress:punchSwing,attackStrength,attackSerial}}))}
   if(document.hidden)return;
   if(p&&inStudio&&!duelIds.length){const own={x:p.position.x,y:p.position.y,z:p.position.z,flight:airWalk,seated};const inRing=insideArena(own);$('duelHud').hidden=!inRing;if(inRing){const count=1+[...remoteActors.values()].filter(r=>insideArena({x:r.target.x,y:r.target.y,z:r.target.z,flight:r.flight,seated:r.seated})).length;$('duelHud').textContent=count===2?'対戦エリア · 2人 · 1秒以内に両者パンチで開始':`対戦エリア · ${count}人 / 2人で開始 · 金色の輪の内側`;}}
   remoteActors.forEach((remote,remoteId)=>{

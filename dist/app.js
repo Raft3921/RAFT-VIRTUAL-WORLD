@@ -1,3 +1,4 @@
+import {createGamepadControls} from './gamepad-controls.js?v=20261017-pad112';
 import {RemoteMotion} from './remote-motion.js?v=20261016-network107';
 import {loadWorldMode,combatSpawn} from './world-mode.js?v=20261016-combatonly105';
 import {findMantle} from './player-mantle.js?v=20261015-mantle103';
@@ -6,10 +7,10 @@ import {proneShape} from './gun-posture.js?v=20261016-trails110';
 import {createVideoSettings} from './video-settings.js?v=20261014-cinema92';
 import {furniturePose} from './housing-data.js?v=20261013-life89b';
 import {livingHome} from './living-shared.js?v=20261013-life89b';
-import {createWorldExperience} from './world-experience.js?v=20261016-audio111';
+import {createWorldExperience} from './world-experience.js?v=20261017-pad112';
 import {inGunZone,weaponById} from './gun-layout.js?v=20261015-tactics99';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261016-audio111';
+import {startUpdateNotice} from './update-notice.js?v=20261017-pad112';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261016-trails110';
@@ -76,7 +77,7 @@ function reloadWorldMode(value){if(modeReloading)return;modeReloading=true;safeS
 let renderer,environment,world,requestId,lastTime=0,time=0,metricsAt=0,fpsFrames=0,fps=60;
 const mapPlayers=new Map();let plazaMap=null,cooking=null,cookingCamera=null,carryCamera=null,cookingControls=null,living=null,plazaPlay=null;
 let housingView=null,housingEditor=null,houseCameraState=null,worldChat=null;const updateNotice=startUpdateNotice({endpoint:SYNC_ENDPOINT,version:SYNC_VERSION});
-let worldGuide=null,experience=null;
+let worldGuide=null,experience=null,gamepad=null;
 let videoSettings=null,lastVideoFrame=0;
 let activeQuality=embeddedDepth?'low':touch?'low':'high',qualityChoice='auto',slowSeconds=0,cleanTimer=0,pendingClean=0;
 const PUNCH={maxCharge:10,maxRange:1000,tapRange:8,reach:2.25,radius:1.2,gravity:18,angle:24*Math.PI/180};
@@ -185,7 +186,7 @@ function activeParticleScale(){return activeQuality==='low'?.72:1}
 function mobileUI(value){touch=value;document.body.dataset.touch=String(touch);$('controlHelp').textContent=touch?'左スティックで移動、画面ドラッグで視点。攻撃は右下の✊のみ（長押しでパンチ・銃の操作）、↑でジャンプ、縁でもう一度↑で這い上がる。しゃがむボタンで低い姿勢。飛行中は上昇・降下を長押し。':'WASD：移動 / Shift：屋外ダッシュ・家ではしゃがむ / Space：ジャンプ・縁でもう一度で這い上がる / C：家でしゃがむ / 右下の✊長押し：パンチ / ドラッグ：視点 / ダブルクリック：マウス固定 / Esc：メニュー / F1：マスター';}
 mobileUI(touch);
 matchMedia('(pointer:coarse)').addEventListener('change',e=>mobileUI(e.matches));
-function clearInput(){pendingTouchYaw=pendingTouchPitch=0;cameraReturnClicks.length=0;keys.clear();sprintWanted=false;queuedAttack=null;chainRemaining=0;targetLock=null;attackRushing=false;if(pendingAttack)pendingAttack.targetId=null;stick.x=stick.y=0;stickId=lookId=null;gunDrag=null;attackPointerId=null;jumpRequested=false;flightAscend=flightDescend=false;cancelCharge();$('stickKnob').style.transform='';clearTimeout(cleanTimer)}
+function clearInput(){gamepad?.reset();pendingTouchYaw=pendingTouchPitch=0;cameraReturnClicks.length=0;keys.clear();sprintWanted=false;queuedAttack=null;chainRemaining=0;targetLock=null;attackRushing=false;if(pendingAttack)pendingAttack.targetId=null;stick.x=stick.y=0;stickId=lookId=null;gunDrag=null;attackPointerId=null;jumpRequested=false;flightAscend=flightDescend=false;cancelCharge();$('stickKnob').style.transform='';clearTimeout(cleanTimer)}
 function punchLevel(time){return clamp(Math.floor(Math.max(0,time)*10/PUNCH.maxCharge)+1,1,10)}
 function punchDistance(time){return time<1?PUNCH.tapRange:punchLevel(time)*(PUNCH.maxRange/10)}
 function updateChargeHud(){const hud=$('chargeHud');if(!hud)return;const active=charging||punchSwing>0;hud.hidden=!inStudio||paused()||!active&&chargeTime<=0;const t=charging?chargeTime:0;const level=punchLevel(t);hud.dataset.level=String(level);hud.style.setProperty('--charge',String(clamp(t/PUNCH.maxCharge,0,1)));hud.style.setProperty('--charge-color',level>=8?'#ff7048':level>=4?'#ffd45e':'#9ce889');$('chargeFill').style.width=`${clamp(t/PUNCH.maxCharge,0,1)*100}%`;$('chargeLabel').textContent=charging?`溜め ${level} · ${ATTACKS[chargeAttack(level)].name}`:(selected===GYOZA_SKIN&&attackKind===3?'回転投げ · 2ダメージ':ATTACKS[attackKind].name);if(charging&&level!==chargeLevelShown)chargeLevelShown=level}
@@ -398,6 +399,43 @@ let gunDrag=null,attackPointerId=null;punchBtn.addEventListener('pointermove',e=
 punchBtn.onpointerdown=e=>{if(attackPointerId!==null)return;attackPointerId=e.pointerId;gunDrag={x:e.clientX,y:e.clientY};e.preventDefault();punchBtn.setPointerCapture(e.pointerId);beginCharge()};
 ['pointerup','pointercancel','lostpointercapture'].forEach(type=>punchBtn.addEventListener(type,e=>{if(e.pointerId!==attackPointerId)return;attackPointerId=null;gunDrag=null;if(type!=='pointerup'){cancelCharge();return;}if(cameraReturnMode()){if(type==='pointerup')requestCameraReturn();return;}launchPunch();}));
 addEventListener('keydown',e=>{if(experience?.cinematic){e.preventDefault();return;}if(living?.key(e))return;if(e.code==='KeyC'&&!/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)){e.preventDefault();if(!e.repeat)toggleProne();return;}if(cooking?.key(e))return;if(plazaMap?.key(e))return;if(experience?.key(e))return;if(worldChat?.key(e))return;if(housingEditor?.key(e))return;if(e.code==='F1'){e.preventDefault();if(!e.repeat)openMaster();return}if(e.code==='Escape'){e.preventDefault();if(worldGuide?.active){worldGuide.close()}else if(clean){setClean(false);unlocked()}else if(!$('worldMenu').hidden){closeWorldMenu()}else if(!$('master').hidden){$('master').hidden=true;unlocked();canvas.focus()}else if(!$('menu').hidden){$('menu').hidden=true;clearInput();canvas.focus()}else if(inStudio)openMenu();return}if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(e.code==='KeyH'&&inStudio&&!e.repeat){e.preventDefault();if(clean)setClean(false);else enterClean();return}if(!inStudio||paused())return;if(e.code==='KeyW'&&!e.repeat){const now=performance.now();sprintWanted=now-lastForwardPress<280;lastForwardPress=now;}if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight'].includes(e.code)){e.preventDefault();keys.add(e.code)}});
+// Controller actions reuse the same world interactions and server-authoritative combat.
+function controllerKey(code){const e={code,repeat:false,target:canvas,preventDefault(){}};if(living?.key(e))return;if(cooking?.key(e))return;if(plazaMap?.key(e))return;if(experience?.key(e))return;if(worldChat?.key(e))return;if(housingEditor?.key(e))return;}
+function controllerBack(){
+ if(experience?.cinematic)return;
+ if(worldGuide?.active){worldGuide.close();return;}
+ if(plazaMap?.active){plazaMap.close();return;}
+ if(worldChat?.active){worldChat.close();return;}
+ if(experience?.active){experience.close();return;}
+ if(housingEditor?.active){housingEditor.close();return;}
+ if(!$('worldMenu').hidden){closeWorldMenu();clearInput();return;}
+ if(!$('master').hidden){$('master').hidden=true;clearInput();return;}
+ if(!$('menu').hidden){$('menu').hidden=true;clearInput();canvas.focus();return;}
+ if(clean){setClean(false);clearInput();return;}
+ if(inStudio)openMenu();
+}
+gamepad=createGamepadControls({
+ get:()=>({menu:paused()&&!experience?.cinematic,cinematic:experience?.cinematic,spectator:experience?.eliminated||experience?.watching,enabled:inStudio&&!paused()&&!localRagdoll&&!localImpact&&!experience?.eliminated,weapon:cachedCharacter().equippedWeapon,clean}),
+ release:()=>{experience?.controllerAim(false);cancelCharge();},
+ look:(dx,dy)=>{yaw+=dx;pitch=clamp(pitch+dy,-1.15,1.1);},
+ action:(kind,value)=>{
+  if(kind==='back'){controllerBack();return;}
+  if(kind==='skip'){experience?.skipPreview();return;}
+  if(kind==='menu'){openMenu();return;}
+  if(kind==='aim'){experience?.controllerAim(value);return;}
+  if(kind==='jump')requestJump();
+  if(kind==='crouch')toggleCrouch();
+  if(kind==='prone')toggleProne();
+  if(kind==='reload')experience?.requestReload();
+  if(kind==='interact')controllerKey('KeyE');
+  if(kind==='attack'){if(cachedCharacter().equippedWeapon){experience?.controllerAttack(value);}else if(value)beginCharge();else launchPunch();}
+  if(kind==='map')plazaMap?.open();
+  if(kind==='chat')worldChat?.open();
+  if(kind==='spectate')experience?.controllerSpectate(value);
+  if(kind==='camera')$('playCamera').value=cachedCharacter().playCamera==='first'?'shoulder':'first';
+  if(kind==='camera')$('playCamera').dispatchEvent(new Event('change'));
+ }
+});
 addEventListener('keyup',e=>{keys.delete(e.code);if(e.code==='KeyW')sprintWanted=false;});addEventListener('blur',clearInput);document.addEventListener('visibilitychange',()=>{clearInput();lastTime=0});
 function updateRoomStatus(message){$('roomStatus').textContent=message}
 const brownProjectiles=createBrownProjectiles(scene,{world:()=>world,targets:()=>actors.flatMap((actor,index)=>actor&&index!==selected&&actor.root.visible&&!protectedFromHit(bodies[index],time)?[{index,position:actor.root.position,height:actor.collisionShape?.height||1.9}]:[]),onLocalHit:(index,shot)=>{const body=bodies[index];if(protectedFromHit(body,time))return;body.vel.set(shot.vx*.8,4,shot.vz*.8);body.ragdoll=true;body.hit=createHit(.2);body.grounded=false;body.inArena=insideArena(actors[index].root.position);actors[index].root.rotation.y=Math.atan2(-shot.vx,-shot.vz);},onImpact:position=>{particleOrigin.set(position.x,position.y,position.z);emitParticles(particleOrigin,'#ad7844',10,2,5);}});
@@ -519,6 +557,7 @@ $('crouchBtn').onclick=toggleCrouch;
 bindFlightControl('flightUp','ascend');bindFlightControl('flightDown','descend');
 function resize(){if(!renderer)return;videoSettings?.apply();renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()};addEventListener('resize',resize);visualViewport?.addEventListener('resize',resize);
 function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFrame(tick);if(document.hidden&&!backgroundDt){lastTime=0;lastVideoFrame=0;return}const cap=videoSettings?.settings.fps||0;if(!backgroundDt&&cap){const interval=1000/cap;if(lastVideoFrame&&now-lastVideoFrame<interval-.5)return;lastVideoFrame=now-((now-lastVideoFrame)%interval);}const dt=backgroundDt||(lastTime?Math.min((now-lastTime)/1000,.05):.016);lastTime=now;time+=dt;fpsFrames++;
+  if(!backgroundDt)gamepad?.update(dt,now);
   if(paused())pendingTouchYaw=pendingTouchPitch=0;else if(pendingTouchYaw||pendingTouchPitch){const blend=1-Math.exp(-dt*65),dx=pendingTouchYaw*blend,dy=pendingTouchPitch*blend;yaw+=dx;pitch=clamp(pitch+dy,-1.15,1.1);pendingTouchYaw-=dx;pendingTouchPitch-=dy;if(Math.abs(pendingTouchYaw)<.00001)pendingTouchYaw=0;if(Math.abs(pendingTouchPitch)<.00001)pendingTouchPitch=0;}
 
   if(experience?.eliminated&&localHit){localRagdoll=true;localImpulse.set(0,0,0);velocity.set(0,0,0);localHit.gunEliminated=true;localHit.gunAge=(localHit.gunAge||0)+dt;const fallen=gunEliminationState(localHit.gunAge);localHit.phase=fallen.hitPhase;localHit.elapsed=fallen.hitTime;localHit.downTime=fallen.hitDownTime;actors[selected].root.visible=true;}
@@ -543,11 +582,11 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
     else{
       world.update(serverNow()/1000,p.position,dayPhase(dayCycle,serverNow()));
       const enabled=!paused()&&!localRagdoll&&!localImpact&&!experience?.eliminated;updateCrouch(enabled,dt);
-      const mx=enabled?((keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+stick.x):0;
-      const my=enabled?((keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-stick.y):0;
+      const mx=enabled?((keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+stick.x+(gamepad?.move.x||0)):0;
+      const my=enabled?((keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-stick.y-(gamepad?.move.y||0)):0;
       direction.set(Math.sin(yaw),0,Math.cos(yaw));right.set(-Math.cos(yaw),0,Math.sin(yaw));
       movement.copy(direction).multiplyScalar(my).addScaledVector(right,mx);if(movement.length()>1)movement.normalize();
-      run=!prone&&!crouched&&(sprintWanted&&keys.has('KeyW')||(!livingHome(p.position,housingView?.rooms)&&(keys.has('ShiftLeft')||keys.has('ShiftRight')))||(touch&&Math.hypot(stick.x,stick.y)>.94));
+      run=!prone&&!crouched&&(gamepad?.sprint||sprintWanted&&keys.has('KeyW')||(!livingHome(p.position,housingView?.rooms)&&(keys.has('ShiftLeft')||keys.has('ShiftRight')))||(touch&&Math.hypot(stick.x,stick.y)>.94));
       if(world.inAthletic(p.position)&&!athleticActive){
         athleticActive=true;courseAwaitingSave=!roomSelfId;athleticCheckpoint=world.athletic.checkpoints[cachedCharacter().checkpoint-1];airWalk=false;verticalSpeed=0;grounded=false;athleticPeak=p.position.y;updateJumpButton();
         if(athleticCheckpoint.id>1||p.position.y>athleticCheckpoint.y+5)respawnCourse();else notify('アスレチック開始 · CHECK 1 · ジャンプ力1.5倍');
@@ -555,7 +594,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
       if(athleticActive&&airWalk){airWalk=false;updateJumpButton();}
       if((!paused()||localRagdoll)&&!localImpact&&!experience?.eliminated){
         if(cameraMode==='free'){
-          desired.copy(freePosition).addScaledVector(movement,dt*flySpeed*(run?2.5:1));desired.y=clamp(desired.y+((flightAscend||keys.has('Space')?1:0)-(flightDescend||keys.has('ShiftLeft')||keys.has('ShiftRight')?1:0))*dt*flySpeed,.25,510);freePosition.copy(world.cameraPosition(freePosition,desired));
+          desired.copy(freePosition).addScaledVector(movement,dt*flySpeed*(run?2.5:1));desired.y=clamp(desired.y+((flightAscend||gamepad?.ascend||keys.has('Space')?1:0)-(flightDescend||gamepad?.descend||keys.has('ShiftLeft')||keys.has('ShiftRight')?1:0))*dt*flySpeed,.25,510);freePosition.copy(world.cameraPosition(freePosition,desired));
         }else if(cameraMode!=='orbit'&&!seated&&!sleeping){
           if(targetLock&&movement.lengthSq()>.16){attackRushing=false;targetLock=null;chainRemaining=0;if(pendingAttack)pendingAttack.targetId=null;}
           const exercising=living?.move(dt,Math.min(1,Math.hypot(mx,my)));if(exercising)movement.set(0,0,0);const attacking=punchSwing>0;movement.multiplyScalar(moveSpeed*(prone?.20:crouched?.42:run?1.65:1)*(airWalk?2.4:1)*(attacking?.25:charging?.6:1));if(standingOn?.playKind==='slide'&&grounded){velocity.addScaledVector(new THREE.Vector3(Math.sin(standingOn.rotation||0),0,Math.cos(standingOn.rotation||0)),dt*9);velocity.multiplyScalar(Math.exp(-dt*.25));if(velocity.length()>12)velocity.setLength(12);}else velocity.lerp(movement,1-Math.exp(-dt*(movement.lengthSq()<.01?26:18)));plazaPlay?.applyFlight(velocity,dt,grounded);
@@ -573,7 +612,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
           jumpRequested=false;
           const dash=ATTACKS[attackKind].dash||0;if(!targetLock&&punchSwing>.08&&punchSwing<.60&&dash&&!localRagdoll){const forward=Math.min(dash,athleticActive?moveSpeed*1.65:6)*Math.sin((punchSwing-.08)/.52*Math.PI);velocity.x=Math.sin(attackYaw)*forward+movement.x*.25;velocity.z=Math.cos(attackYaw)*forward+movement.z*.25;}
           if(airWalk){
-            verticalSpeed=((flightAscend||keys.has('Space')?1:0)-(flightDescend||keys.has('ShiftLeft')||keys.has('ShiftRight')?1:0))*moveSpeed*2.4;
+            verticalSpeed=((flightAscend||gamepad?.ascend||keys.has('Space')?1:0)-(flightDescend||gamepad?.descend||keys.has('ShiftLeft')||keys.has('ShiftRight')?1:0))*moveSpeed*2.4;
             physicsVelocity.set(velocity.x,verticalSpeed,velocity.z);world.move(p.position,physicsVelocity,dt,{lockedInArena:duelActive,shape:actorShape(actors[selected])});p.position.y=clamp(p.position.y,0,510);grounded=false;
           }else{
             let result;

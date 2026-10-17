@@ -1,9 +1,10 @@
+import {stepParkour,parkourDefaults} from './player-parkour.js?v=20261017-parkour126';
 import {inGunZone} from './gun-layout.js?v=20261017-settlement125';
-import {proneShape} from './gun-posture.js?v=20261017-slide120';
+import {proneShape} from './gun-posture.js?v=20261017-parkour126';
 export const COMBAT_WALK=2.8,COMBAT_SPRINT_START=5.8,COMBAT_SPRINT_MAX=7.2,COMBAT_SPRINT_RAMP=.55;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export const slideShape=(yaw,width=.32)=>({width:Math.max(.32,width),depth:.95,height:1.16,yaw});
-export function createCombatMovement(){return {vx:0,vz:0,sprintTime:0,sprintCharge:0,sprinting:false,sliding:false,slideAge:0,slideBlend:0,cooldown:0,slideAir:false,prone:false,intent:false};}
+export function createCombatMovement(){return {...parkourDefaults(),vx:0,vz:0,sprintTime:0,sprintCharge:0,sprinting:false,sliding:false,slideAge:0,slideBlend:0,cooldown:0,slideAir:false,prone:false,intent:false};}
 export function stepCombatMovement(world,body,input,dt){
  if(!inGunZone(body.p,world.gunMapId)||input.combat!==true){body.combat=null;return null;}
  const m=body.combat??=createCombatMovement(),shape=input.standingShape||{width:.32,depth:.32,height:1.9,yaw:input.lookYaw||0},yaw=input.lookYaw||0;
@@ -36,8 +37,9 @@ export function stepCombatMovement(world,body,input,dt){
    const steer=1-Math.exp(-dt*1.1);if(moving){m.vx+=(wx*Math.max(target,speed)-m.vx)*steer;m.vz+=(wz*Math.max(target,speed)-m.vz)*steer;}m.vx*=Math.exp(-dt*.08);m.vz*=Math.exp(-dt*.08);
   }else{m.slideAir=false;m.vx=wx*target;m.vz=wz*target;}
  }
+ const parkour=stepParkour(world,body,input,m,dt);
  m.sprintCharge=clamp(m.sprintTime/COMBAT_SPRINT_RAMP,0,1);
  m.slideBlend+=(Number(m.sliding)-m.slideBlend)*(1-Math.exp(-dt*(m.sliding?14:9)));
  const current=Math.hypot(m.vx,m.vz);if(current>7.8){m.vx*=7.8/current;m.vz*=7.8/current;}
- return {vx:m.vx,vz:m.vz,prone:m.prone,sliding:m.sliding,jump,shape:m.sliding?slideShape(yaw,shape.width):m.prone?proneShape(yaw):input.crouched?{...shape,height:shape.height-Math.min(.52,shape.height*.3)}:shape};
+ return {...parkour,vx:m.vx,vz:m.vz,prone:m.prone,sliding:m.sliding,jump,shape:m.sliding?slideShape(yaw,shape.width):m.prone?proneShape(yaw):input.crouched?{...shape,height:shape.height-Math.min(.52,shape.height*.3)}:shape};
 }

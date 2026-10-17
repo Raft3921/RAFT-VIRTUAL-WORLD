@@ -1,8 +1,9 @@
+import {parkourPose} from './parkour-pose.js?v=20261017-parkour126';
 import {createCinematicProjectile} from './cinematic-projectile.js?v=20261016-trails110';
 import {GUN_ZONE} from './gun-layout.js';
 import * as THREE from 'three';
 import {planCinematicRail} from './cinematic-rail.js?v=20261016-trails110';
-import {createGunEffects} from './gun-effects.js?v=20261017-slide120';
+import {createGunEffects} from './gun-effects.js?v=20261017-parkour126';
 import {applyAvatarHitPose,groundAvatarHitPose} from './avatar-hit-pose.js?v=20261015-spectacle104';
 import {gunEliminationState} from './hit-reaction.js?v=20261016-cinema106';
 import {sampleKatanaPose} from './katana-motion.js?v=20261016-cinema106';
@@ -66,8 +67,10 @@ export function createGunCinematic({scene,camera,get,audio}){
     joints.pelvis.rotation.set(pose.prone?Math.PI/2:0,0,0);joints.pelvis.position.set(0,pose.prone?.24:pose.crouched?-.48:0,0);joints.torso.rotation.set(0,0,0);
     joints.head.rotation.set((pose.headPitch||0)-(pose.prone?Math.PI/2:0),pose.headYaw||0,0);joints.head.position.z=pose.prone?.15:0;
     for(const side of ['left','right']){joints.hips[side].rotation.set(0,0,0);joints.knees[side].rotation.set(pose.prone?.10:pose.crouched?.8:0,0,0);}
-    joints.shoulders.right.rotation.x=pose.prone?-2.65:-1.20;joints.elbows.right.rotation.x=pose.prone?-.60:-.22;groundAvatarHitPose(root,joints.pelvis,meshes);
-   }for(const flash of flashes)flash.visible=false;
+    joints.shoulders.right.rotation.x=pose.prone?-2.65:-1.20;joints.elbows.right.rotation.x=pose.prone?-.60:-.22;groundAvatarHitPose(root,joints.pelvis,meshes);const acro=parkourPose(pose);if(acro.weight){const a=acro.pitch,b=acro.roll*acro.weight;joints.pelvis.rotation.x+=a;joints.pelvis.rotation.z+=b;joints.pelvis.position.x+=acro.pivot*Math.sin(b)*Math.cos(a);joints.pelvis.position.y+=acro.pivot*(1-Math.cos(b)*Math.cos(a));joints.pelvis.position.z-=acro.pivot*Math.sin(a);}
+   }
+
+   for(const flash of flashes)flash.visible=false;
    if(data.victims.includes(p.id)&&fallAge>=0){applyAvatarHitPose(joints,gunEliminationState(fallAge));for(const gun of guns)gun.visible=false;groundAvatarHitPose(root,joints.pelvis,meshes);}
    else if(p.id===data.owner&&lastCut===0){const age=(elapsed-fireAt)/1000*.3;if(data.shot.weapon==='katana'){const pose=sampleKatanaPose(0,Math.max(0,age));joints.shoulders.right.rotation.set(...pose.shoulder);joints.elbows.right.rotation.set(...pose.elbow);joints.torso.rotation.y+=pose.torso[1];}else if(age>=0){const recoil=Math.exp(-age*15)*Math.sin(age*22)*.10;joints.torso.rotation.x-=recoil*.25;joints.shoulders.right.rotation.x-=recoil;joints.elbows.right.rotation.x-=recoil*.7;for(const flash of flashes){flash.visible=age<.045;flash.scale.setScalar(1.25);};}}
    hidden.push({root:source,visible:source.visible});source.visible=false;

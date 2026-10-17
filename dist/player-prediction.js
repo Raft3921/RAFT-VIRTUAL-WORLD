@@ -1,7 +1,7 @@
 import {encodeMovement,MOVEMENT_BATCH,MOVEMENT_BACKLOG} from './movement-wire.js?v=20261017-authority122';
 import {cloneMantle} from './player-mantle.js?v=20261015-mantle103';
 import * as THREE from './vendor/three.module.js';
-import {stepPlayer} from './player-physics.js?v=20261017-settlement125';
+import {stepPlayer} from './player-physics.js?v=20261017-parkour126';
 export class PlayerPrediction{
  constructor(){this.epoch=1;this.seq=0;this.ack=0;this.pending=[];this.active=false;this.mantle=null;this.combat=null;this.offset=new THREE.Vector3();this.last=null;this.resetPending=false;}
  reset(){this.epoch++;this.seq=0;this.ack=0;this.pending=[];this.active=false;this.mantle=null;this.combat=null;this.last=null;this.offset.set(0,0,0);}

@@ -1,7 +1,8 @@
-import {GunHitTimeline,movingGunHit} from './gun-hit-timeline.js?v=20261017-slide120';
+import {parkourHandsBusy} from './player-parkour.js?v=20261017-parkour126';
+import {GunHitTimeline,movingGunHit} from './gun-hit-timeline.js?v=20261017-parkour126';
 import {REPLAY_FINAL_AT,REPLAY_DURATION} from './replay-timing.js?v=20261016-cinema106';
 import {solidExtents,segmentGunSolid} from './gun-solid.js?v=20261015-tactics99';
-import {gunDamage,gunHitBox,gunBulletBoxes,gunProjectileRadius} from './gun-posture.js?v=20261017-slide120';
+import {gunDamage,gunHitBox,gunBulletBoxes,gunProjectileRadius} from './gun-posture.js?v=20261017-parkour126';
 import {gunCollision} from './gun-collision.js?v=20261017-settlement125';
 import {gunEliminationState} from './hit-reaction.js?v=20261016-cinema106';
 import {fallbackMuzzle} from './weapon-dimensions.js?v=20261015-tactics99';
@@ -23,7 +24,7 @@ export class GunRules{
  publish(){this.send({type:'gun-battle',battle:this.snapshot()});}
  assign(){if(this.phase==='active'||this.phase==='preview')return;const members=[...this.members.values()],pairs=this.mode==='teams'||this.mode==='auto'&&members.length===4;members.forEach((m,i)=>{if(!m.manual)m.team=pairs?Math.floor(i/Math.ceil(members.length/2)):i;});}
  teleport(p,team){const occupied=this.players().filter(q=>q.id!==p.id&&this.members.has(q.id));let points=this.spawns.filter(s=>occupied.every(q=>Math.hypot(q.x-s.x,q.z-s.z)>8));if(!points.length)points=this.spawns;const spawn={...points[Math.floor(Math.random()*points.length)],yaw:Math.random()*Math.PI*2};this.move(p,spawn);}
- move(p,position){p.gunTeleportSerial=(p.gunTeleportSerial||0)+1;const entry=this.rules.entries().find(e=>e.player===p);if(entry)entry.motion=null;Object.assign(p,position,{hitSlideBlend:0,sliding:false,slideAir:false,sprintCharge:0,hitProneBlend:0,hitCrouchBlend:0,flight:false,prone:false,crouched:false,seated:false,sleeping:false,ragdoll:false,gunEliminated:false,grounded:true,mantling:false,speed:0,verticalSpeed:0,vx:0,vy:0,vz:0});this.hitTimeline.observe(p,Date.now());this.send({type:'gun-teleport',playerId:p.id,position,serial:p.gunTeleportSerial});}
+ move(p,position){p.gunTeleportSerial=(p.gunTeleportSerial||0)+1;const entry=this.rules.entries().find(e=>e.player===p);if(entry)entry.motion=null;Object.assign(p,position,{parkourKind:'',parkourAge:0,parkourDuration:0,parkourSerial:0,wallSide:0,wallNX:0,wallNZ:0,mantleProgress:0,hitSlideBlend:0,sliding:false,slideAir:false,sprintCharge:0,hitProneBlend:0,hitCrouchBlend:0,flight:false,prone:false,crouched:false,seated:false,sleeping:false,ragdoll:false,gunEliminated:false,grounded:true,mantling:false,speed:0,verticalSpeed:0,vx:0,vy:0,vz:0});this.hitTimeline.observe(p,Date.now());this.send({type:'gun-teleport',playerId:p.id,position,serial:p.gunTeleportSerial});}
  atBoard(p){return this.exitBoards.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<5&&p.y<4);}
  enter(p){if(this.members.has(p.id))return;if(this.phase==='active'||this.phase==='preview'||Math.hypot(p.x-GUN_ENTRY.x,p.z-GUN_ENTRY.z)>6||p.y>4)return;const c=this.record(p),weapon=c.ownedWeapons.includes(p.equippedWeapon)?p.equippedWeapon:c.ownedWeapons.at(-1);if(!weapon){this.send({type:'gun-error',playerId:p.id,message:'武器を持っていないため入場できません。PCのストアで購入してください'});return;}
   if(!this.members.size)this.resetMap();
@@ -91,6 +92,7 @@ export class GunRules{
   }return first;}
  fire(p,message,now){
   const weapon=weaponById(p.equippedWeapon),c=this.record(p),m=this.members.get(p.id);
+  if(parkourHandsBusy(p))return;
   if(!weapon||weapon.melee||!c.ownedWeapons.includes(weapon.id)||p.ragdoll||p.seated||this.rules.duel?.ids.includes(p.id))return;
   if(inGunZone(p,this.rules.settings.gunMap)&&(this.phase!=='active'||!m||m.out))return;
   if(this.shots.length+weapon.pellets>96)return;
@@ -124,6 +126,7 @@ export class GunRules{
   ammo.reloadAt=ammo.reloadStart=0;this.send({type:'gun-reload-cancel',playerId:p.id,ammo:{...ammo}});this.economy(p);
  }
  reload(p,now){
+  if(parkourHandsBusy(p))return;
   const weapon=weaponById(p.equippedWeapon),ammo=this.ammo.get(p.id+':'+p.equippedWeapon);if(!weapon||weapon.melee||!ammo||ammo.left>=weapon.magazine||p.ragdoll||this.members.get(p.id)?.out||this.preview)return;
   if(ammo.reloadAt){this.cancelReload(p,now);return;}
   ammo.reloadBase=ammo.left;ammo.reloadStep=3250/weapon.magazine;ammo.reloadStart=now;ammo.reloadAt=now+ammo.reloadStep*(weapon.magazine-ammo.left);
@@ -177,7 +180,7 @@ export class GunRules{
   }
  }
  slash(p,message,now){
-  const started=this.charges.get(p.id);this.charges.delete(p.id);
+  const started=this.charges.get(p.id);this.charges.delete(p.id);if(parkourHandsBusy(p))return;
   const member=this.members.get(p.id);if(p.equippedWeapon!=='katana'||!this.record(p).ownedWeapons.includes('katana')||p.ragdoll||p.seated||this.rules.duel?.ids.includes(p.id)||now-(this.slashes.get(p.id)||-Infinity)<560||inGunZone(p,this.rules.settings.gunMap)&&(this.phase!=='active'||!member||member.out))return;
   const aim=message.aim;if(!aim||![aim.x,aim.y,aim.z].every(Number.isFinite))return;const length=Math.hypot(aim.x,aim.y,aim.z);if(length<.9||length>1.1)return;
   this.slashes.set(p.id,now);const charge=started===undefined?0:Math.min(1,Math.max(0,now-started-120)/1600),shot={weapon:'katana',charge},origin={x:p.x,y:p.y+(p.prone?.32:p.crouched?1.15:1.4),z:p.z},layouts=(this.rules.settings.combatOnly?{}:this.rules.houses.snapshots());
@@ -201,7 +204,7 @@ export class GunRules{
   }
   if(message.type==='gun-equip'){if(this.phase==='active'&&this.members.has(p.id))return true;const id=message.weapon;if(id!==null&&!c.ownedWeapons.includes(id))return true;this.cancelReload(p,now);p.equippedWeapon=id;if(!id)this.remove(p.id);this.rules.onAsyncWork(this.rules.characters.change(p.skin,{equippedWeapon:id}));this.economy(p);return true;}
   if(message.type==='gun-reload'){this.reload(p,now);return true;}
-  if(message.type==='gun-charge'){if(p.equippedWeapon==='katana'&&!p.ragdoll&&(!inGunZone(p,this.rules.settings.gunMap)||this.phase==='active'&&!this.members.get(p.id)?.out)&&!this.charges.has(p.id)){this.charges.set(p.id,now);this.send({type:'gun-charge',playerId:p.id,at:now});}return true;}
+  if(message.type==='gun-charge'){if(p.equippedWeapon==='katana'&&!parkourHandsBusy(p)&&!p.ragdoll&&(!inGunZone(p,this.rules.settings.gunMap)||this.phase==='active'&&!this.members.get(p.id)?.out)&&!this.charges.has(p.id)){this.charges.set(p.id,now);this.send({type:'gun-charge',playerId:p.id,at:now});}return true;}
   if(message.type==='gun-charge-cancel'){this.charges.delete(p.id);this.send({type:'gun-charge-cancel',playerId:p.id});return true;}
   if(message.type==='gun-slash'){this.slash(p,message,now);return true;}
   if(message.type==='gun-life'){if(['active','preview'].includes(this.phase)||!(this.atBoard(p)||Math.hypot(p.x-GUN_ENTRY.x,p.z-GUN_ENTRY.z)<6))return true;const life=Number(message.life);if(!Number.isInteger(life)||life<3||life>100)return true;this.maxLife=life;this.persistMap();this.publish();return true;}

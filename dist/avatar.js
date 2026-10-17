@@ -1,3 +1,4 @@
+import {parkourPose} from './parkour-pose.js?v=20261017-parkour126';
 import {createWeaponClearance} from './weapon-clearance.js?v=20261016-effects108';
 import {createGunActionMotion,stepGunActionMotion} from './gun-action-motion.js?v=20261017-settlement125';
 import {sampleKatanaPose} from './katana-motion.js?v=20261016-cinema106';
@@ -328,7 +329,7 @@ export async function createAvatar(url,{model=null}={}) {
     dt = clamp(Number.isFinite(dt) ? dt : 0, 0, .06);
     elapsed = Number.isFinite(state.time) ? state.time : elapsed + dt;
     const speed = Math.max(0, Math.abs(state.speed || 0));
-    const grounded = state.grounded !== false;
+    const grounded = state.grounded !== false,park=parkourPose({...state,skin:custom?7:0});
     const verticalSpeed = state.verticalSpeed || 0;
     const moving = clamp(speed / .7, 0, 1);
     motion = damp(motion, moving, moving > motion ? 16 : 24, dt);
@@ -504,17 +505,25 @@ export async function createAvatar(url,{model=null}={}) {
        if(ghost.visible){const pose=sampleKatanaPose(0,age);gunEuler.set(-aim+pose.rotation[0],look+pose.rotation[1],pose.rotation[2],'YXZ');gunAim.setFromEuler(gunEuler);ghost.quaternion.copy(gunInverse).multiply(gunAim);ghost.position.set(0,.115,.025).applyQuaternion(ghost.quaternion);}
       }
     }}
-    mantleBlend=damp(mantleBlend,state.mantling&&!state.ragdoll&&!state.seated&&!state.sleeping?1:0,18,dt);
+    mantleBlend=damp(mantleBlend,(state.mantling||state.parkourKind==='climb')&&!state.ragdoll&&!state.seated&&!state.sleeping?1:0,18,dt);
     if(mantleBlend>.001){
-      torso.rotation.x=THREE.MathUtils.lerp(torso.rotation.x,.22,mantleBlend);
+      const pull=state.mantling?clamp(state.mantleProgress||0,0,1):0,climb=state.parkourKind==='climb'?Math.sin((state.parkourAge||0)*12):0;
+      torso.rotation.x=THREE.MathUtils.lerp(torso.rotation.x,.12+pull*.22,mantleBlend);
       for(const [side,sign]of [['right',-1],['left',1]]){
-        gestureJoint(shoulders[side],-2.65,0,sign*.12,mantleBlend);gestureJoint(elbows[side],-.65,0,0,mantleBlend);
-        gestureJoint(hips[side],-.72,0,sign*.08,mantleBlend);gestureJoint(knees[side],1.05,0,0,mantleBlend);
+        gestureJoint(shoulders[side],-2.95+pull*.85+sign*climb*.14,0,sign*.12,mantleBlend);gestureJoint(elbows[side],-.15-pull*.95,0,0,mantleBlend);
+        gestureJoint(hips[side],-.72*(1-pull*.6)+sign*climb*.16,0,sign*.08,mantleBlend);gestureJoint(knees[side],1.05-pull*.65,0,0,mantleBlend);
       }
       if(gunModel&&mantleBlend>.1)gunModel.visible=false;
     }
+    if(park.weight>0&&!state.ragdoll&&!state.sleeping&&!state.seated&&!state.mantling){
+      if(park.kind==='backflip'||park.kind==='wallkick')for(const side of ['left','right']){gestureJoint(hips[side],-.95*park.tuck,0,0,1);gestureJoint(knees[side],1.55*park.tuck,0,0,1);gestureJoint(shoulders[side],-.8-park.tuck,0,side==='left'?.18:-.18,1);gestureJoint(elbows[side],-.75,0,0,1);}
+      if(park.kind==='wallrun'){for(const [side,sign]of [['right',-1],['left',1]]){gestureJoint(hips[side],-.5+Math.sin(phase+(sign>0?Math.PI:0))*.6,0,sign*.16,park.weight);gestureJoint(knees[side],.7+Math.max(0,Math.sin(phase))* .4,0,0,park.weight);}gestureJoint(shoulders.left,-1.8,0,(state.wallSide||1)*.35,park.weight);gestureJoint(elbows.left,-.6,0,0,park.weight);}
+      const a=park.pitch,b=park.roll*park.weight;pelvis.rotation.x+=a;pelvis.rotation.z+=b;pelvis.position.x+=park.pivot*Math.sin(b)*Math.cos(a);pelvis.position.y+=park.pivot*(1-Math.cos(b)*Math.cos(a));pelvis.position.z-=park.pivot*Math.sin(a);
+      if(gunModel&&['backflip','wallkick'].includes(park.kind))gunModel.visible=false;
+      else if(gunModel&&park.kind==='wallrun'){gunInverse.copy(pelvis.quaternion).multiply(torso.quaternion).multiply(shoulders.right.quaternion).multiply(elbows.right.quaternion).invert();gunModel.quaternion.copy(gunInverse).multiply(gunAim);}
+    }
     // Keep the supporting foot planted after the combat pose has been blended.
-    if(slideBlend===0&&proneBlend===0&&grounded&&airborne<.02&&sitWeight<.01&&sleepWeight<.01&&ragdollWeight<.01){
+    if(park.weight===0&&slideBlend===0&&proneBlend===0&&grounded&&airborne<.02&&sitWeight<.01&&sleepWeight<.01&&ragdollWeight<.01){
       let sole=Infinity;for(const side of ['right','left']){const a=hips[side].rotation.x,b=a+knees[side].rotation.x,z=hips[side].rotation.z;const y=legHeight*PX+pelvis.position.y-(legHalf*PX*Math.cos(a)+legHalf*PX*Math.cos(b))*Math.cos(z)-.125*Math.abs(Math.sin(b));sole=Math.min(sole,y);}
       if(sole<0)pelvis.position.y-=sole;
     }
@@ -522,12 +531,12 @@ export async function createAvatar(url,{model=null}={}) {
     head.rotation.y = damp(head.rotation.y, state.ragdoll||state.sleeping?0:clamp(state.lookYaw || 0, -.95, .95) - torso.rotation.y * .6, 12, dt);
     head.rotation.x = damp(head.rotation.x, state.ragdoll||state.sleeping?0:clamp(state.lookPitch || 0, -.65, .7) - torso.rotation.x * .65 - proneBlend*Math.PI/2, 12, dt);
     head.rotation.z = -torso.rotation.z * .4;
-    if((proneBlend>0||slideBlend>0)&&!state.ragdoll&&!state.sleeping&&!state.seated){
+    if((proneBlend>0||slideBlend>0||park.kind==='wallrun')&&!state.ragdoll&&!state.sleeping&&!state.seated){
       headLook.set(clamp(state.lookPitch||0,-.65,.7),clamp(state.lookYaw||0,-.95,.95),0);headAim.setFromEuler(headLook);
-      headCounter.copy(pelvis.quaternion).multiply(torso.quaternion).invert().multiply(headAim);head.quaternion.slerp(headCounter,Math.max(proneBlend,slideBlend));
-      groundAvatarHitPose(root,pelvis,meshes);
+      headCounter.copy(pelvis.quaternion).multiply(torso.quaternion).invert().multiply(headAim);head.quaternion.slerp(headCounter,Math.max(proneBlend,slideBlend,park.kind==='wallrun'?park.weight:0));
+      if(proneBlend>0||slideBlend>0)groundAvatarHitPose(root,pelvis,meshes);
     }
-    Object.assign(animation, { speed, motion, running, grounded, phase, sliding:!!state.sliding,slideBlend,prone:!!state.prone,proneBlend,crouched:!!state.crouched,gesture: gestureName,mantling:mantleBlend>.1 });
+    Object.assign(animation, { speed, motion, running, grounded, phase, parkourKind:state.parkourKind,parkourAge:state.parkourAge,parkourDuration:state.parkourDuration,wallSide:state.wallSide,sliding:!!state.sliding,slideBlend,prone:!!state.prone,proneBlend,crouched:!!state.crouched,gesture: gestureName,mantling:mantleBlend>.1 });
   }
 
   function applyPlayPose(pose){
@@ -558,10 +567,21 @@ export async function createAvatar(url,{model=null}={}) {
     texture.dispose();headMaterials.forEach(m=>m.dispose());crownGeometry.dispose();gold.dispose();
   }
 
+  let firstPersonRestore=null;
+  function endFirstPerson(){if(!firstPersonRestore)return;for(const item of firstPersonRestore){if(item.material){item.material.colorWrite=item.colorWrite;item.material.depthWrite=item.depthWrite;}else item.object.visible=item.visible;}firstPersonRestore=null;}
+  function beginFirstPerson({hideArms=false,hideAll=false}={}){
+    endFirstPerson();firstPersonRestore=[];
+    const visible=(object,value)=>{if(!object)return;firstPersonRestore.push({object,visible:object.visible});object.visible=value;};
+    visible(root,!hideAll);if(hideAll)return;
+    // Mask the local head's color/depth, retaining its full-body shadow.
+    for(const material of [...headMaterials,gold]){firstPersonRestore.push({material,colorWrite:material.colorWrite,depthWrite:material.depthWrite});material.colorWrite=false;material.depthWrite=false;}
+    if(hideArms)for(const side of ['left','right'])visible(shoulders[side],false);
+    visible(gunModel,false);
+  }
   root.traverse(object=>{if(object.isMesh)withLocalLighting(object.material);});
   return {
     animation,
-    root, update, applyPlayPose, dispose, head, setAppearance,gripColor:skinColor,createFirstPersonHand:options=>createSkinnedFiringHand({forearm:true,...options}),
+    root, update, applyPlayPose, dispose, head,beginFirstPerson,endFirstPerson, setAppearance,gripColor:skinColor,createFirstPersonHand:options=>createSkinnedFiringHand({forearm:true,...options}),
     constrainWeapon(world,dt){if(!gunModel?.visible)return;weaponAnchor.copy(root.position);weaponAnchor.y+=THREE.MathUtils.lerp((custom?(custom.headBottom+parts.head.size[1]*.5)*PX:1.68)-(animation.crouched?.52:0),.39,animation.proneBlend||0);weaponAnchor.y=THREE.MathUtils.lerp(weaponAnchor.y,root.position.y+.82,animation.slideBlend||0);const contact=weaponClearance.update(world,weaponAnchor,gunModel,dt);if(contact>.001){shoulders.right.rotation.x+=contact*.20;elbows.right.rotation.x-=contact*.65;gunModel.rotateX(contact*(animation.prone?.08:.40));gunModel.rotateY(contact*(animation.prone?.35:0));root.updateMatrixWorld(true);}},
     getGunMuzzle(target=new THREE.Vector3()){if(!gunModel?.visible)return null;root.updateMatrixWorld(true);return gunModel.userData.muzzle.getWorldPosition(target);},chargeGun(active){gunChargeAt=active?performance.now():null;},fireGun(){gunShotAt=performance.now();gunChargeAt=null;gunReload=null;if(gunId!=='katana')triggerGunFlash(gunModel);},reloadGun(event){gunReload=event?{weapon:event.weapon,duration:event.duration,start:performance.now()-(event.age||0)}:null;},
     reactHit(serial,strength=.2,age=0){if(!Number.isFinite(serial)||serial<=flinchSerial)return;flinchSerial=serial;if(age>=.24)return;flinchStart=elapsed-Math.max(0,age);flinchStrength=clamp(strength,0,1);},

@@ -1,7 +1,7 @@
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const angle=(a,b,t)=>a+Math.atan2(Math.sin(b-a),Math.cos(b-a))*t;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
-const numeric=['y','speed','verticalSpeed','headPitch','hitProneBlend','hitCrouchBlend','hitSlideBlend','sprintCharge'];
+const numeric=['y','speed','verticalSpeed','headPitch','hitProneBlend','hitCrouchBlend','hitSlideBlend','sprintCharge','mantleProgress','parkourAge','parkourDuration','wallSide'];
 // Bounded cubic interpolation follows endpoint velocities without overshooting
 // walls or reversing along an otherwise monotone snapshot segment.
 function position(a,b,va,vb,t,seconds){
@@ -49,7 +49,7 @@ export class RemoteMotion{
   const a=this.frames[0],b=this.frames.find(f=>f.at>=this.playhead)||this.frames.at(-1),latest=this.frames.at(-1);
   let out={...a,stateAt:a.at},coasting=this.playhead>latest.at;
   if(b!==a&&this.playhead>=a.at){const t=clamp((this.playhead-a.at)/(b.at-a.at),0,1),seconds=(b.at-a.at)/1000;out={...(t<1?a:b),at:this.playhead,stateAt:t<1?a.at:b.at};
-   for(const key of numeric){if((key==='hitProneBlend'||key==='hitCrouchBlend')&&!Number.isFinite(a[key])&&!Number.isFinite(b[key]))continue;out[key]=(a[key]||0)+((b[key]||0)-(a[key]||0))*t;}
+   for(const key of numeric){if(key==='parkourAge'&&a.parkourSerial!==b.parkourSerial){out[key]=(t<1?a:b)[key]||0;continue;}if((key==='hitProneBlend'||key==='hitCrouchBlend')&&!Number.isFinite(a[key])&&!Number.isFinite(b[key]))continue;out[key]=(a[key]||0)+((b[key]||0)-(a[key]||0))*t;}
    for(const [key,v]of [['x','vx'],['z','vz']])out[key]=combat?a[key]+(b[key]-a[key])*t:position(a[key],b[key],a[v],b[v],t,seconds);
    for(const key of ['yaw','headYaw'])out[key]=angle(a[key]||0,b[key]||0,t);
   }

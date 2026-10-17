@@ -1,2 +1,2 @@
-export const BUILD_ID='vrs-settlement125';
-export const RELEASE_ID='vrs-settlement125';
+export const BUILD_ID='vrs-parkour126';
+export const RELEASE_ID='vrs-parkour126';

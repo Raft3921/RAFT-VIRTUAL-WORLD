@@ -7,7 +7,7 @@ export function gamepadStick(x=0,y=0,deadzone=.14,curve=1,outer=.96){
  return {x:x/length*amount,y:y/length*amount};
 }
 const DEFAULT={attack:7,aim:6,jump:0,crouch:1,reload:2,interact:3,sprint:10,prone:11,menu:9,map:8,camera:12,chat:13,previous:4,next:5};
-const ACTION_NAMES={attack:'射撃・近接攻撃',aim:'銃を構える・拡大',jump:'ジャンプ・這い上がり',crouch:'しゃがむ',reload:'リロード',interact:'使う',sprint:'ダッシュ',prone:'匍匐',menu:'メニュー',map:'地図',camera:'視点切替',chat:'チャット',previous:'前の観戦対象・飛行降下',next:'次の観戦対象・飛行上昇'};
+const ACTION_NAMES={attack:'射撃・近接攻撃',aim:'銃を構える・拡大',jump:'ジャンプ・よじ登り・壁蹴り',crouch:'しゃがむ',reload:'リロード',interact:'使う',sprint:'ダッシュ',prone:'匍匐',menu:'メニュー',map:'地図',camera:'視点切替',chat:'チャット',previous:'前の観戦対象・飛行降下',next:'次の観戦対象・飛行上昇'};
 const LABELS={nintendo:['B','A','Y','X','L','R','ZL','ZR','−','＋','L3','R3','十字↑','十字↓','十字←','十字→','HOME'],playstation:['×','○','□','△','L1','R1','L2','R2','SHARE','OPTIONS','L3','R3','十字↑','十字↓','十字←','十字→','PS'],xbox:['A','B','X','Y','LB','RB','LT','RT','Back','Start','LS','RS','十字↑','十字↓','十字←','十字→','Guide']};
 export function createGamepadControls({get,action,look,release,onActivate}){
  const read=(key,fallback)=>{try{return localStorage.getItem('vrs-pad-'+key)??fallback;}catch{return fallback;}};

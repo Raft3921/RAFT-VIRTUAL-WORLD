@@ -2,7 +2,7 @@ import {createWeaponClearance} from './weapon-clearance.js?v=20261016-effects108
 import {createGunActionMotion,stepGunActionMotion} from './gun-action-motion.js?v=20261016-cinema106';
 import {sampleKatanaPose} from './katana-motion.js?v=20261016-cinema106';
 import {sampleGunReload,shotHandKick} from './gun-hand-motion.js?v=20261016-cinema106';
-import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261016-effects108';
+import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261017-sight117';
 import * as THREE from 'three';
 import {withLocalLighting} from './local-lighting.js?v=20261014-world96';
 import { sampleAttack,sampleCharge } from './combat-motion.js?v=20261013-life89b';

@@ -73,3 +73,8 @@ body[data-cinematic=true][data-cinematic-cut='2'] #gunCinematicResult{visibility
 
 /* Aiming keeps a crisp reticle while the weapon settles onto its sights. */
 #gunCrosshair[data-aiming=true] .aim-reticle{color:#fff4d9;stroke-width:1;filter:drop-shadow(0 1px 2px #000e);transform:scale(1)}
+
+/* A clear optical view replaces close-range weapon geometry at full sniper aim. */
+#scopeOverlay[data-optical=true]:not([hidden]){display:block!important;background:radial-gradient(circle at center,transparent 0 calc(39vmin - 2px),#070a0df5 39vmin)}
+#scopeOverlay[data-optical=true] .scope-circle{width:78vmin;height:78vmin;border:2px solid #31393c;box-shadow:0 0 0 3px #080c0e,inset 0 0 14px #0004;background:linear-gradient(transparent calc(50% - .5px),#151c16 calc(50% - .5px),#151c16 calc(50% + .5px),transparent calc(50% + .5px)),linear-gradient(90deg,transparent calc(50% - .5px),#151c16 calc(50% - .5px),#151c16 calc(50% + .5px),transparent calc(50% + .5px))}
+#scopeOverlay[data-optical=true] span{display:none}

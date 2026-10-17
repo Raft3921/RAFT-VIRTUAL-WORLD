@@ -1,6 +1,6 @@
 import {buildTownDoor,buildTownBarredWall} from './gun-town-props.js?v=20261017-props124';
 import {insideGunMap} from './gun-maps.js?v=20261017-maps121';
-import {buildGunVariant} from './gun-town-variants.js?v=20261017-props124';
+import {buildGunVariant} from './gun-town-variants.js?v=20261017-settlement125';
 // Shared geometry: the server sweeps bullets against the same town the client builds.
 export const GUN_ZONE={minX:120,maxX:244,minZ:-140,maxZ:-44,x:182,z:-92,width:124,depth:96};
 export const inGunZone=(p,map='sand')=>insideGunMap(p,map);

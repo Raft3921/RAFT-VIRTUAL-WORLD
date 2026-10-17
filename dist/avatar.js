@@ -1,5 +1,5 @@
 import {createWeaponClearance} from './weapon-clearance.js?v=20261016-effects108';
-import {createGunActionMotion,stepGunActionMotion} from './gun-action-motion.js?v=20261017-slide120';
+import {createGunActionMotion,stepGunActionMotion} from './gun-action-motion.js?v=20261017-settlement125';
 import {sampleKatanaPose} from './katana-motion.js?v=20261016-cinema106';
 import {sampleGunReload,shotHandKick} from './gun-hand-motion.js?v=20261016-cinema106';
 import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload} from './gun-visual.js?v=20261017-sight117';
@@ -349,7 +349,7 @@ export async function createAvatar(url,{model=null}={}) {
     const stride = (.24 + running * .08) * motion*motionScale*(1-crouchBlend*.52);
     const breathing = Math.sin(elapsed * 1.7);
     const bob = (1 - Math.cos(phase * 2)) * .0055 * motion;
-    braking=damp(braking,clamp((previousSpeed-speed)*1.6,0,.16),18,dt);previousSpeed=speed;
+    braking=damp(braking,state.equippedWeapon?0:clamp((previousSpeed-speed)*1.6,0,.16),18,dt);previousSpeed=speed;
     pelvis.position.set(0,(-.085 * motion + bob - landing - (crouchBlend*.48))*motionScale,0);
     pelvis.rotation.set(0,0,0);pelvis.position.z=-crouchBlend*.13*motionScale;
     torso.rotation.x = damp(torso.rotation.x, motion * (.07 + running * .10) + (crouchBlend*.19) - braking + airborne * .05 + flying * .38, 16, dt);

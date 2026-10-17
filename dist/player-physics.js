@@ -1,4 +1,4 @@
-import {stepCombatMovement} from './combat-movement.js?v=20261017-props124';
+import {stepCombatMovement} from './combat-movement.js?v=20261017-settlement125';
 import {startMantle,stepMantle} from './player-mantle.js?v=20261015-mantle103';
 import * as THREE from './vendor/three.module.js';
 import {COURSE} from './world-layout.js';

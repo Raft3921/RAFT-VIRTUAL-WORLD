@@ -1,34 +1,34 @@
 import {GUN_MAPS,gunMap,insideGunMap} from './gun-maps.js?v=20261017-maps121';
-import {slideShape} from './combat-movement.js?v=20261017-props124';
+import {slideShape} from './combat-movement.js?v=20261017-settlement125';
 import {createSoftwareRenderer} from './software-renderer.js?v=20261017-canvas114';
 import {createCompatControls} from './compat-controls.js?v=20261017-canvas114';
 import {createGamepadControls} from './gamepad-controls.js?v=20261017-pro119';
 import {RemoteMotion} from './remote-motion.js?v=20261017-slide120';
 import {loadWorldMode,combatSpawn} from './world-mode.js?v=20261017-maps121';
 import {findMantle} from './player-mantle.js?v=20261015-mantle103';
-import {PlayerPrediction} from './player-prediction.js?v=20261017-props124';
+import {PlayerPrediction} from './player-prediction.js?v=20261017-settlement125';
 import {proneShape} from './gun-posture.js?v=20261017-slide120';
 import {createVideoSettings} from './video-settings.js?v=20261017-canvas114';
 import {furniturePose} from './housing-data.js?v=20261013-life89b';
 import {livingHome} from './living-shared.js?v=20261013-life89b';
-import {createWorldExperience} from './world-experience.js?v=20261017-props124';
-import {inGunZone as mapContains,weaponById} from './gun-layout.js?v=20261017-props124';
+import {createWorldExperience} from './world-experience.js?v=20261017-settlement125';
+import {inGunZone as mapContains,weaponById} from './gun-layout.js?v=20261017-settlement125';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261017-props124';
+import {startUpdateNotice} from './update-notice.js?v=20261017-settlement125';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
-import { createAvatar } from './avatar.js?v=20261017-slide120';
-import { createEnvironment } from './environment.js?v=20261017-props124';
-import { createWorld } from './world.js?v=20261017-props124';
+import { createAvatar } from './avatar.js?v=20261017-settlement125';
+import { createEnvironment } from './environment.js?v=20261017-settlement125';
+import { createWorld } from './world.js?v=20261017-settlement125';
 import { ARENA,insideArena } from './world-layout.js?v=20261013-life89b';
 import { SYNC_ENDPOINT } from './sync-config.js?v=20261013-life89b';
 import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261013-life89b';
 import { createHit,stepHit,hitShape,proneWeight,gunEliminationState } from './hit-reaction.js?v=20261016-cinema106';
 import { createCombatEffects } from './combat-effects.js?v=20261014-world96';
 import { createBrownProjectiles } from './brown-projectiles.js?v=20261014-world96';
-import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-props124';
+import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-settlement125';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261013-life89b';
-import { cleanCharacter } from './character-store.js?v=20261017-props124';
+import { cleanCharacter } from './character-store.js?v=20261017-settlement125';
 // Versioned URL prevents a previously cached editor module from blocking startup.
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261013-life89b';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js?v=20261013-life89b';
@@ -681,7 +681,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
       if(camera.fov!==fov){camera.fov=fov;camera.updateProjectionMatrix()}
       if(cameraMode==='free'){camera.position.copy(freePosition);direction.set(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));target.copy(camera.position).add(direction);camera.lookAt(target)}
       else if(cameraMode==='first'){camera.position.copy(p.position);camera.position.y+=actors[selected].eyeHeight-crouchView;if(living?.bathing)camera.position.y=living.bathing.eyeY;direction.set(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));target.copy(camera.position).add(direction);camera.lookAt(target)}
-      else{target.copy(cameraMode==='orbit'?orbitTarget:p.position);if(cameraMode!=='orbit'){const prone=proneWeight(localHit);if(sleeping&&bed){target.set(bed.x,bed.y+.4,bed.z);}else target.y+=actors[selected].focusHeight-prone*.85-crouchView;target.x-=Math.sin(p.rotation.y)*prone*.7;target.z-=Math.cos(p.rotation.y)*prone*.7;}focus.lerp(target,smoothing<=.001?1:1-Math.exp(-dt/(localRagdoll?Math.min(.055,smoothing):smoothing)));focus.copy(world.cameraPosition(target,focus,.12));const d=distance*(camera.aspect<.8?1.12:1);desired.set(-Math.sin(yaw)*Math.cos(pitch)*d,-Math.sin(pitch)*d,-Math.cos(yaw)*Math.cos(pitch)*d).add(focus);desired.y=Math.max(.2,desired.y);camera.position.copy(world.cameraPosition(focus,desired));camera.lookAt(focus)}
+      else{target.copy(cameraMode==='orbit'?orbitTarget:p.position);if(cameraMode!=='orbit'){const prone=proneWeight(localHit);if(sleeping&&bed){target.set(bed.x,bed.y+.4,bed.z);}else target.y+=actors[selected].focusHeight-prone*.85-crouchView;target.x-=Math.sin(p.rotation.y)*prone*.7;target.z-=Math.cos(p.rotation.y)*prone*.7;}if(inGunZone(p.position)&&!localRagdoll)focus.copy(target);else focus.lerp(target,smoothing<=.001?1:1-Math.exp(-dt/(localRagdoll?Math.min(.055,smoothing):smoothing)));focus.copy(world.cameraPosition(target,focus,.12));const d=distance*(camera.aspect<.8?1.12:1);desired.set(-Math.sin(yaw)*Math.cos(pitch)*d,-Math.sin(pitch)*d,-Math.cos(yaw)*Math.cos(pitch)*d).add(focus);desired.y=Math.max(.2,desired.y);camera.position.copy(world.cameraPosition(focus,desired));camera.lookAt(focus)}
     }
   }
   experience?.cameraOverride(dt);
@@ -761,7 +761,7 @@ async function start(){try{
     import('./living.js?v=20261017-canvas114'),
     import('./cooking-controls.js?v=20261013-life89b'),
     import('./cooking.js?v=20261014-kitchen94'),
-    import('./plaza-map.js?v=20261017-props124'),
+    import('./plaza-map.js?v=20261017-settlement125'),
     import('./housing-renderer.js?v=20261015-physics101'),
     import('./house-editor.js?v=20261014-kitchen94'),
     import('./world-guide.js?v=20261014-optics95')

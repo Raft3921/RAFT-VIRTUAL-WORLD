@@ -2,10 +2,10 @@ import {GunHitTimeline,movingGunHit} from './gun-hit-timeline.js?v=20261017-slid
 import {REPLAY_FINAL_AT,REPLAY_DURATION} from './replay-timing.js?v=20261016-cinema106';
 import {solidExtents,segmentGunSolid} from './gun-solid.js?v=20261015-tactics99';
 import {gunDamage,gunHitBox,gunBulletBoxes,gunProjectileRadius} from './gun-posture.js?v=20261017-slide120';
-import {gunCollision} from './gun-collision.js?v=20261017-props124';
+import {gunCollision} from './gun-collision.js?v=20261017-settlement125';
 import {gunEliminationState} from './hit-reaction.js?v=20261016-cinema106';
 import {fallbackMuzzle} from './weapon-dimensions.js?v=20261015-tactics99';
-import {WEAPONS,weaponById,inGunZone,GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261017-props124';
+import {WEAPONS,weaponById,inGunZone,GUN_ENTRY,GUN_EXIT_BOARDS} from './gun-layout.js?v=20261017-settlement125';
 import {segmentBox,projectileWallFraction} from './projectile-motion.js?v=20261013-life89b';
 import {buildDistrict} from './district.js?v=20261013-life89b';
 let district=null;function districtSolids(){if(!district){district=[];buildDistrict({box:(x,y,z,w,h,d,color,solid=true)=>{if(solid)district.push({x,y,z,w,h,d});},board:()=>{},sign:()=>{},seats:[],clockHands:[]});}return district;}

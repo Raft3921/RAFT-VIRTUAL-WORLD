@@ -1,3 +1,4 @@
+import {buildTownStairwell} from './town-stairwell.js?v=20261017-settlement125';
 import {buildTownDoor,buildTownBarredWall} from './gun-town-props.js?v=20261017-props124';
 import {gunMap,gunExitBoards} from './gun-maps.js?v=20261017-maps121';
 // Deterministic, shared render/collision recipe; visual stair treads are batched,
@@ -24,14 +25,10 @@ export function buildGunVariant({box,board=()=>{},map='snow'}){
   }
   slab(x,base+height+.16,z,w+.8,d+.8,cap);
   for(const side of [-1,1]){box(x+side*(w/2-.1),base+height+.65,z,.32,.95,d-4,wall);box(x,base+height+.65,z+side*(d/2-.1),w-3,.95,.32,wall);}
-  // Alternating stair flights outside the east wall. Wide end landings join
-  // both flights and the roof; neither the room nor adjacent routes are filled.
+  // Attached stairwell, with foundations and continuous supported landings.
   const levels=Math.ceil(height/3.6),rise=height/levels,sx=x+w/2+1.5,run=d+1.4;
-  for(let level=0;level<levels;level++){const reverse=level%2===1,xx=sx+(reverse?2.3:0),zz=z+(reverse?-1:1)*(run/2+1);
-   stair(xx,z,rise,base+.12+level*rise,reverse,2.1,run);slab(sx+1.15,base+.12+(level+1)*rise,zz,4.6,2.3,cap);
-  }
-  // Openings in the parapet meet the landing on either end of the roof.
-  for(const end of [-1,1])slab(x+w/2+1.1,base+height+.12,z+end*(run/2+1),4.8,2.8,cap);
+  const landing=buildTownStairwell({box,slab,stair,sx,z,base:base+.12,rise,levels,run,stone,cap});
+  slab(x+w/2+1.05,landing.y,landing.z,4.9,3.2,cap);
   if(snow){for(const side of [-1,1])detail(x+side*w*.23,base+height+.22,z,w*.37,.12,d*.8,cap);}
   prop(`${id}-crate`,'crate',x-1.9,base+.72,z+1.7,1.5,1.2,1.5,timber);
   if(height>16){box(x,base+height+2,z,.18,3.6,.18,dark);detail(x+.6,base+height+2.6,z,1.2,1.2,.05,accent);}
@@ -44,6 +41,7 @@ export function buildGunVariant({box,board=()=>{},map='snow'}){
  box(q.x,m.ceiling+.1,q.z,q.width+2,.4,q.depth+2,cap,true,{noShadow:true});
  for(const z of [q.minZ,q.maxZ])for(let x=q.minX+5;x<q.maxX-3;x+=15){box(x,6.5,z,1.6,13,2.6,stone);detail(x,13.3,z,2.4,.5,3.1,cap);}
  for(const x of [q.minX,q.maxX])for(let z=q.minZ+9;z<q.maxZ-5;z+=15){box(x,6.5,z,2.6,13,1.6,stone);detail(x,13.3,z,3.1,.5,2.4,cap);}
+ const occupied=[];
  const cols=large?(snow?7:8):4,rows=large?6:3,dx=(q.width-24)/cols,dz=(q.depth-24)/rows,cells=[];
  for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){
   const id=row*cols+col,seed=(id*17+m.layout*23)%31;
@@ -51,33 +49,65 @@ export function buildGunVariant({box,board=()=>{},map='snow'}){
   // stepped east-west ridges, and the citadel's broken checkerboard highlands.
   const x=q.minX+12+(col+.5)*dx+(snow?(row%2?2:-2):((row+col)%3-1)*2),z=q.minZ+12+(row+.5)*dz+((seed%3)-1)*1.4;
   const raised=large?(snow?(row+col)%3!==0:col%3===1):snow&&id%4===1;
-  const base=raised?(large?(snow?8+(row%2)*3.6:5.4+(row%3)*2.4):4.2):0;
+  const base=raised?(large?5.4+(row%2)*1.8:3.6):0;
   const w=large?12+(seed%3):10,d=large?11+(seed%3):9;
-  const high=large?(snow?(row+col)%2===0:id%3===0):id%4===0,height=high?(large?21.6+(seed%4)*3.6:14.4):7.2+(seed%3)*3.6;
+  const high=large?(snow?(row+col)%4===0:id%5===0):id%5===0,height=high?(large?18+(seed%2)*3.6:14.4):5.4+(seed%3)*1.8;
   if(base){
    // A real covered lower street under the raised district, with four mouths.
    const pw=w+8,pd=d+7;slab(x,base,z,pw,pd,stone);const span=(pw-4.2)/2;
    for(const side of [-1,1])for(const end of [-1,1])box(x+end*(2.1+span/2),base/2,z+side*pd/2,span,base,.55,stone);
    for(const side of [-1,1]){box(x+side*pw/2,base/2,z-pd*.32,.55,base,pd*.35,stone);box(x+side*pw/2,base/2,z+pd*.32,.55,base,pd*.35,stone);}
-   // Ground-to-terrace flights lie west of each platform, with no solid plinth.
-   const count=Math.ceil(base/3.6),rise=base/count,run=d+1.4,sx=x-pw/2-1.4;
-   for(let l=0;l<count;l++){const rev=l%2===1;stair(sx-(rev?2.3:0),z,rise,l*rise,rev,2.1,run);slab(sx-1.15,(l+1)*rise,z+(rev?-1:1)*(run/2+1),4.6,2.3,cap);}
-   for(const end of [-1,1])slab(x-pw/2-.3,base,z+end*(run/2+1),4,2.3,cap);
+   const count=Math.ceil(base/3.6),rise=(base-.12)/count,run=d+1.4,sx=x-pw/2-1.4;
+   const landing=buildTownStairwell({box,slab,stair,sx,z,base:.12,rise,levels:count,run,side:-1,stone,cap});
+   slab(x-pw/2-.3,base,landing.z,4,3.2,cap);
    for(const side of [-1,1]){detail(x+side*1.8,2.2,z,.12,.4,.16,'#d5bd83');box(x+side*1.8,.52,z-1.5,.5,.9,1.2,dark);}
   }
+  occupied.push({x:x-(base?1.8:0),z,w:w+(base?18:12),d:d+8});
   tower(x,z,w,d,base,height,`block-${id}`);cells.push({x,z,base,height,w,d,row,col});
   // Street cover stays below sight height; snowdrifts / sandstone benches.
   box(x-dx*.39,.48,z+dz*.3,3.6,.85,1.2,snow?cap:stone);box(x+dx*.37,.60,z-dz*.3,1.2,1.1,3,stone);
   if(snow&&id%2===0){const tx=x-dx*.35,tz=z-dz*.34;box(tx,2,tz,.38,4,.38,timber);for(let k=0;k<3;k++){const size=3.4-k*.7;box(tx,1.6+k*.9,tz,size,.7,size,dark,false);detail(tx,2+k*.9,tz,size,.14,size,cap);}}
  }
- // Fixed-level skywalks connect selected tower pairs without impossible slopes.
- // They have piers, walkable decks and a continuous ramp when roof heights differ.
- if(large)for(let i=snow?1:0;i<cells.length-cols;i+=snow?5:4){const a=cells[i],b=cells[i+cols];if(!b)continue;const x=a.x-a.w/2-1,z=(a.z+b.z)/2,length=b.z-a.z,lo=a.base+a.height+.16,hi=b.base+b.height+.16;
-  const n=Math.ceil(Math.max(length/.6,Math.abs(hi-lo)/.17));for(let k=0;k<n;k++){const t=(k+.5)/n;box(x,lo+(hi-lo)*t-.10,a.z+length*t,2,.20,length/n+.01,timber,false);}
-  box(x,(lo+hi)/2-.10,z,2,Math.abs(hi-lo)+.20,length,timber,true,{noRender:true,ramp:{base:Math.min(lo,hi)-.0,back:lo-Math.min(lo,hi),front:hi-Math.min(lo,hi)}});
-  // Low cover leaves the crossing readable from below.
-  for(const end of [a,b])slab((x+end.x)/2,end.base+end.height+.16,end.z,Math.abs(x-end.x)+2,2.4,cap);
+ // Flat bridges only: no unsupported diagonal stair slabs between mismatched
+ // roof levels. Both edges have piers down to street level and solid railings.
+ let bridgeCount=0;
+ if(large)for(let i=0;i<cells.length-cols&&bridgeCount<6;i++){
+  const a=cells[i],b=cells[i+cols],y=a.base+a.height+.16;if(Math.abs(y-(b.base+b.height+.16))>.05)continue;
+  const x=Math.min(a.x-a.w/2,b.x-b.w/2)-1.4,z=(a.z+b.z)/2,length=b.z-a.z;
+  slab(x,y,z,2.4,length,cap);for(const side of [-1,1]){box(x+side*1.2,y+.45,z,.18,.9,length-2,stone);box(x+side*1.1,y/2,z,.38,y,.38,stone);}
+  for(const end of [a,b])slab((x+end.x)/2,y,end.z,Math.abs(x-end.x)+2.4,2.8,cap);bridgeCount++;
  }
+ // Alternate full-height cover, low cover and small rooms along the gaps
+ // between districts. Reserve routes around towers, stairs and exit boards.
+ const exits=gunExitBoards(map);let coverId=0;
+ function streetCover(x,z,w,d,kind){
+  if(x-w/2<q.minX+5||x+w/2>q.maxX-5||z-d/2<q.minZ+5||z+d/2>q.maxZ-5)return;
+  if(exits.some(p=>Math.abs(x-p.x)<w/2+4&&Math.abs(z-p.z)<d/2+4)||occupied.some(p=>Math.abs(x-p.x)<(w+p.w)/2+1.1&&Math.abs(z-p.z)<(d+p.d)/2+1.1))return;
+  occupied.push({x,z,w,d});const id=`street-${coverId++}`;
+  if(kind===0){
+   const h=3.8,door=2.5;slab(x,.12,z,w,d,stone);
+   for(const face of [-1,1]){const span=(w-door)/2;for(const side of [-1,1])box(x+side*(door/2+span/2),h/2,z+face*d/2,span,h,.32,wall);box(x,(h+2.8)/2,z+face*d/2,door,h-2.8,.32,wall);buildTownDoor({prop,id:`${id}-door-${face}`,x,z:z+face*d/2,width:door-.12,dark,wood:timber});}
+   for(const side of [-1,1])buildTownBarredWall({box,detail,prop,id:`${id}-window-${side}`,x:x+side*w/2,z,depth:d,height:h,paint:wall});
+   slab(x,h+.12,z,w+.4,d+.4,cap);
+  }else if(kind===1){
+   box(x,1.15,z-d/2+.18,w,2.3,.36,stone);box(x-w/2+.18,1.15,z-d*.12,.36,2.3,d*.72,stone);detail(x,2.34,z-d/2+.18,w+.12,.08,.48,cap);
+   prop(`${id}-crate`,'crate',x+w*.22,.69,z+d*.16,1.5,1.16,1.4,timber);
+  }else if(kind===2){
+   box(x,1.2,z-d/2,w,2.4,.36,wall);box(x-w/2,.58,z,.3,1.16,d,stone);
+   for(const side of [-1,1])box(x+side*(w/2-.16),1.5,z+d/2-.16,.32,3,.32,stone);slab(x,3.16,z,w+.4,d+.4,cap);
+  }else{
+   box(x-w*.23,.62,z-d*.18,w*.45,1.24,d*.52,stone);box(x+w*.24,1.05,z+d*.18,w*.42,2.1,d*.48,stone);
+   detail(x+w*.24,2.15,z+d*.18,w*.44,.10,d*.50,cap);
+  }
+ }
+ for(let row=0;row<rows-1;row++)for(let col=0;col<cols;col++){
+  const a=cells[row*cols+col],b=cells[(row+1)*cols+col],x=(a.x+b.x)/2,z=(a.z+b.z)/2,kind=(row*cols+col+m.layout)%4;
+  streetCover(x,z,kind===0?6.2:5.2,kind===0?5.6:4.2,kind);
+  if(large)streetCover(x+dx*.43,z+dz*.06,3.4,2.5,3);
+ }
+ // Short staggered walls also break the wide perimeter sight lines, without
+ // closing the path to any of the corner exit boards.
+ for(let x=q.minX+17;x<q.maxX-12;x+=15){streetCover(x,q.minZ+7.5,4.8,2.2,1);streetCover(x+4,q.maxZ-7.5,4.8,2.2,3);}
  // Functional entry/exit boards remain; decorative text signs are omitted.
  gunExitBoards(map).forEach(p=>{slab(p.x,.12,p.z,3.5,3.5,ground);board(p.x,.12,p.z,'gun-exit');});
  board(113,.09,-92,'gun-entry');

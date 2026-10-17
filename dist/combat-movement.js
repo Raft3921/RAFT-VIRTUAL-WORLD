@@ -1,4 +1,4 @@
-import {inGunZone} from './gun-layout.js?v=20261017-props124';
+import {inGunZone} from './gun-layout.js?v=20261017-settlement125';
 import {proneShape} from './gun-posture.js?v=20261017-slide120';
 export const COMBAT_WALK=2.8,COMBAT_SPRINT_START=5.8,COMBAT_SPRINT_MAX=7.2,COMBAT_SPRINT_RAMP=.55;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -28,15 +28,13 @@ export function stepCombatMovement(world,body,input,dt){
  }
  if(!m.sliding){
   const sprint=input.sprint===true&&moving&&forward>.25&&!aiming&&!m.prone&&!input.crouched&&!m.slideAir;
-  const alignment=speed>.1?(m.vx*wx+m.vz*wz)/(speed*Math.max(.01,Math.min(1,amount))):1;
-  m.sprintTime=sprint?clamp(m.sprintTime+dt*(alignment>.7?1:-4),0,COMBAT_SPRINT_RAMP):Math.max(0,m.sprintTime-dt*5);
+  m.sprintTime=sprint?clamp(m.sprintTime+dt,0,COMBAT_SPRINT_RAMP):Math.max(0,m.sprintTime-dt*5);
   const target=m.prone?COMBAT_WALK*.20:input.crouched?COMBAT_WALK*.42:aiming?COMBAT_WALK*.78:sprint?COMBAT_SPRINT_START+(COMBAT_SPRINT_MAX-COMBAT_SPRINT_START)*clamp(m.sprintTime/COMBAT_SPRINT_RAMP,0,1):COMBAT_WALK;
-  if(sprint&&!m.sprinting&&body.grounded&&!m.slideAir&&alignment>.7&&speed<COMBAT_SPRINT_START){m.vx=wx*COMBAT_SPRINT_START;m.vz=wz*COMBAT_SPRINT_START;}
   m.sprinting=sprint;
   if(!moving&&body.grounded&&!jump){m.vx=m.vz=m.sprintTime=0;}
   else if(!body.grounded||jump){
    const steer=1-Math.exp(-dt*1.1);if(moving){m.vx+=(wx*Math.max(target,speed)-m.vx)*steer;m.vz+=(wz*Math.max(target,speed)-m.vz)*steer;}m.vx*=Math.exp(-dt*.08);m.vz*=Math.exp(-dt*.08);
-  }else{m.slideAir=false;const dx=wx*target-m.vx,dz=wz*target-m.vz,length=Math.hypot(dx,dz),change=Math.min(length,(moving?24:60)*dt);if(length){m.vx+=dx/length*change;m.vz+=dz/length*change;}}
+  }else{m.slideAir=false;m.vx=wx*target;m.vz=wz*target;}
  }
  m.sprintCharge=clamp(m.sprintTime/COMBAT_SPRINT_RAMP,0,1);
  m.slideBlend+=(Number(m.sliding)-m.slideBlend)*(1-Math.exp(-dt*(m.sliding?14:9)));

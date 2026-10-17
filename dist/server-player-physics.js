@@ -1,9 +1,9 @@
 import {decodeMovement,MOVEMENT_BATCH,MOVEMENT_BACKLOG} from './movement-wire.js?v=20261017-authority122';
-import {inGunZone} from './gun-layout.js?v=20261017-props124';
+import {inGunZone} from './gun-layout.js?v=20261017-settlement125';
 import {HOUSES,mirrorRealm} from './housing-data.js';
 import * as THREE from './vendor/three.module.js';
-import {createWorld} from './world.js?v=20261017-props124';
-import {stepPlayer} from './player-physics.js?v=20261017-props124';
+import {createWorld} from './world.js?v=20261017-settlement125';
+import {stepPlayer} from './player-physics.js?v=20261017-settlement125';
 import {housingColliders,mirrorAvenueColliders} from './housing-collision.js?v=20261015-physics101';
 
 // The room owns position, vertical velocity and contact state. Clients send

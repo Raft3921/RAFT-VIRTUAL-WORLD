@@ -1,5 +1,5 @@
 import {gunMap} from './gun-maps.js?v=20261017-maps121';
-import {GUN_ZONE} from './gun-layout.js?v=20261017-authority122';
+import {GUN_ZONE} from './gun-layout.js?v=20261017-props124';
 import * as THREE from 'three';
 
 // All vegetation and terrain are geometry/shaders: no image textures or downloads.

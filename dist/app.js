@@ -1,34 +1,34 @@
 import {GUN_MAPS,gunMap,insideGunMap} from './gun-maps.js?v=20261017-maps121';
-import {slideShape} from './combat-movement.js?v=20261017-authority122';
+import {slideShape} from './combat-movement.js?v=20261017-props124';
 import {createSoftwareRenderer} from './software-renderer.js?v=20261017-canvas114';
 import {createCompatControls} from './compat-controls.js?v=20261017-canvas114';
 import {createGamepadControls} from './gamepad-controls.js?v=20261017-pro119';
 import {RemoteMotion} from './remote-motion.js?v=20261017-slide120';
 import {loadWorldMode,combatSpawn} from './world-mode.js?v=20261017-maps121';
 import {findMantle} from './player-mantle.js?v=20261015-mantle103';
-import {PlayerPrediction} from './player-prediction.js?v=20261017-authority122';
+import {PlayerPrediction} from './player-prediction.js?v=20261017-props124';
 import {proneShape} from './gun-posture.js?v=20261017-slide120';
 import {createVideoSettings} from './video-settings.js?v=20261017-canvas114';
 import {furniturePose} from './housing-data.js?v=20261013-life89b';
 import {livingHome} from './living-shared.js?v=20261013-life89b';
-import {createWorldExperience} from './world-experience.js?v=20261017-authority122';
-import {inGunZone as mapContains,weaponById} from './gun-layout.js?v=20261017-authority122';
+import {createWorldExperience} from './world-experience.js?v=20261017-props124';
+import {inGunZone as mapContains,weaponById} from './gun-layout.js?v=20261017-props124';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261017-entry123';
+import {startUpdateNotice} from './update-notice.js?v=20261017-props124';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261017-slide120';
-import { createEnvironment } from './environment.js?v=20261017-authority122';
-import { createWorld } from './world.js?v=20261017-authority122';
+import { createEnvironment } from './environment.js?v=20261017-props124';
+import { createWorld } from './world.js?v=20261017-props124';
 import { ARENA,insideArena } from './world-layout.js?v=20261013-life89b';
 import { SYNC_ENDPOINT } from './sync-config.js?v=20261013-life89b';
 import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261013-life89b';
 import { createHit,stepHit,hitShape,proneWeight,gunEliminationState } from './hit-reaction.js?v=20261016-cinema106';
 import { createCombatEffects } from './combat-effects.js?v=20261014-world96';
 import { createBrownProjectiles } from './brown-projectiles.js?v=20261014-world96';
-import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-entry123';
+import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-props124';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261013-life89b';
-import { cleanCharacter } from './character-store.js?v=20261017-authority122';
+import { cleanCharacter } from './character-store.js?v=20261017-props124';
 // Versioned URL prevents a previously cached editor module from blocking startup.
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261013-life89b';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js?v=20261013-life89b';
@@ -330,7 +330,7 @@ function experienceFrame(){const identity=selected+':'+roomSelfId+':'+remoteActo
  experienceFrameData={cinematicActors:[{id:roomSelfId,actor:actors[selected],root:actors[selected]?.root},...peers.map(([id,p])=>({id,actor:p.actor,root:p.actor.root}))],roster:[...(roomSelfId?[{id:roomSelfId,skin:selected}]:[]),...roster.values()],targets:peers.map(([,p])=>p.actor.root),remotePlayers:peers.map(([id,p])=>({id,skin:p.skin,position:p.actor.root.position,target:p.target,yaw:p.actor.root.rotation.y,headYaw:p.renderPose?.headYaw??p.headYaw,headPitch:p.renderPose?.headPitch??p.headPitch,grounded:p.renderPose?.grounded??p.grounded,verticalSpeed:p.renderPose?.verticalSpeed??p.verticalSpeed,speed:p.renderPose?.speed??p.speed,sliding:!!p.renderPose?.sliding,hitSlideBlend:p.actor.animation.slideBlend,hitProneBlend:p.actor.animation.proneBlend,hitCrouchBlend:p.renderPose?.hitCrouchBlend,prone:p.renderPose?.prone??p.prone,crouched:p.renderPose?.crouched??p.crouched,mantling:p.renderPose?.mantling??p.mantling,ragdoll:p.ragdoll,eyeHeight:(p.actor.eyeHeight||1.68)-((p.renderPose?.prone??p.prone)?(p.actor.eyeHeight||1.68)-.36:(p.renderPose?.crouched??p.crouched)?crouchDrop(p.actor):0)}))};return experienceFrameData;
 }
 experience=createWorldExperience({scene,camera,openMap:()=>plazaMap?.open(),names:skinDefs.map(s=>s[0]),skinURL,makeFace,
- get:()=>({...experienceFrame(),gunMapId,sliding:!!playerPrediction.combat?.sliding,sprintCharge:Math.min(1,(playerPrediction.combat?.sprintTime||0)/1.65),combatOnly,viewTimes:[...remoteActors].filter(([,r])=>r.motion.stamped&&Number.isFinite(r.renderPose?.at)).map(([id,r])=>({id,at:r.renderPose.at})),softwareRenderer:!!renderer?.isSoftwareRenderer,video:videoSettings?.settings,skin:selected,remoteTeleport:(id,position,serial)=>{const r=remoteActors.get(id);if(r){r.target.set(position.x,position.y,position.z);r.actor.root.position.copy(r.target);r.yaw=position.yaw;r.prone=r.crouched=false;r.motion.reset({...r,gunTeleportSerial:serial??0,sliding:false,hitSlideBlend:0,sprintCharge:0,hitProneBlend:0,hitCrouchBlend:0,x:position.x,y:position.y,z:position.z,vx:0,vy:0,vz:0},performance.now());}},avatar:actors[selected],houseInteraction:housingEditor?.interaction||plazaPlay?.interaction,chargeActor:(id,active)=>{(id===roomSelfId?actors[selected]:remoteActors.get(id)?.actor)?.chargeGun(active);},reloadActor:(id,message)=>{const actor=id===roomSelfId?actors[selected]:remoteActors.get(id)?.actor;actor?.reloadGun(message?{weapon:message.weapon,duration:Math.max(120,message.endAt-message.startAt),age:Math.max(0,serverNow()-message.startAt)}:null);},flashActor:id=>{if(id===roomSelfId)actors[selected]?.fireGun();else remoteActors.get(id)?.actor.fireGun();},selfId:roomSelfId,player:actors[selected]?.root,character:cooking?.handsOn||living?.active||plazaPlay?.active?{...cachedCharacter(),equippedWeapon:null}:cachedCharacter(),connected:roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,paused:paused(),living:living?.active,sleeping,ragdoll:localRagdoll,seated,seat,inStudio,world,housing:housingView,now:serverNow(),time,yaw,pitch,cameraMode,prone,crouched,mantling:!!playerPrediction.mantle,toggleProne,eyeHeight:(actors[selected]?.eyeHeight||1.68)-crouchView,speed:velocity.length(),moveX:velocity.x,moveZ:velocity.z,grounded,verticalSpeed,fov,duelPlaying:duelIds.length>0,muzzle:()=>{},impact:()=>{}}),
+ get:()=>({...experienceFrame(),gunMapId,sliding:!!playerPrediction.combat?.sliding,sprintCharge:playerPrediction.combat?.sprintCharge||0,combatOnly,viewTimes:[...remoteActors].filter(([,r])=>r.motion.stamped&&Number.isFinite(r.renderPose?.at)).map(([id,r])=>({id,at:r.renderPose.at})),softwareRenderer:!!renderer?.isSoftwareRenderer,video:videoSettings?.settings,skin:selected,remoteTeleport:(id,position,serial)=>{const r=remoteActors.get(id);if(r){r.target.set(position.x,position.y,position.z);r.actor.root.position.copy(r.target);r.yaw=position.yaw;r.prone=r.crouched=false;r.motion.reset({...r,gunTeleportSerial:serial??0,sliding:false,hitSlideBlend:0,sprintCharge:0,hitProneBlend:0,hitCrouchBlend:0,x:position.x,y:position.y,z:position.z,vx:0,vy:0,vz:0},performance.now());}},avatar:actors[selected],houseInteraction:housingEditor?.interaction||plazaPlay?.interaction,chargeActor:(id,active)=>{(id===roomSelfId?actors[selected]:remoteActors.get(id)?.actor)?.chargeGun(active);},reloadActor:(id,message)=>{const actor=id===roomSelfId?actors[selected]:remoteActors.get(id)?.actor;actor?.reloadGun(message?{weapon:message.weapon,duration:Math.max(120,message.endAt-message.startAt),age:Math.max(0,serverNow()-message.startAt)}:null);},flashActor:id=>{if(id===roomSelfId)actors[selected]?.fireGun();else remoteActors.get(id)?.actor.fireGun();},selfId:roomSelfId,player:actors[selected]?.root,character:cooking?.handsOn||living?.active||plazaPlay?.active?{...cachedCharacter(),equippedWeapon:null}:cachedCharacter(),connected:roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,paused:paused(),living:living?.active,sleeping,ragdoll:localRagdoll,seated,seat,inStudio,world,housing:housingView,now:serverNow(),time,yaw,pitch,cameraMode,prone,crouched,mantling:!!playerPrediction.mantle,toggleProne,eyeHeight:(actors[selected]?.eyeHeight||1.68)-crouchView,speed:velocity.length(),moveX:velocity.x,moveZ:velocity.z,grounded,verticalSpeed,fov,duelPlaying:duelIds.length>0,muzzle:()=>{},impact:()=>{}}),
  send:message=>{if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));else notify('サーバーに接続してください');},notify,
  openChat:()=>{closeWorldMenu();worldChat.open();if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'chat-open'}));},openMenu:openWorldMenu,
  onModal:active=>{if(active){if(housingEditor?.active)housingEditor.close();worldGuide?.close(false);closeWorldMenu();$('menu').hidden=$('master').hidden=true;unlocked();setClean(false);}clearInput();},
@@ -761,7 +761,7 @@ async function start(){try{
     import('./living.js?v=20261017-canvas114'),
     import('./cooking-controls.js?v=20261013-life89b'),
     import('./cooking.js?v=20261014-kitchen94'),
-    import('./plaza-map.js?v=20261017-authority122'),
+    import('./plaza-map.js?v=20261017-props124'),
     import('./housing-renderer.js?v=20261015-physics101'),
     import('./house-editor.js?v=20261014-kitchen94'),
     import('./world-guide.js?v=20261014-optics95')

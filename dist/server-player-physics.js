@@ -1,9 +1,9 @@
 import {decodeMovement,MOVEMENT_BATCH,MOVEMENT_BACKLOG} from './movement-wire.js?v=20261017-authority122';
-import {inGunZone} from './gun-layout.js?v=20261017-authority122';
+import {inGunZone} from './gun-layout.js?v=20261017-props124';
 import {HOUSES,mirrorRealm} from './housing-data.js';
 import * as THREE from './vendor/three.module.js';
-import {createWorld} from './world.js?v=20261017-authority122';
-import {stepPlayer} from './player-physics.js?v=20261017-authority122';
+import {createWorld} from './world.js?v=20261017-props124';
+import {stepPlayer} from './player-physics.js?v=20261017-props124';
 import {housingColliders,mirrorAvenueColliders} from './housing-collision.js?v=20261015-physics101';
 
 // The room owns position, vertical velocity and contact state. Clients send
@@ -60,7 +60,7 @@ export class ServerPlayerPhysics{
   this.ensureTimer();return m;
  }
  hold(entry,state){const p=entry.player;for(const key of ['x','y','z','vx','vy','vz','speed','verticalSpeed','grounded','prone','crouched','sliding','slideAir','sprintCharge','hitSlideBlend','mantling'])if(p[key]!==undefined)state[key]=p[key];}
- apply(m,state){Object.assign(state,{x:m.p.x,y:m.p.y,z:m.p.z,vy:m.vy,verticalSpeed:m.vy,grounded:m.grounded,mantling:!!m.mantle});if(typeof m.crouched==='boolean')state.crouched=m.crouched;if(m.combat){state.vx=m.combat.vx;state.vz=m.combat.vz;state.speed=Math.hypot(state.vx,state.vz);state.hitSlideBlend=m.combat.slideBlend;state.sliding=m.combat.sliding;state.slideAir=m.combat.slideAir;state.sprintCharge=Math.min(1,m.combat.sprintTime/1.65);state.prone=m.combat.prone&&!state.sliding;}else{state.hitSlideBlend=0;state.sliding=false;state.slideAir=false;state.sprintCharge=0;}if(m.mantle){state.vx=state.vz=state.speed=0;}}
+ apply(m,state){Object.assign(state,{x:m.p.x,y:m.p.y,z:m.p.z,vy:m.vy,verticalSpeed:m.vy,grounded:m.grounded,mantling:!!m.mantle});if(typeof m.crouched==='boolean')state.crouched=m.crouched;if(m.combat){state.vx=m.combat.vx;state.vz=m.combat.vz;state.speed=Math.hypot(state.vx,state.vz);state.hitSlideBlend=m.combat.slideBlend;state.sliding=m.combat.sliding;state.slideAir=m.combat.slideAir;state.sprintCharge=m.combat.sprintCharge||0;state.prone=m.combat.prone&&!state.sliding;}else{state.hitSlideBlend=0;state.sliding=false;state.slideAir=false;state.sprintCharge=0;}if(m.mantle){state.vx=state.vz=state.speed=0;}}
  reply(entry){const m=entry.motion;if(!m||(entry.player.gunTeleportSerial||0)!==m.teleport)return;entry.send({type:'motion',resync:!!m.suspended,epoch:m.epoch,seq:m.seq,teleport:m.teleport,x:m.p.x,y:m.p.y,z:m.p.z,vy:m.vy,grounded:m.grounded,mantle:m.mantle||null,combat:m.combat?{...m.combat}:null});}
  ensureTimer(){if(this.timer)return;this.tickAt=Date.now();this.timer=setInterval(()=>this.tick(),50);}
  tick(now=Date.now()){

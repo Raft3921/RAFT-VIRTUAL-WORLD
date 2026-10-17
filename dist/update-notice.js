@@ -1,5 +1,5 @@
-import {compatibleSync} from './sync-protocol.js?v=20261017-entry123';
-import {BUILD_ID,RELEASE_ID} from './build-info.js?v=20261017-entry123';
+import {compatibleSync} from './sync-protocol.js?v=20261017-props124';
+import {BUILD_ID,RELEASE_ID} from './build-info.js?v=20261017-props124';
 export function startUpdateNotice({endpoint,version}){
  const notice=document.getElementById('updateNotice');let busy=false,clientUpdate=false,incompatible=false,explicit=false;
  const draw=()=>{notice.hidden=!(explicit||clientUpdate||incompatible);};

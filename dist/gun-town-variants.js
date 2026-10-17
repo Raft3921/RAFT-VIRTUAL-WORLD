@@ -1,3 +1,4 @@
+import {buildTownDoor,buildTownBarredWall} from './gun-town-props.js?v=20261017-props124';
 import {gunMap,gunExitBoards} from './gun-maps.js?v=20261017-maps121';
 // Deterministic, shared render/collision recipe; visual stair treads are batched,
 // while each flight has one continuous authoritative ramp.
@@ -5,7 +6,7 @@ export function buildGunVariant({box,board=()=>{},map='snow'}){
  const m=gunMap(map),q=m.zone,snow=m.snow,large=m.large;
  const stone=snow?'#7c8e9b':'#ad8054',wall=snow?'#bbc9cf':'#c09a69',cap=snow?'#eef4f4':'#e5c495',dark=snow?'#384c5b':'#65503d',ground=snow?'#dce7eb':'#c6a16f',accent=snow?'#637f99':'#926c50',timber=snow?'#5c686e':'#76604a';
  const detail=(x,y,z,w,h,d,c)=>box(x,y,z,w,h,d,c,false,{noShadow:true});
- const prop=(id,kind,x,y,z,w,h,d,c)=>box(x,y,z,w,h,d,c,true,{gunPropId:`${map}-${id}`,gunPropKind:kind,gunBounds:{x,y,z,w,h,d}});
+ const prop=(id,kind,x,y,z,w,h,d,c,bounds=null)=>box(x,y,z,w,h,d,c,true,{gunPropId:`${map}-${id}`,gunPropKind:kind,gunBounds:bounds||{x,y,z,w,h,d}});
  const slab=(x,y,z,w,d,c=stone)=>box(x,y-.16,z,w,.32,d,c);
  function stair(x,z,rise,base=0,reverse=false,width=2.1,run=10){
   const n=Math.ceil(rise/.19);for(let i=0;i<n;i++){const t=(i+.5)/n,top=(i+1)*rise/n;box(x,base+top/2,z+(reverse?-1:1)*(t-.5)*run,width,top,run/n+.015,stone,false);}
@@ -15,10 +16,10 @@ export function buildGunVariant({box,board=()=>{},map='snow'}){
   const door=2.8,thick=.42;
   // Two clear ground entrances; deep side windows break the silhouette.
   slab(x,base+.12,z,w,d,stone);
-  for(const side of [-1,1]){box(x+side*w/2,base+height/2,z,thick,height,d,wall);const span=(w-door)/2;
+  for(const side of [-1,1]){buildTownBarredWall({box,detail,prop,id:`${id}-window-${side}`,x:x+side*w/2,z,depth:d,height,base,thickness:thick,paint:wall});const span=(w-door)/2;
    for(const edge of [-1,1])box(x+edge*(door/2+span/2),base+height/2,z+side*d/2,span,height,thick,wall);
    box(x,base+(height+2.9)/2,z+side*d/2,door,height-2.9,thick,wall);
-   prop(`${id}-door-${side}`,'door',x,base+1.45,z+side*d/2,door-.12,2.65,.16,timber);
+   buildTownDoor({prop,id:`${id}-door-${side}`,x,z:z+side*d/2,width:door-.12,base,dark,wood:timber,panel:snow?'#899397':'#96785a'});
    for(let y=4;y<height-1;y+=4){detail(x+side*(w/2+.23),base+y,z,.035,1.5,1.1,dark);detail(x,base+y,z+side*(d/2+.23),1.1,1.5,.035,dark);}
   }
   slab(x,base+height+.16,z,w+.8,d+.8,cap);
@@ -77,7 +78,7 @@ export function buildGunVariant({box,board=()=>{},map='snow'}){
   // Low cover leaves the crossing readable from below.
   for(const end of [a,b])slab((x+end.x)/2,end.base+end.height+.16,end.z,Math.abs(x-end.x)+2,2.4,cap);
  }
- // Distinct central landmarks and navigation signs make the layouts readable.
+ // Functional entry/exit boards remain; decorative text signs are omitted.
  gunExitBoards(map).forEach(p=>{slab(p.x,.12,p.z,3.5,3.5,ground);board(p.x,.12,p.z,'gun-exit');});
  board(113,.09,-92,'gun-entry');
  // Reusable entry PC, separate from the nearby shared world-menu board.

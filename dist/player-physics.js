@@ -1,4 +1,4 @@
-import {stepCombatMovement} from './combat-movement.js?v=20261017-authority122';
+import {stepCombatMovement} from './combat-movement.js?v=20261017-props124';
 import {startMantle,stepMantle} from './player-mantle.js?v=20261015-mantle103';
 import * as THREE from './vendor/three.module.js';
 import {COURSE} from './world-layout.js';
@@ -13,7 +13,7 @@ export function stepPlayer(world,body,input){
  const combat=stepCombatMovement(world,body,input,dt);
  if(combat)input={...input,vx:combat.vx,vz:combat.vz,prone:combat.prone,jump:combat.sliding?false:combat.jump||input.jump,shape:combat.shape};
  if(input.jump&&!body.grounded&&!body.mantle)startMantle(world,body,input);
- if(body.mantle&&stepMantle(world,body,input,dt)){if(body.combat){body.combat.vx=body.combat.vz=body.combat.sprintTime=0;body.combat.sliding=body.combat.slideAir=false;}return {grounded:body.grounded,body:body.standingOn,bounceBody:null};}
+ if(body.mantle&&stepMantle(world,body,input,dt)){if(body.combat){body.combat.vx=body.combat.vz=body.combat.sprintTime=body.combat.sprintCharge=0;body.combat.sprinting=false;body.combat.sliding=body.combat.slideAir=false;}return {grounded:body.grounded,body:body.standingOn,bounceBody:null};}
  if(body.standingOn&&body.grounded&&!body.standingOn.disabled){
   const b=body.standingOn;
   if(Number.isFinite(b.motionTime)&&b.motionMargin){const delta=(Math.sin(b.motionTime*.9+b.phase)-Math.sin((b.motionTime-dt)*.9+b.phase))*b.amplitude;if(b.lift)body.p.y+=delta;else if(b.forward)body.p.x+=delta;else body.p.z+=delta;}

@@ -1,5 +1,6 @@
+import {buildTownDoor,buildTownBarredWall} from './gun-town-props.js?v=20261017-props124';
 import {insideGunMap} from './gun-maps.js?v=20261017-maps121';
-import {buildGunVariant} from './gun-town-variants.js?v=20261017-authority122';
+import {buildGunVariant} from './gun-town-variants.js?v=20261017-props124';
 // Shared geometry: the server sweeps bullets against the same town the client builds.
 export const GUN_ZONE={minX:120,maxX:244,minZ:-140,maxZ:-44,x:182,z:-92,width:124,depth:96};
 export const inGunZone=(p,map='sand')=>insideGunMap(p,map);
@@ -54,29 +55,9 @@ export function buildGunTown({box:emit,board=()=>{},sign=()=>{},map='sand'}){
   const thickness=.38,door=3.2,side=index%2?-1:1;stairRoof={x,z,w,d,y:h+.48,side,high:h>=8};
   box(x,.145,z,w,.07,d,paving);
   // Genuine side windows, room nooks and two different door openings.
-  for(const sign of [-1,1]){const wallX=x+sign*w/2,sill=.68,head=3.35;
-   box(wallX,sill/2,z,thickness,sill,d,paint);box(wallX,(h+head)/2,z,thickness,h-head,d,paint);
-   box(wallX,(sill+head)/2,z,thickness,head-sill,1.1,paint);for(const edge of [-1,1])box(wallX,(sill+head)/2,z+edge*(d/2-.7),thickness,head-sill,1.4,paint);
-   for(const edge of [-1,1]){const length=(d-2.8-1.1)/2,cz=z+edge*(.55+length/2),bounds={x:wallX,y:(sill+head)/2,z:cz,w:.18,h:head-sill,d:length},id=`window-${index}-${sign}-${edge}`;
-    for(const y of [sill,head])for(const end of [-1,1])detail(wallX,y,cz+end*(length/2-.1),.14,.12,.20,'#525750');
-    for(let k=0;k<4;k++)prop(id,'bars',wallX,(sill+head)/2,cz+(k-1.5)*length/4,.055,head-sill,.055,'#424b49',bounds);
-    for(const y of [sill+.1,head-.1])prop(id,'bars',wallX,y,cz,.055,.055,length,'#424b49',bounds);
-   }
-  }
+  for(const side of [-1,1])buildTownBarredWall({box,detail,prop,id:`window-${index}-${side}`,x:x+side*w/2,z,depth:d,height:h,thickness,paint});
   for(const face of [-1,1]){const offset=(index%3-1)*1.05,span=(w-door)/2;box(x-w/2+span/2+offset/2,h/2,z+face*d/2,span+offset,h,thickness,paint);box(x+w/2-span/2+offset/2,h/2,z+face*d/2,span-offset,h,thickness,paint);box(x+offset,(h+2.8)/2,z+face*d/2,door,h-2.8,thickness,paint);for(const edge of [-1,1])detail(x+offset+edge*(door/2+.07),1.45,z+face*(d/2+.23),.15,2.9,.10,trim);detail(x+offset,2.95,z+face*(d/2+.25),door+.3,.16,.13,trim);}
-  for(const face of [-1,1]){
-   const dx=x+(index%3-1)*1.05,dz=z+face*d/2,id=`door-${index}-${face}`,bounds={x:dx,y:1.44,z:dz,w:door-.16,h:2.6,d:.16};
-   prop(id,'door',dx,1.44,dz,bounds.w,2.6,.16,'#79604a',bounds);
-   // Raised timber frame, recessed panels and hardware move with the leaf.
-   for(const edge of [-1,1])prop(id,'door',dx+edge*(bounds.w/2-.13),1.44,dz,.19,2.6,.23,dark,bounds);
-   for(const y of [.30,1.42,2.58])prop(id,'door',dx,y,dz,bounds.w,.16,.23,dark,bounds);
-   for(const side of [-1,1]){
-    for(const y of [.77,2.01])prop(id,'door',dx,y,dz+side*.09,bounds.w-.53,.85,.035,'#96785a',bounds);
-    prop(id,'door',dx+bounds.w/2-.26,1.34,dz+side*.16,.09,.30,.06,'#3e4140',bounds);
-    prop(id,'door',dx+bounds.w/2-.39,1.38,dz+side*.21,.30,.055,.07,'#a6a49a',bounds);
-   }
-   for(const y of [.45,1.44,2.43])prop(id,'door',dx-bounds.w/2+.04,y,dz,.10,.22,.27,'#414442',bounds);
-  }
+  for(const face of [-1,1])buildTownDoor({prop,id:`door-${index}-${face}`,x:x+(index%3-1)*1.05,z:z+face*d/2,width:door-.16,dark});
   box(x,h+.15,z,w+.7,.3,d+.7,trim);box(x,h+.39,z,w+.2,.18,d+.2,paint);
   box(x-side*w/2,h+.78,z,.35,.65,d,paint);box(h>=8?x-side*1.4:x,h+.78,z-d/2,h>=8?w-2.8:w,.65,.35,paint);
   // The roof stairs always rise by <=24 cm, within the movement step limit.

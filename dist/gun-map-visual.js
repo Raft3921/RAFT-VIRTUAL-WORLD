@@ -23,11 +23,11 @@ export function createGunMapVisual(group,bodies){
  function fragment(geometry,b,trace,index,side){
   const c=b.mesh.material.color.clone(),count=geometry.attributes.position.count,cs=[];for(let i=0;i<count;i++)cs.push(c.r,c.g,c.b);geometry.setAttribute('color',new THREE.Float32BufferAttribute(cs,3));geometry.computeBoundingBox();
   const mesh=new THREE.Mesh(geometry,material);mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.color=c;group.add(mesh);
-  const bounds=b.gunBounds,dir=new THREE.Vector3(...trace.normal);if(dir.lengthSq()<.01)dir.set(1,.2,.3);dir.normalize();
+  const bounds=b.gunBounds,floor=Number.isFinite(bounds.floor)?bounds.floor:.12,dir=new THREE.Vector3(...trace.normal);if(dir.lengthSq()<.01)dir.set(1,.2,.3);dir.normalize();
   const start=new THREE.Vector3(b.x,b.y,b.z),size=geometry.boundingBox.getSize(new THREE.Vector3()),spin=b.gunPropKind!=='bars'||size.y>size.z?new THREE.Vector3(Math.PI/2,0,side*.25):new THREE.Vector3(0,side*.6,0),radius=size.length()/2;
   // Falling segments land individually, with a single small bounce and no replay on join.
-  const end=new THREE.Vector3(b.x+dir.x*(.48+index*.035)+side*.12,.14+Math.min(.24,radius*.16),b.z+dir.z*(.48+index*.035)+side*.12);
-  active.push({mesh,start,end,spin,at:trace.at||0,fall:Math.sqrt(Math.max(.1,2*(start.y-end.y)/9.8)),radius});
+  const end=new THREE.Vector3(b.x+dir.x*(.48+index*.035)+side*.12,floor+.02+Math.min(.24,radius*.16),b.z+dir.z*(.48+index*.035)+side*.12);
+  active.push({mesh,start,end,spin,floor,at:trace.at||0,fall:Math.sqrt(Math.max(.1,2*(start.y-end.y)/9.8)),radius});
  }
  function update(now=Date.now()){
   for(const [id,d]of doors){const age=Math.max(0,(now-(d.trace.at||0))/1000);door(d.list,doorAngle(age)*d.sign);if(age>2){door(d.list,Math.PI*.56*d.sign);doors.delete(id);}}
@@ -36,7 +36,7 @@ export function createGunMapVisual(group,bodies){
    f.mesh.position.copy(f.start).lerp(f.end,u);f.mesh.position.y=Math.max(f.end.y,f.start.y-4.9*t*t)+ (t>f.fall?Math.abs(Math.sin((t-f.fall)*12))*Math.exp(-(t-f.fall)*9)*.07:0);
    f.mesh.rotation.set(f.spin.x*turn,f.spin.y*turn,f.spin.z*turn);
    // Keep rotated fragments above the ground, including long grille rods.
-   const box=new THREE.Box3().setFromObject(f.mesh);if(box.min.y<.12)f.mesh.position.y+=.12-box.min.y;
+   const box=new THREE.Box3().setFromObject(f.mesh);if(box.min.y<f.floor)f.mesh.position.y+=f.floor-box.min.y;
    if(t>f.fall+.8){bake(f.mesh);active.splice(i,1);dirty=true;}
   }
   if(dirty)rebuild();

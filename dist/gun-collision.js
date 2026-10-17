@@ -1,4 +1,4 @@
-import {buildGunTown} from './gun-layout.js?v=20261017-authority122';
+import {buildGunTown} from './gun-layout.js?v=20261017-props124';
 import {gunMap,gunExitBoards} from './gun-maps.js?v=20261017-maps121';
 const cache=new Map();
 export function gunCollision(id='sand'){

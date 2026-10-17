@@ -1,0 +1,7 @@
+# PC controller connection and handoff — pcpad118
+
+The lobby links directly to controller settings. Settings now explain PC USB/Bluetooth connection and browser activation, show detected devices, allow a specific controller to be selected, and include an explicit rescan with useful detection feedback. USB/Bluetooth pairing still belongs to the operating system; the page reads controllers exposed by the browser Gamepad API. Nintendo, Xbox and PlayStation labels, saved mappings, sensitivity and aim hold/toggle settings remain. Unknown nonstandard layouts retain their explicit opt-in instead of silently assuming a mapping.
+
+Connection events refresh device state and disconnects release input. Automatic selection responds to fresh button/stick activity on another usable controller rather than sticking to a held/drifting device. Explicit selection prevents automatic switching. When controller operation begins, stale keyboard movement/touch input is cleared and desktop pointer lock is released. That deliberate pointer-lock exit no longer cancels a new controller aim or firing action. Mouse clicks and keyboard input continue to hand control back through the existing input reset path. Menu navigation and gameplay reuse the current controller controls and server-authoritative actions.
+
+This is a client-only release. No tests, runtime checks, browser checks or physical Windows/Mac controller verification were performed, following the user's prior instruction.

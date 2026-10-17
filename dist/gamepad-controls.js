@@ -8,7 +8,7 @@ export function gamepadStick(x=0,y=0,deadzone=.14,curve=1,outer=.96){
 const DEFAULT={attack:7,aim:6,jump:0,crouch:1,reload:2,interact:3,sprint:10,prone:11,menu:9,map:8,camera:12,chat:13,previous:4,next:5};
 const ACTION_NAMES={attack:'射撃・近接攻撃',aim:'銃を構える・拡大',jump:'ジャンプ・這い上がり',crouch:'しゃがむ',reload:'リロード',interact:'使う',sprint:'ダッシュ',prone:'匍匐',menu:'メニュー',map:'地図',camera:'視点切替',chat:'チャット',previous:'前の観戦対象・飛行降下',next:'次の観戦対象・飛行上昇'};
 const LABELS={nintendo:['B','A','Y','X','L','R','ZL','ZR','−','＋','L3','R3','十字↑','十字↓','十字←','十字→','HOME'],playstation:['×','○','□','△','L1','R1','L2','R2','SHARE','OPTIONS','L3','R3','十字↑','十字↓','十字←','十字→','PS'],xbox:['A','B','X','Y','LB','RB','LT','RT','Back','Start','LS','RS','十字↑','十字↓','十字←','十字→','Guide']};
-export function createGamepadControls({get,action,look,release}){
+export function createGamepadControls({get,action,look,release,onActivate}){
  const read=(key,fallback)=>{try{return localStorage.getItem('vrs-pad-'+key)??fallback;}catch{return fallback;}};
  const save=(key,value)=>{try{localStorage.setItem('vrs-pad-'+key,String(value));}catch{}};
  const number=(key,fallback,min,max)=>{const n=Number(read(key,fallback));return Number.isFinite(n)?Math.max(min,Math.min(max,n)):fallback;};
@@ -16,7 +16,9 @@ export function createGamepadControls({get,action,look,release}){
  const settings={sensitivity:number('sensitivity',1,.2,3),vertical:number('vertical',.8,.3,1.5),aim:number('aim',.35,.1,1),deadzone:number('deadzone',.14,.05,.4),lookDeadzone:number('lookDeadzone',.12,.03,.4),confirm:choice('confirm','auto',['auto','south','east']),curve:choice('curve','precision',['precision','linear','soft']),aimMode:choice('aimMode','hold',['hold','toggle']),sprintMode:choice('sprintMode','toggle',['toggle','hold','auto']),smoothing:number('smoothing',.035,0,.12),invert:read('invert','false')==='true',layout:choice('layout','auto',['auto','nintendo','playstation','xbox']),raw:read('raw','false')==='true'};
  let bindings={...DEFAULT};try{const saved=JSON.parse(read('bindings','null'));if(saved&&Object.keys(DEFAULT).every(k=>Number.isInteger(saved[k])&&saved[k]>=0&&saved[k]<32)&&new Set(Object.keys(DEFAULT).map(k=>saved[k])).size===Object.keys(DEFAULT).length)bindings=Object.fromEntries(Object.keys(DEFAULT).map(k=>[k,saved[k]]));}catch{}
  const panel=document.createElement('div');panel.className='gamepad-settings';
- panel.innerHTML=`<h3>コントローラー</h3><p id="gamepadStatus" role="status"></p><p class="help">接続後にボタンを押してください。Nintendo・PlayStation・Xboxの表示を自動選択します。</p>
+ panel.innerHTML=`<h3>コントローラー</h3><p id="gamepadStatus" role="status"></p><p class="help">PC（Windows・Mac）でも操作できます。USBケーブル、またはPCのBluetooth設定で接続し、このページを開いた状態でコントローラーのボタンを押してください。</p>
+ <div class="pad-connect"><button type="button" class="pad-rescan">PCのコントローラーを再検出</button></div><p class="pad-connection-message" role="status"></p>
+ <label>使用するコントローラー<select class="pad-device"><option value="auto">自動（操作したパッドを使用）</option></select></label>
  <label>ボタン表示<select data-pad="layout"><option value="auto">自動</option><option value="nintendo">Nintendo</option><option value="playstation">PlayStation</option><option value="xbox">Xbox / その他</option></select></label>
  <label>メニューの決定ボタン<select data-pad="confirm"><option value="auto">自動（Nintendoは右、その他は下）</option><option value="south">下のボタンで決定</option><option value="east">右のボタンで決定</option></select></label>
  <div class="pad-preset"><button type="button" data-preset="standard">標準配置</button><button type="button" data-preset="tactical">タクティカル配置</button></div><p class="help">タクティカル配置は右スティック押込でしゃがみ、右のフェイスボタンで匍匐。視点から指を離さず姿勢を変えられます。</p>
@@ -32,13 +34,16 @@ export function createGamepadControls({get,action,look,release}){
  <label><input data-pad="invert" type="checkbox">視点の上下を反転</label><label><input data-pad="raw" type="checkbox">未認識パッドを標準配置として使用</label>
  <details><summary>ボタンの割り当て</summary><p class="help">変更したい操作を選び、使うボタンを一度押してください。重複時は元の割り当てと交換します。メニューの決定・戻るは上の「決定ボタン」で選べます。</p><p class="pad-binding-message" role="status"></p><div class="pad-bindings"></div><button type="button" class="pad-bind-cancel" hidden>割り当てをキャンセル</button></details>
  <details><summary>入力の状態を見る</summary><p class="help">手を離しても値が動く場合は、対応するスティックの遊びを増やしてください。</p><pre class="pad-monitor"></pre></details>
- <p class="help">メニュー：十字キー・左スティックで選択、左右で設定変更、右スティック上下でスクロール。SwitchのDNSブラウザーとPS4本体の動作は未確認です。入力APIや3D描画に非対応のブラウザーでは利用できません。</p>`;
+ <p class="help">メニュー：十字キー・左スティックで選択、左右で設定変更、右スティック上下でスクロール。PCではブラウザーのページを選択して操作してください。接続が見つからない場合はデータ通信対応のUSBケーブルやPCのBluetooth接続を確認し、ボタンを押してから再検出してください。Steam等の入力変換で二重に検出される場合は、使用するパッドを選択できます。</p>`;
  document.querySelector('[data-world-panel="controls"]').prepend(panel);
+ const device=panel.querySelector('.pad-device'),connectionMessage=panel.querySelector('.pad-connection-message');
  const status=panel.querySelector('#gamepadStatus'),hint=document.createElement('div');hint.id='gamepadHint';hint.hidden=true;document.body.append(hint);
  const lobbyStatus=document.createElement('p');lobbyStatus.className='help';document.querySelector('#lobby .lobby-panel').append(lobbyStatus);
  const help=document.createElement('p');help.className='help';document.getElementById('controlHelp').after(help);
  const quick=document.createElement('button');quick.textContent='コントローラー設定';document.getElementById('controlHelp').before(quick);quick.onclick=()=>action('settings');
+ const lobbyConnect=document.createElement('button');lobbyConnect.type='button';lobbyConnect.textContent='PCのコントローラーを接続・確認';lobbyStatus.after(lobbyConnect);lobbyConnect.onclick=()=>action('settings');
  const bindingMessage=panel.querySelector('.pad-binding-message'),cancelBinding=panel.querySelector('.pad-bind-cancel'),monitor=panel.querySelector('.pad-monitor');
+ let preferredIndex=null,devicesKey='',connectionNotice='',activity=new Map();
  let index=null,identity='',buttons=[],physical=[],latches=[],needsLatch=true,context='',repeatAt=0,repeatDir='',active=false,sprinting=false,aiming=false,focused=true;
  let move={x:0,y:0},loadout='',display='xbox',rate={x:0,y:0},generation=0,bindingTarget=null,bindingDeadline=0,uiAt=0,menuRoot=null,triggerActive=false;
  const bindingButtons=new Map();
@@ -94,13 +99,27 @@ export function createGamepadControls({get,action,look,release}){
  function poll(){
   try{const getter=typeof navigator.getGamepads==='function'?navigator.getGamepads:navigator.webkitGetGamepads;return {supported:typeof getter==='function',pads:getter?Array.from(getter.call(navigator)||[]):[],error:false};}catch{return {supported:true,pads:[],error:true};}
  }
+ function refreshDevices(pads){
+  const key=pads.map(p=>p.index+':'+p.id).join('|');if(key===devicesKey)return;devicesKey=key;
+  if(preferredIndex!==null&&!pads.some(p=>p.index===preferredIndex))preferredIndex=null;
+  device.replaceChildren(new Option('自動（操作したパッドを使用）','auto'));
+  for(const pad of pads)device.add(new Option((pad.index+1)+' · '+pad.id,String(pad.index)));
+  device.value=preferredIndex===null?'auto':String(preferredIndex);
+ }
+ device.onchange=()=>{preferredIndex=device.value==='auto'?null:Number(device.value);identity='';reset();uiAt=0;};
+ panel.querySelector('.pad-rescan').onclick=()=>{const result=poll(),pads=result.pads.filter(p=>p&&p.connected!==false);refreshDevices(pads);reset();identity='';uiAt=0;connectionNotice=!result.supported?'このブラウザーはコントローラー入力APIに対応していません。':result.error?'ブラウザーから入力を読み取れません。HTTPSのページとブラウザーの権限を確認してください。':pads.length?pads.length+'台を検出しました。パッドのボタンを一度押して離すと操作に切り替わります。':'未検出です。PCのUSB / Bluetooth接続を確認し、このページでパッドのボタンを押してから再検出してください。';setText(connectionMessage,connectionNotice);};
+ function recentInput(pad){
+  const before=activity.get(pad.index),pressed=Array.from(pad.buttons||[],b=>typeof b==='number'?b>.5:b?.pressed||b?.value>.5),axes=Array.from(pad.axes||[]),used=pressed.some(Boolean)||axes.some(a=>Math.abs(a)>.6);
+  const fresh=pressed.some((v,i)=>v&&!before?.pressed[i])||axes.some((v,i)=>Math.abs(v)>.6&&Math.abs(v-(before?.axes[i]||0))>.25);
+  activity.set(pad.index,{pressed,axes});return {used,fresh};
+ }
  function sample(pad){return Array.from(pad.buttons||[],(button,i)=>{const value=typeof button==='number'?button:button?.value||0;return button?.pressed===true||value>(i===6||i===7?(physical[i] ? .12 : .25):(physical[i] ? .25 : .45));});}
  function switchToPointer(){if(active){reset();active=false;document.body.dataset.gamepad='false';hint.hidden=true;}}
  function update(dt,now){
   const s=get(),result=poll(),candidates=result.pads.filter(p=>p&&p.connected!==false);
-  let pad=candidates.find(p=>p.index===index);
-  const used=candidates.find(p=>Array.from(p.buttons||[]).some(b=>typeof b==='number'?b>.5:b?.pressed||b?.value>.5)||Array.from(p.axes||[]).some(a=>Math.abs(a)>.6));
-  if(used&&(!pad||!active))pad=used;else pad??=candidates[0];
+  refreshDevices(candidates);const signals=new Map(candidates.map(p=>[p.index,recentInput(p)]));for(const key of activity.keys())if(!candidates.some(p=>p.index===key))activity.delete(key);
+  let pad=preferredIndex===null?candidates.find(p=>p.index===index):candidates.find(p=>p.index===preferredIndex);
+  if(preferredIndex===null){const fresh=candidates.find(p=>p.index!==pad?.index&&(p.mapping==='standard'||settings.raw)&&signals.get(p.index).fresh),used=candidates.find(p=>(p.mapping==='standard'||settings.raw)&&signals.get(p.index).used);if(fresh)pad=fresh;else if(used&&(!pad||!active))pad=used;else pad??=candidates[0];}
   const next=pad?pad.index+':'+pad.id:'';
   if(identity!==next){reset();identity=next;index=pad?.index??null;buttons=physical=[];latches=[];active=false;}
   const detected=/nintendo|joy-con|switch|pro controller|057e/i.test(pad?.id||'')?'nintendo':/playstation|dualshock|dualsense|wireless controller|054c/i.test(pad?.id||'')?'playstation':'xbox';
@@ -110,7 +129,7 @@ export function createGamepadControls({get,action,look,release}){
   if(mode!==context){reset();context=mode;repeatDir='';menuRoot=null;if(bindingTarget)cancelCapture();}
   if(now>=uiAt){
    uiAt=now+150;
-   const label=!result.supported?'このブラウザーは入力APIに非対応です':result.error?'入力APIへのアクセスが制限されています。HTTPSで開いてください':!pad?'未検出 · 接続してボタンを押してください':!usable?'配置を認識できません。必要なら「未認識パッドを標準配置として使用」を選択':`接続中：${pad.id}`;
+   const label=!result.supported?'このブラウザーは入力APIに非対応です':result.error?'入力APIへのアクセスが制限されています。HTTPSとブラウザーの権限を確認してください':!pad?'未検出 · 接続してボタンを押してください':!usable?'配置を認識できません。必要なら「未認識パッドを標準配置として使用」を選択':`接続中：${pad.id} · ${active?'操作中':'ボタンを押すと操作開始'}`;
    setText(status,label);setText(lobbyStatus,'コントローラー：'+label);
    const description=`左スティック：移動 / 右：視点 / ${name(bindings.attack)}：射撃 / ${name(bindings.aim)}：構え・拡大 / ${name(bindings.jump)}：ジャンプ / ${name(bindings.crouch)}：しゃがむ / ${name(bindings.reload)}：リロード / ${name(bindings.interact)}：使う / ${name(bindings.sprint)}：ダッシュ / ${name(bindings.prone)}：匍匐 / ${name(bindings.menu)}：メニュー`;
    setText(help,description);
@@ -126,7 +145,7 @@ export function createGamepadControls({get,action,look,release}){
   const left=gamepadStick(pad.axes?.[0],pad.axes?.[1],settings.deadzone),rawRight=gamepadStick(pad.axes?.[2],pad.axes?.[3],settings.lookDeadzone,1);
   const right=gamepadStick(pad.axes?.[2],pad.axes?.[3],settings.lookDeadzone,settings.curve==='linear'?1:settings.curve==='soft'?2.2:1.65);
   const edge=i=>!!current[i]&&!buttons[i],down=key=>!!current[bindings[key]],tap=key=>edge(bindings[key]);
-  if(current.some(Boolean)||left.x||left.y||right.x||right.y)active=true;
+  if(!active&&(current.some(Boolean)||left.x||left.y||right.x||right.y)){active=true;document.body.dataset.gamepad='true';release();onActivate?.();}
   if(!active){buttons=current;return;}
   document.body.dataset.gamepad='true';hint.hidden=s.clean||!['play','menu'].includes(mode);
   if(bindingTarget){
@@ -168,7 +187,8 @@ export function createGamepadControls({get,action,look,release}){
   buttons=current;
  }
  addEventListener('blur',()=>{focused=false;reset();});addEventListener('focus',()=>{focused=true;reset();});document.addEventListener('visibilitychange',reset);
- addEventListener('gamepaddisconnected',e=>{if(e.gamepad.index===index){reset();index=null;identity='';active=false;document.body.dataset.gamepad='false';hint.hidden=true;}});
+ addEventListener('gamepadconnected',()=>{uiAt=0;devicesKey='';setText(connectionMessage,'PCに接続されたパッドを検出しました。ボタンを押して離してください。');});
+ addEventListener('gamepaddisconnected',e=>{devicesKey='';uiAt=0;if(e.gamepad.index===preferredIndex)preferredIndex=null;if(e.gamepad.index===index){reset();index=null;identity='';active=false;document.body.dataset.gamepad='false';hint.hidden=true;setText(connectionMessage,'コントローラーが切断されました。再接続後にボタンを押してください。');}});
  document.addEventListener('pointerdown',switchToPointer,true);document.addEventListener('keydown',e=>{if(e.isTrusted)switchToPointer();},true);
  return {update,reset,get move(){return move;},get sprint(){return sprinting;},get aiming(){return active&&context==='play'&&aiming;},get ascend(){return active&&!needsLatch&&context==='play'&&!!buttons[bindings.next];},get descend(){return active&&!needsLatch&&context==='play'&&!!buttons[bindings.previous];}};
 }

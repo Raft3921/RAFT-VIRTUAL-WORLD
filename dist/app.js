@@ -1,6 +1,6 @@
 import {createSoftwareRenderer} from './software-renderer.js?v=20261017-canvas114';
 import {createCompatControls} from './compat-controls.js?v=20261017-canvas114';
-import {createGamepadControls} from './gamepad-controls.js?v=20261017-ads116';
+import {createGamepadControls} from './gamepad-controls.js?v=20261017-pcpad118';
 import {RemoteMotion} from './remote-motion.js?v=20261017-hit115';
 import {loadWorldMode,combatSpawn} from './world-mode.js?v=20261016-combatonly105';
 import {findMantle} from './player-mantle.js?v=20261015-mantle103';
@@ -12,7 +12,7 @@ import {livingHome} from './living-shared.js?v=20261013-life89b';
 import {createWorldExperience} from './world-experience.js?v=20261017-sight117';
 import {inGunZone,weaponById} from './gun-layout.js?v=20261015-tactics99';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261017-sight117';
+import {startUpdateNotice} from './update-notice.js?v=20261017-pcpad118';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261017-sight117';
@@ -392,7 +392,7 @@ document.addEventListener('mousedown',e=>{if(e.button===2&&(e.target===canvas||d
 document.addEventListener('mouseup',e=>{if(e.button===2)experience?.mouseAim(false);if(e.button===0&&mouseAdsTrigger){mouseAdsTrigger=false;if(!paused())launchPunch();else cancelCharge();}},true);
 document.addEventListener('mousedown',e=>{if(e.target!==canvas||lockClickActive||mouseLockPending||e.button!==0||document.pointerLockElement!==canvas)return;e.preventDefault();if(cooking?.worldInteraction()){cancelCharge();lockClickActive=true;return;}if(experience?.pointer(e))return;beginCharge()});
 document.addEventListener('mouseup',e=>{if(lockClickActive){lockClickActive=false;return;}if(e.target!==canvas)return;if(e.button!==0||document.pointerLockElement!==canvas)return;if(cameraReturnMode()){requestCameraReturn();return;}launchPunch()});
-document.addEventListener('pointerlockchange',()=>{mouseLockPending=false;if(document.pointerLockElement!==canvas){lockClickActive=false;cancelCharge();}});document.addEventListener('pointerlockerror',()=>{mouseLockPending=false;lockClickActive=false;});
+document.addEventListener('pointerlockchange',()=>{mouseLockPending=false;if(document.pointerLockElement!==canvas){lockClickActive=false;if(document.body.dataset.gamepad!=='true')cancelCharge();}});document.addEventListener('pointerlockerror',()=>{mouseLockPending=false;lockClickActive=false;});
 canvas.addEventListener('wheel',e=>{if(housingEditor?.wheel(e))return;if(inStudio&&!paused()&&(cameraMode==='follow'||cameraMode==='orbit')){e.preventDefault();distance=clamp(distance+e.deltaY*.006,2,18);$('distance').value=distance;$('distanceOut').textContent=distance.toFixed(1)+' m'}},{passive:false});
 // Desktop scene clicks acquire pointer lock before any attack. UI keeps its own input.
 const joy=$('moveStick');let stickReach=42;function updateStick(e){let x=(e.clientX-stickCenter.x)/stickReach,y=(e.clientY-stickCenter.y)/stickReach;const length=Math.hypot(x,y),amount=clamp((length-.07)/.93,0,1);if(length>0){x=x/length*amount;y=y/length*amount;}stick.x=x;stick.y=y;$('stickKnob').style.transform=`translate(${x*stickReach}px,${y*stickReach}px)`;}
@@ -420,6 +420,7 @@ function controllerBack(){
  if(inStudio)openMenu();
 }
 gamepad=createGamepadControls({
+ onActivate:()=>{keys.clear();sprintWanted=false;flightAscend=flightDescend=false;stick.x=stick.y=0;stickId=lookId=null;mouseAdsTrigger=false;lockClickActive=false;mouseLockPending=false;pointerPunchTarget=null;$('stickKnob').style.transform='';experience?.mouseAim(false);if(document.pointerLockElement===canvas)document.exitPointerLock?.();},
  get:()=>({menu:paused()&&!experience?.cinematic,cinematic:experience?.cinematic,spectator:experience?.eliminated||experience?.watching,enabled:inStudio&&!paused()&&!localRagdoll&&!localImpact&&!experience?.eliminated,weapon:cachedCharacter().equippedWeapon,clean}),
  release:()=>{experience?.controllerAim(false);cancelCharge();},
  look:(dx,dy)=>{yaw+=dx;pitch=clamp(pitch+dy,-1.15,1.1);},

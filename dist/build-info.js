@@ -1,2 +1,2 @@
-export const BUILD_ID='vrs-sight117';
-export const RELEASE_ID='vrs-sight117';
+export const BUILD_ID='vrs-pcpad118';
+export const RELEASE_ID='vrs-pcpad118';

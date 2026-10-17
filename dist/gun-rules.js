@@ -1,6 +1,7 @@
+import {GunHitTimeline,movingGunHit} from './gun-hit-timeline.js?v=20261017-hit115';
 import {REPLAY_FINAL_AT,REPLAY_DURATION} from './replay-timing.js?v=20261016-cinema106';
 import {solidExtents,segmentGunSolid} from './gun-solid.js?v=20261015-tactics99';
-import {gunDamage,gunHitBox} from './gun-posture.js?v=20261016-trails110';
+import {gunDamage,gunHitBox,gunBulletBoxes,gunProjectileRadius} from './gun-posture.js?v=20261017-hit115';
 import {GUN_PROP_DEFS} from './gun-map-state.js?v=20261015-tactics99';
 import {GUN_SPAWNS,GUN_SOLIDS} from './gun-collision.js?v=20261015-tactics99';
 import {gunEliminationState} from './hit-reaction.js?v=20261016-cinema106';
@@ -11,7 +12,7 @@ import {buildDistrict} from './district.js?v=20261013-life89b';
 let district=null;function districtSolids(){if(!district){district=[];buildDistrict({box:(x,y,z,w,h,d,color,solid=true)=>{if(solid)district.push({x,y,z,w,h,d});},board:()=>{},sign:()=>{},seats:[],clockHands:[]});}return district;}
 const interpolate=(a,b,t)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,z:a.z+(b.z-a.z)*t});
 export class GunRules{
- constructor(rules){this.rules=rules;this.members=new Map();this.mode='auto';this.phase='waiting';this.startAt=0;this.round=0;this.shots=[];this.sequence=0;this.marks=[];this.timer=null;this.lastTick=Date.now();this.ammo=new Map();this.nextRoundAt=0;this.preview=null;const life=Number(rules.settings?.gunLife);this.maxLife=Number.isInteger(life)?Math.max(3,Math.min(100,life)):3;this.traces=new Map();this.mapRevision=0;this.charges=new Map();this.slashes=new Map();this.configureSolids();}
+ constructor(rules){this.rules=rules;this.hitTimeline=new GunHitTimeline();this.members=new Map();this.mode='auto';this.phase='waiting';this.startAt=0;this.round=0;this.shots=[];this.sequence=0;this.marks=[];this.timer=null;this.lastTick=Date.now();this.ammo=new Map();this.nextRoundAt=0;this.preview=null;const life=Number(rules.settings?.gunLife);this.maxLife=Number.isInteger(life)?Math.max(3,Math.min(100,life)):3;this.traces=new Map();this.mapRevision=0;this.charges=new Map();this.slashes=new Map();this.configureSolids();}
  configureSolids(){const rules=this.rules;this.solids=[...GUN_SOLIDS,...(rules.settings?.combatOnly?[]:districtSolids())];this.buckets=new Map();for(const box of this.solids){const extent=solidExtents(box);for(let x=Math.floor((box.x-extent.x)/12);x<=Math.floor((box.x+extent.x)/12);x++)for(let z=Math.floor((box.z-extent.z)/12);z<=Math.floor((box.z+extent.z)/12);z++){const key=x+','+z;if(!this.buckets.has(key))this.buckets.set(key,[]);this.buckets.get(key).push(box);}}}
  impact(message){const now=Date.now();this.marks=this.marks.filter(m=>now-m.at<20000);if(message.wall){this.marks.push({...message,at:now});if(this.marks.length>128)this.marks.shift();}this.send({...message,at:now});}
  players(){return this.rules.entries().map(e=>e.player);}
@@ -23,7 +24,7 @@ export class GunRules{
  publish(){this.send({type:'gun-battle',battle:this.snapshot()});}
  assign(){if(this.phase==='active'||this.phase==='preview')return;const members=[...this.members.values()],pairs=this.mode==='teams'||this.mode==='auto'&&members.length===4;members.forEach((m,i)=>{if(!m.manual)m.team=pairs?Math.floor(i/Math.ceil(members.length/2)):i;});}
  teleport(p,team){const occupied=this.players().filter(q=>q.id!==p.id&&this.members.has(q.id));let points=GUN_SPAWNS.filter(s=>occupied.every(q=>Math.hypot(q.x-s.x,q.z-s.z)>8));if(!points.length)points=GUN_SPAWNS;const spawn={...points[Math.floor(Math.random()*points.length)],yaw:Math.random()*Math.PI*2};this.move(p,spawn);}
- move(p,position){p.gunTeleportSerial=(p.gunTeleportSerial||0)+1;Object.assign(p,position,{flight:false,prone:false,crouched:false,seated:false,sleeping:false,ragdoll:false,gunEliminated:false,vx:0,vy:0,vz:0});this.send({type:'gun-teleport',playerId:p.id,position,serial:p.gunTeleportSerial});}
+ move(p,position){p.gunTeleportSerial=(p.gunTeleportSerial||0)+1;Object.assign(p,position,{hitProneBlend:0,hitCrouchBlend:0,flight:false,prone:false,crouched:false,seated:false,sleeping:false,ragdoll:false,gunEliminated:false,vx:0,vy:0,vz:0});this.hitTimeline.observe(p,Date.now());this.send({type:'gun-teleport',playerId:p.id,position,serial:p.gunTeleportSerial});}
  atBoard(p){return GUN_EXIT_BOARDS.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<5&&p.y<4);}
  enter(p){if(this.members.has(p.id))return;if(this.phase==='active'||this.phase==='preview'||Math.hypot(p.x-GUN_ENTRY.x,p.z-GUN_ENTRY.z)>6||p.y>4)return;const c=this.record(p),weapon=c.ownedWeapons.includes(p.equippedWeapon)?p.equippedWeapon:c.ownedWeapons.at(-1);if(!weapon){this.send({type:'gun-error',playerId:p.id,message:'武器を持っていないため入場できません。PCのストアで購入してください'});return;}
   if(!this.members.size)this.resetMap();
@@ -56,7 +57,7 @@ export class GunRules{
   this.send({type:'gun-damage',previewed,playerId:victim.id,attacker:owner.id,damage,weapon:shot.weapon,remaining:target?Math.max(0,this.maxLife-target.damage):null});
   if(target&&!deferResolve){this.publish();this.resolve();}
  }
- inBlast(q,point,radius){const box=gunHitBox(q),c=Math.cos(box.yaw),s=Math.sin(box.yaw),x=point.x-box.x,z=point.z-box.z,dx=Math.max(0,Math.abs(c*x-s*z)-box.w/2),dz=Math.max(0,Math.abs(s*x+c*z)-box.d/2),dy=Math.max(0,Math.abs(point.y-box.y)-box.h/2);return Math.hypot(dx,dy,dz)<=radius;}
+ inBlast(q,point,radius){return gunBulletBoxes(q).some(box=>{const c=Math.cos(box.yaw),s=Math.sin(box.yaw),x=point.x-box.x,z=point.z-box.z,dx=Math.max(0,Math.abs(c*x-s*z)-box.w/2),dz=Math.max(0,Math.abs(s*x+c*z)-box.d/2),dy=Math.max(0,Math.abs(point.y-box.y)-box.h/2);return Math.hypot(dx,dy,dz)<=radius;});}
 
  applyImpact(owner,victims,shot,impact,now){
   this.impact(impact);
@@ -107,6 +108,7 @@ export class GunRules{
    const shot={id:'gun-'+(++this.sequence),owner:p.id,weapon:weapon.id,serial:message.serial,position:{...origin},origin:{...origin},vx:dx/n*weapon.speed,vy:dy/n*weapon.speed,vz:dz/n*weapon.speed,born:now,lastAt:now,life:weapon.range/weapon.speed,round:inGunZone(p)?this.round:null};
    // Keep the firing pose only in server memory until a final-hit replay needs it.
    // Normal projectile broadcasts and late-join shot lists stay compact.
+   Object.defineProperty(shot,'viewLags',{value:weapon.radius?new Map():this.hitTimeline.lags(message,now)});
    Object.defineProperty(shot,'firingPose',{value:{x:p.x,y:p.y,z:p.z,yaw:p.yaw||0,headYaw:p.headYaw||0,headPitch:p.headPitch||0,prone:!!p.prone,crouched:!!p.crouched,skin:p.skin,equippedWeapon:weapon.id}});
    this.shots.push(shot);this.send({type:'gun-shot',shot});
   }this.ensureTimer();
@@ -129,16 +131,16 @@ export class GunRules{
   this.send({type:'gun-reload',playerId:p.id,weapon:weapon.id,startAt:now,endAt:ammo.reloadAt});this.economy(p);this.ensureTimer();
  }
  checkReload(p,now){if(p.ragdoll||this.members.get(p.id)?.out)this.cancelReload(p,now);else this.advanceReload(p,now);}
- ensureTimer(){if(this.timer)return;this.lastTick=Date.now();const flight=new Promise(resolve=>this.finish=resolve);this.rules.onAsyncWork(flight);this.timer=setInterval(()=>this.tick(Date.now()),40);}
+ ensureTimer(){if(this.timer)return;this.lastTick=Date.now();const flight=new Promise(resolve=>this.finish=resolve);this.rules.onAsyncWork(flight);this.timer=setInterval(()=>this.tick(Date.now()),20);}
  tick(now){const dt=Math.min(.2,(now-this.lastTick)/1000);this.lastTick=now;const players=this.players(),layouts=(this.rules.settings.combatOnly?{}:this.rules.houses.snapshots()),remaining=[];
   if(this.preview){if(now>=this.preview.message.startAt+this.preview.message.duration)this.finishPreview(now);return;}
   for(const p of players)this.checkReload(p,now);
   if(this.phase==='waiting'&&this.startAt&&now>=this.startAt)this.begin(now);
   if(this.phase==='finished'&&now>=this.nextRoundAt){this.phase='waiting';this.resetMap();this.assign();this.startAt=this.members.size>=2?now+3000:0;this.publish();}
   for(const shot of this.shots){const owner=players.find(p=>p.id===shot.owner);if(!owner||shot.round!==null&&(this.phase!=='active'||shot.round!==this.round))continue;
-   const shotDt=Math.max(0,Math.min(.2,(now-(shot.lastAt||shot.born))/1000,shot.life-((shot.lastAt||shot.born)-shot.born)/1000));shot.lastAt=now;const a=shot.position,b={x:a.x+shot.vx*shotDt,y:a.y+shot.vy*shotDt,z:a.z+shot.vz*shotDt},weapon=weaponById(shot.weapon),radius=weapon.radius ? .18 : .025;let first=this.blocked(a,b,layouts,radius),victim=null;
+   const stepStart=shot.lastAt??shot.born,stepEnd=Math.min(now,shot.born+shot.life*1000),shotDt=Math.max(0,(stepEnd-stepStart)/1000);shot.lastAt=stepEnd;const a=shot.position,b={x:a.x+shot.vx*shotDt,y:a.y+shot.vy*shotDt,z:a.z+shot.vz*shotDt},weapon=weaponById(shot.weapon),radius=gunProjectileRadius(shot.weapon);let first=this.blocked(a,b,layouts,radius),victim=null;
    for(const q of players){if(q.id===owner.id)continue;const own=this.members.get(owner.id),target=this.members.get(q.id);if(shot.round!==null&&(!target||target.out||target.team===own?.team))continue;if(shot.round===null&&inGunZone(q))continue;
-    const fraction=segmentBox(a,b,gunHitBox(q),radius);if(fraction!==null&&(first===null||fraction<first)){first=fraction;victim=q;}}
+    const lag=shot.viewLags?.get(q.id)||0;const fraction=movingGunHit(a,b,q,stepStart-lag,stepEnd-lag,this.hitTimeline,radius);if(fraction!==null&&(first===null||fraction<first)){first=fraction;victim=q;}}
    if(first!==null){
     const point=interpolate(a,b,first),impact={type:'gun-impact',id:shot.id,position:point,explosion:!!weapon.radius,radius:weapon.radius||0,velocity:{x:shot.vx,y:shot.vy,z:shot.vz},wall:!victim};
     const victims=weapon.radius?players.filter(q=>q.id!==owner.id&&this.inBlast(q,point,weapon.radius)):victim?[victim]:[];

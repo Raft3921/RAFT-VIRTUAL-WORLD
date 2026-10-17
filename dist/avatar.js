@@ -342,9 +342,9 @@ export async function createAvatar(url,{model=null}={}) {
     wasGrounded = grounded;
     lastVerticalSpeed = verticalSpeed;
     phase = (phase + dt * Math.min(speed,6.5) * TAU / ((1.35 + running * .38)*motionScale)) % TAU;
-    crouchBlend=damp(crouchBlend,state.crouched&&!state.ragdoll&&!state.seated&&!state.sleeping?1:0,12,dt);
+    crouchBlend=Number.isFinite(state.hitCrouchBlend)?clamp(state.hitCrouchBlend,0,1):damp(crouchBlend,state.crouched&&!state.ragdoll&&!state.seated&&!state.sleeping?1:0,12,dt);
     const wantsProne=!!state.prone&&!state.ragdoll&&!state.sleeping&&!state.seated;
-    proneBlend=damp(proneBlend,wantsProne?1:0,wantsProne?7:5,dt);if(proneBlend<.001)proneBlend=0;
+    proneBlend=Number.isFinite(state.hitProneBlend)?clamp(state.hitProneBlend,0,1):damp(proneBlend,wantsProne?1:0,wantsProne?7:5,dt);if(proneBlend<.001)proneBlend=0;
     const stride = (.24 + running * .08) * motion*motionScale*(1-crouchBlend*.52);
     const breathing = Math.sin(elapsed * 1.7);
     const bob = (1 - Math.cos(phase * 2)) * .0055 * motion;

@@ -102,6 +102,7 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
 
   broadcast(message, except = null) {
     if(message.type==='state'&&!Number.isFinite(message.at))message={...message,at:Date.now()};
+    if(message.type==='state')this.rules?.guns.hitTimeline.observe(message.player,message.at);
     const data = json(message);
     for (const [socket] of this.players) {
       if (socket === except) continue;

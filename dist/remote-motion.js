@@ -1,7 +1,7 @@
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const angle=(a,b,t)=>a+Math.atan2(Math.sin(b-a),Math.cos(b-a))*t;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
-const numeric=['y','speed','verticalSpeed','headPitch'];
+const numeric=['y','speed','verticalSpeed','headPitch','hitProneBlend','hitCrouchBlend'];
 // Bounded cubic interpolation follows endpoint velocities without overshooting
 // walls or reversing along an otherwise monotone snapshot segment.
 function position(a,b,va,vb,t,seconds){
@@ -35,13 +35,13 @@ export class RemoteMotion{
   if(last){const seconds=(time-last.at)/1000;for(const [key,v]of [['x','vx'],['z','vz']]){const measured=(state[key]-last[key])/seconds;frame[v]=clamp(Number.isFinite(state[v])?state[v]:measured,Math.min(0,measured*1.5),Math.max(0,measured*1.5));}}
   this.frames.push(frame);if(this.frames.length>40)this.frames.shift();this.lastArrival=arrival;return true;
  }
- sample(now){
+ sample(now,{combat=false}={}){
   if(!this.frames.length)return null;
   const dt=this.lastRender===null?0:clamp(now-this.lastRender,0,250);
   // The least delayed recent packet estimates the clock; slew corrections avoid
   // making an unlucky first packet a permanent latency penalty.
   if(this.offsets.length)this.offset+=clamp(Math.max(...this.offsets)-this.offset,-dt*.02,dt*.02);
-  const desired=now+this.offset-this.delay;
+  const desired=now+this.offset-(combat?Math.min(this.delay,75):this.delay);
   if(this.playhead===null||now-this.lastRender>1000)this.playhead=desired;
   else this.playhead+=dt*clamp(1+(desired-this.playhead-dt)/500,.92,1.08);
   this.lastRender=now;
@@ -49,18 +49,20 @@ export class RemoteMotion{
   const a=this.frames[0],b=this.frames.find(f=>f.at>=this.playhead)||this.frames.at(-1),latest=this.frames.at(-1);
   let out={...a,stateAt:a.at},coasting=this.playhead>latest.at;
   if(b!==a&&this.playhead>=a.at){const t=clamp((this.playhead-a.at)/(b.at-a.at),0,1),seconds=(b.at-a.at)/1000;out={...(t<1?a:b),at:this.playhead,stateAt:t<1?a.at:b.at};
-   for(const key of numeric)out[key]=(a[key]||0)+((b[key]||0)-(a[key]||0))*t;
-   for(const [key,v]of [['x','vx'],['z','vz']])out[key]=position(a[key],b[key],a[v],b[v],t,seconds);
+   for(const key of numeric){if((key==='hitProneBlend'||key==='hitCrouchBlend')&&!Number.isFinite(a[key])&&!Number.isFinite(b[key]))continue;out[key]=(a[key]||0)+((b[key]||0)-(a[key]||0))*t;}
+   for(const [key,v]of [['x','vx'],['z','vz']])out[key]=combat?a[key]+(b[key]-a[key])*t:position(a[key],b[key],a[v],b[v],t,seconds);
    for(const key of ['yaw','headYaw'])out[key]=angle(a[key]||0,b[key]||0,t);
   }
   if(coasting){const t=clamp((this.playhead-latest.at)/1000,0,.08),tail=Math.max(0,t-.04),travel=t-tail*tail/.08,fade=1-tail/.04;
    out={...latest,at:latest.at+t*1000,stateAt:latest.at};
    // Short underflows keep full velocity before braking to a bounded stop.
    // Ground contact and special activity poses are never predicted through floors.
-   if(!latest.ragdoll&&!latest.seated&&!latest.sleeping&&!latest.mantling){out.x+=(latest.vx||0)*travel;out.z+=(latest.vz||0)*travel;if(!latest.grounded)out.y+=(latest.vy||0)*travel;}
+   if(!combat&&!latest.ragdoll&&!latest.seated&&!latest.sleeping&&!latest.mantling){out.x+=(latest.vx||0)*travel;out.z+=(latest.vz||0)*travel;if(!latest.grounded)out.y+=(latest.vy||0)*travel;}
+   if(combat)out.at=latest.at;
    out.speed=(latest.speed||0)*fade;out.vx=(latest.vx||0)*fade;out.vz=(latest.vz||0)*fade;
   }
-  if(this.needsRecovery&&this.output){
+  if(combat){this.correction={x:0,y:0,z:0};}
+  if(!combat&&this.needsRecovery&&this.output){
    const expected={x:this.output.x+(this.output.vx||0)*dt/1000,y:this.output.y,z:this.output.z+(this.output.vz||0)*dt/1000};
    if(distance(out,expected)<2)for(const key of ['x','y','z'])this.correction[key]=expected[key]-out[key];
   }

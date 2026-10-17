@@ -29,6 +29,7 @@ function send(socket, message) {
 
 function broadcast(message, except = null) {
     if(message.type==='state'&&!Number.isFinite(message.at))message={...message,at:Date.now()};
+    if(message.type==='state')rules.guns.hitTimeline.observe(message.player,message.at);
   for (const socket of players.keys()) {
     if (socket !== except) send(socket, message);
   }

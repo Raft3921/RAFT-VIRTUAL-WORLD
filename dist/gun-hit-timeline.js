@@ -1,5 +1,5 @@
 import {segmentBox} from './projectile-motion.js?v=20261013-life89b';
-import {gunBulletBoxes} from './gun-posture.js?v=20261017-wallfloor128';
+import {gunBulletBoxes} from './gun-posture.js?v=20261017-flipjump129';
 export const MAX_GUN_REWIND=240;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const lerp=(a,b,t)=>a+(b-a)*t;

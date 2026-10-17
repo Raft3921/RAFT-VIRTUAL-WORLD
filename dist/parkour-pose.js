@@ -3,6 +3,7 @@ export function parkourPose(state){
  const kind=state.parkourKind||'',t=clamp((state.parkourAge||0)/Math.max(.01,state.parkourDuration||1),0,1),pivot=state.skin===7?.65:.95;
  let pitch=0,roll=0,tuck=0,weight=0,qx=0,qy=0,qz=0,qw=1,offsetX=0,offsetZ=0;
  if(kind==='backflip'){pitch=-Math.PI*2*t*t*(3-2*t);tuck=Math.sin(Math.PI*t);weight=1;}
+ if(kind==='frontflip'||kind==='slideflip'){pitch=Math.PI*(kind==='slideflip'?4:2)*t*t*(3-2*t);tuck=Math.sin(Math.PI*t);weight=1;}
  if(kind==='sideflip'){roll=(state.wallSide||1)*Math.PI*2*t*t*(3-2*t);tuck=Math.sin(Math.PI*t);weight=1;}
  if(kind==='wallkick'){pitch=-.14*Math.sin(Math.PI*t);roll=(state.wallSide||1)*.45*Math.sin(Math.PI*t);tuck=.45*Math.sin(Math.PI*t);weight=1;}
  if(kind==='wallrun'){

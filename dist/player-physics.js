@@ -1,4 +1,4 @@
-import {stepCombatMovement} from './combat-movement.js?v=20261017-wallfloor128';
+import {stepCombatMovement} from './combat-movement.js?v=20261017-flipjump129';
 import {startMantle,stepMantle} from './player-mantle.js?v=20261015-mantle103';
 import * as THREE from './vendor/three.module.js';
 import {COURSE} from './world-layout.js';
@@ -18,7 +18,7 @@ export function stepPlayer(world,body,input){
   const b=body.standingOn;
   if(Number.isFinite(b.motionTime)&&b.motionMargin){const delta=(Math.sin(b.motionTime*.9+b.phase)-Math.sin((b.motionTime-dt)*.9+b.phase))*b.amplitude;if(b.lift)body.p.y+=delta;else if(b.forward)body.p.x+=delta;else body.p.z+=delta;}
  }
- if(input.jump&&body.grounded&&!input.prone){body.vy=params.jump;body.grounded=false;body.standingOn=null;}
+ if(input.jump&&body.grounded&&!input.prone){body.vy=params.jump*(combat?.jumpMultiplier||1);if(body.combat?.parkourKind==='slideflip')body.combat.parkourDuration=2*body.vy/params.gravity*.96;body.grounded=false;body.standingOn=null;}
  // Separate combat launches from ordinary jumps, and never reset a fall from a
  // client-reported grounded bit. These impulses are only accepted on support.
  if(input.launch>0&&body.grounded){body.vy=Math.min(10.4,input.launch);body.grounded=false;}

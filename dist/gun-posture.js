@@ -1,4 +1,4 @@
-import {transformParkourBox} from './parkour-pose.js?v=20261017-wallfloor128';
+import {transformParkourBox} from './parkour-pose.js?v=20261017-flipjump129';
 export const PRONE_HEIGHT=.62;
 export function proneShape(yaw=0){return {width:.30,depth:.78,height:PRONE_HEIGHT,yaw};}
 export function gunHitBox(p){const height=p.sliding?1.16:p.prone?PRONE_HEIGHT:p.crouched?1.28:1.8;return {x:p.x,y:p.y+height/2,z:p.z,w:p.prone?.62:.65,h:height,d:p.sliding?1.9:p.prone?1.6:.65,yaw:p.yaw||0};}
@@ -25,7 +25,7 @@ export function gunBulletBoxes(p){
    if(i===0){sy=.17;sz=.30;sh=.34;sd=1.15;}if(i===2){sy=-.30+pivot*co+half*Math.cos(tilt);sz=.55+pivot*si+half*Math.sin(tilt);sh=h;sd=d;}
    box.x+=(p.x+c*x+s*sz-box.x)*slide;box.y+=(p.y+sy-box.y)*slide;box.z+=(p.z-s*x+c*sz-box.z)*slide;box.h+=(sh-box.h)*slide;box.d+=(sd-box.d)*slide;
   }
-  if(['backflip','sideflip'].includes(p.parkourKind)&&i===0){const tuck=Math.sin(Math.PI*Math.max(0,Math.min(1,(p.parkourAge||0)/Math.max(.01,p.parkourDuration||1))));box.y+=.24*tuck;box.h*=1-.22*tuck;}
+  if(['backflip','sideflip','frontflip','slideflip'].includes(p.parkourKind)&&i===0){const tuck=Math.sin(Math.PI*Math.max(0,Math.min(1,(p.parkourAge||0)/Math.max(.01,p.parkourDuration||1))));box.y+=.24*tuck;box.h*=1-.22*tuck;}
   return transformParkourBox(box,p);
  });
 }

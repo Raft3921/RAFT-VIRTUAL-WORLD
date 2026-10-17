@@ -1,6 +1,6 @@
-import {stepParkour,parkourDefaults} from './player-parkour.js?v=20261017-wallfloor128';
+import {stepParkour,parkourDefaults} from './player-parkour.js?v=20261017-flipjump129';
 import {inGunZone} from './gun-layout.js?v=20261017-settlement125';
-import {proneShape} from './gun-posture.js?v=20261017-wallfloor128';
+import {proneShape} from './gun-posture.js?v=20261017-flipjump129';
 export const COMBAT_WALK=2.8,COMBAT_SPRINT_START=5.8,COMBAT_SPRINT_MAX=7.2,COMBAT_SPRINT_RAMP=.55;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export const slideShape=(yaw,width=.32)=>({width:Math.max(.32,width),depth:.95,height:1.16,yaw});
@@ -37,7 +37,7 @@ export function stepCombatMovement(world,body,input,dt){
    const steer=1-Math.exp(-dt*1.1);if(moving){m.vx+=(wx*Math.max(target,speed)-m.vx)*steer;m.vz+=(wz*Math.max(target,speed)-m.vz)*steer;}m.vx*=Math.exp(-dt*.08);m.vz*=Math.exp(-dt*.08);
   }else{m.slideAir=false;m.vx=wx*target;m.vz=wz*target;}
  }
- const parkour=stepParkour(world,body,input,m,dt);
+ const parkour=stepParkour(world,body,{...input,slideJump:jump},m,dt);
  m.sprintCharge=clamp(m.sprintTime/COMBAT_SPRINT_RAMP,0,1);
  m.slideBlend+=(Number(m.sliding)-m.slideBlend)*(1-Math.exp(-dt*(m.sliding?14:9)));
  const current=Math.hypot(m.vx,m.vz);if(current>7.8){m.vx*=7.8/current;m.vz*=7.8/current;}

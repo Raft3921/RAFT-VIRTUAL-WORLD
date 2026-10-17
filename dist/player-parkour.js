@@ -1,7 +1,7 @@
 // Shared contact-based acrobatics. The client submits only ordinary movement /
 // jump controls; wall normals, impulses and action budgets are server-derived.
 export function parkourDefaults(){return {parkourKind:'',parkourAge:0,parkourDuration:0,parkourSerial:0,wallSide:0,wallNX:0,wallNZ:0,wallTime:0,kickCooldown:0,flipCooldown:0,kicks:0,lastWallNX:0,lastWallNZ:0,airAction:false};}
-export function parkourHandsBusy(p){return !!p.mantling||['backflip','sideflip','wallkick'].includes(p.parkourKind);}
+export function parkourHandsBusy(p){return !!p.mantling||['backflip','sideflip','frontflip','slideflip','wallkick'].includes(p.parkourKind);}
 export function findParkourWall(world,p,shape,yaw=0){
  if(!world.nearby)return null;let best=null,bestGap=Infinity;
  for(const b of world.nearby(p)){
@@ -22,6 +22,8 @@ export function stepParkour(world,body,input,m,dt){
  if(m.parkourKind&&m.parkourAge>=m.parkourDuration)action(m,'',0);
  if(body.grounded){if(m.airAction)action(m,'',0);m.wallTime=0;m.kicks=0;m.lastWallNX=m.lastWallNZ=0;m.airAction=false;if(!['backflip','sideflip'].includes(m.parkourKind))action(m,'',0);}
  if(body.mantle||m.prone||m.sliding||input.stop){action(m,'',0);return {};}
+ // This flag is derived by shared slide state, never accepted from the wire.
+ if(body.grounded&&input.slideJump){m.flipCooldown=1.1;m.airAction=true;action(m,'slideflip',.95);return {jumpMultiplier:Math.SQRT2};}
  const yaw=input.lookYaw||0,shape=input.standingShape||{width:.32,depth:.32,height:1.9},wx=input.wishX||0,wz=input.wishZ||0,amount=Math.hypot(wx,wz),forward=wx*Math.sin(yaw)+wz*Math.cos(yaw);
  // Back + jump is an explicit grounded action; require the whole jump arc's
  // headroom so a low ceiling does not initiate a spin that cannot finish.
@@ -34,8 +36,11 @@ export function stepParkour(world,body,input,m,dt){
    m.flipCooldown=.9;m.airAction=true;m.wallSide=Math.sign(side);m.vx=wx/amount*5.8;m.vz=wz/amount*5.8;action(m,'sideflip',.66);return {};
   }
  }
+ if(body.grounded&&input.jump&&!input.crouched&&!input.aiming&&m.flipCooldown===0&&forward>.35&&forward>=Math.abs(wx*-Math.cos(yaw)+wz*Math.sin(yaw))&&world.canStand(body.p,{...shape,height:shape.height+1,yaw})){
+  m.flipCooldown=.8;m.airAction=true;action(m,'frontflip',.64);return {};
+ }
  if(body.grounded)return {};
- if(['backflip','sideflip'].includes(m.parkourKind))return {};
+ if(['backflip','sideflip','slideflip'].includes(m.parkourKind))return {};
  const wall=findParkourWall(world,body.p,shape,yaw),speed=Math.hypot(m.vx,m.vz);
  if(!wall){if(m.parkourKind==='wallrun')action(m,'',0);return {};}
  const changedWall=m.wallNX*wall.nx+m.wallNZ*wall.nz<.8;

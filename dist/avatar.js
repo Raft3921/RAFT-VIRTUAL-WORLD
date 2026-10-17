@@ -1,4 +1,4 @@
-import {parkourPose} from './parkour-pose.js?v=20261017-wallfloor128';
+import {parkourPose} from './parkour-pose.js?v=20261017-flipjump129';
 import {createWeaponClearance} from './weapon-clearance.js?v=20261016-effects108';
 import {createGunActionMotion,stepGunActionMotion} from './gun-action-motion.js?v=20261017-settlement125';
 import {sampleKatanaPose} from './katana-motion.js?v=20261016-cinema106';
@@ -516,10 +516,10 @@ export async function createAvatar(url,{model=null}={}) {
       if(gunModel&&mantleBlend>.1)gunModel.visible=false;
     }
     if(park.weight>0&&!state.ragdoll&&!state.sleeping&&!state.seated&&!state.mantling){
-      if(park.kind==='backflip'||park.kind==='sideflip'||park.kind==='wallkick')for(const side of ['left','right']){gestureJoint(hips[side],-.95*park.tuck,0,0,1);gestureJoint(knees[side],1.55*park.tuck,0,0,1);gestureJoint(shoulders[side],-.8-park.tuck,0,side==='left'?.18:-.18,1);gestureJoint(elbows[side],-.75,0,0,1);}
+      if(['backflip','sideflip','frontflip','slideflip','wallkick'].includes(park.kind))for(const side of ['left','right']){gestureJoint(hips[side],-.95*park.tuck,0,0,1);gestureJoint(knees[side],1.55*park.tuck,0,0,1);gestureJoint(shoulders[side],-.8-park.tuck,0,side==='left'?.18:-.18,1);gestureJoint(elbows[side],-.75,0,0,1);}
       if(park.kind==='wallrun'){for(const [side,sign]of [['right',-1],['left',1]]){gestureJoint(hips[side],-.5+Math.sin(phase+(sign>0?Math.PI:0))*.6,0,sign*.16,park.weight);gestureJoint(knees[side],.7+Math.max(0,Math.sin(phase))* .4,0,0,park.weight);}gestureJoint(shoulders.left,-.9,0,.25,park.weight);gestureJoint(elbows.left,-.45,0,0,park.weight);}
       parkourRotation.fromArray(park.quaternion);pelvis.quaternion.premultiply(parkourRotation);pelvis.position.x+=park.shiftX;pelvis.position.y+=park.shiftY;pelvis.position.z+=park.shiftZ;
-      if(gunModel&&['backflip','sideflip','wallkick'].includes(park.kind))gunModel.visible=false;
+      if(gunModel&&['backflip','sideflip','frontflip','slideflip','wallkick'].includes(park.kind))gunModel.visible=false;
       else if(gunModel&&park.kind==='wallrun'){gunInverse.copy(pelvis.quaternion).multiply(torso.quaternion).multiply(shoulders.right.quaternion).multiply(elbows.right.quaternion).invert();gunModel.quaternion.copy(gunInverse).multiply(gunAim);}
     }
     // Keep the supporting foot planted after the combat pose has been blended.

@@ -3,7 +3,7 @@ import {inGunZone} from './gun-layout.js?v=20261017-settlement125';
 import {HOUSES,mirrorRealm} from './housing-data.js';
 import * as THREE from './vendor/three.module.js';
 import {createWorld} from './world.js?v=20261017-settlement125';
-import {stepPlayer} from './player-physics.js?v=20261017-wallfloor128';
+import {stepPlayer} from './player-physics.js?v=20261017-flipjump129';
 import {housingColliders,mirrorAvenueColliders} from './housing-collision.js?v=20261015-physics101';
 
 // The room owns position, vertical velocity and contact state. Clients send

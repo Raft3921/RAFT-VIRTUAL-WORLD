@@ -6,7 +6,7 @@ export function gamepadStick(x=0,y=0,deadzone=.14,curve=1,outer=.96){
  return {x:x/length*amount,y:y/length*amount};
 }
 const DEFAULT={attack:7,aim:6,jump:0,crouch:1,reload:2,interact:3,sprint:10,prone:11,menu:9,map:8,camera:12,chat:13,previous:4,next:5};
-const ACTION_NAMES={attack:'射撃・近接攻撃',aim:'照準',jump:'ジャンプ・這い上がり',crouch:'しゃがむ',reload:'リロード',interact:'使う',sprint:'ダッシュ',prone:'匍匐',menu:'メニュー',map:'地図',camera:'視点切替',chat:'チャット',previous:'前の観戦対象・飛行降下',next:'次の観戦対象・飛行上昇'};
+const ACTION_NAMES={attack:'射撃・近接攻撃',aim:'銃を構える・拡大',jump:'ジャンプ・這い上がり',crouch:'しゃがむ',reload:'リロード',interact:'使う',sprint:'ダッシュ',prone:'匍匐',menu:'メニュー',map:'地図',camera:'視点切替',chat:'チャット',previous:'前の観戦対象・飛行降下',next:'次の観戦対象・飛行上昇'};
 const LABELS={nintendo:['B','A','Y','X','L','R','ZL','ZR','−','＋','L3','R3','十字↑','十字↓','十字←','十字→','HOME'],playstation:['×','○','□','△','L1','R1','L2','R2','SHARE','OPTIONS','L3','R3','十字↑','十字↓','十字←','十字→','PS'],xbox:['A','B','X','Y','LB','RB','LT','RT','Back','Start','LS','RS','十字↑','十字↓','十字←','十字→','Guide']};
 export function createGamepadControls({get,action,look,release}){
  const read=(key,fallback)=>{try{return localStorage.getItem('vrs-pad-'+key)??fallback;}catch{return fallback;}};
@@ -112,7 +112,7 @@ export function createGamepadControls({get,action,look,release}){
    uiAt=now+150;
    const label=!result.supported?'このブラウザーは入力APIに非対応です':result.error?'入力APIへのアクセスが制限されています。HTTPSで開いてください':!pad?'未検出 · 接続してボタンを押してください':!usable?'配置を認識できません。必要なら「未認識パッドを標準配置として使用」を選択':`接続中：${pad.id}`;
    setText(status,label);setText(lobbyStatus,'コントローラー：'+label);
-   const description=`左スティック：移動 / 右：視点 / ${name(bindings.attack)}：射撃 / ${name(bindings.aim)}：照準 / ${name(bindings.jump)}：ジャンプ / ${name(bindings.crouch)}：しゃがむ / ${name(bindings.reload)}：リロード / ${name(bindings.interact)}：使う / ${name(bindings.sprint)}：ダッシュ / ${name(bindings.prone)}：匍匐 / ${name(bindings.menu)}：メニュー`;
+   const description=`左スティック：移動 / 右：視点 / ${name(bindings.attack)}：射撃 / ${name(bindings.aim)}：構え・拡大 / ${name(bindings.jump)}：ジャンプ / ${name(bindings.crouch)}：しゃがむ / ${name(bindings.reload)}：リロード / ${name(bindings.interact)}：使う / ${name(bindings.sprint)}：ダッシュ / ${name(bindings.prone)}：匍匐 / ${name(bindings.menu)}：メニュー`;
    setText(help,description);
    const confirm=settings.confirm==='east'||settings.confirm==='auto'&&display==='nintendo'?1:0,back=1-confirm;
    setText(hint,mode==='menu'?`${name(confirm)} 決定 · ${name(back)} 戻る · 十字 選択 · 左右 設定変更 · 右スティック スクロール`:`${name(bindings.attack)} 射撃 · ${name(bindings.aim)} 照準 · ${name(bindings.jump)} ジャンプ · ${name(bindings.reload)} 装填 · ${name(bindings.interact)} 使う · ${name(bindings.menu)} メニュー`);

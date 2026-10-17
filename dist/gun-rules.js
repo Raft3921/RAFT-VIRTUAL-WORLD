@@ -1,8 +1,8 @@
-import {parkourHandsBusy} from './player-parkour.js?v=20261017-parkour126';
-import {GunHitTimeline,movingGunHit} from './gun-hit-timeline.js?v=20261017-parkour126';
+import {parkourHandsBusy} from './player-parkour.js?v=20261017-wallfloor128';
+import {GunHitTimeline,movingGunHit} from './gun-hit-timeline.js?v=20261017-wallfloor128';
 import {REPLAY_FINAL_AT,REPLAY_DURATION} from './replay-timing.js?v=20261016-cinema106';
 import {solidExtents,segmentGunSolid} from './gun-solid.js?v=20261015-tactics99';
-import {gunDamage,gunHitBox,gunBulletBoxes,gunProjectileRadius} from './gun-posture.js?v=20261017-parkour126';
+import {gunDamage,gunHitBox,gunBulletBoxes,gunProjectileRadius} from './gun-posture.js?v=20261017-wallfloor128';
 import {gunCollision} from './gun-collision.js?v=20261017-settlement125';
 import {gunEliminationState} from './hit-reaction.js?v=20261016-cinema106';
 import {fallbackMuzzle} from './weapon-dimensions.js?v=20261015-tactics99';
@@ -110,7 +110,7 @@ export class GunRules{
    // Keep the firing pose only in server memory until a final-hit replay needs it.
    // Normal projectile broadcasts and late-join shot lists stay compact.
    Object.defineProperty(shot,'viewLags',{value:weapon.radius?new Map():this.hitTimeline.lags(message,now)});
-   Object.defineProperty(shot,'firingPose',{value:{x:p.x,y:p.y,z:p.z,yaw:p.yaw||0,headYaw:p.headYaw||0,headPitch:p.headPitch||0,prone:!!p.prone,crouched:!!p.crouched,skin:p.skin,equippedWeapon:weapon.id}});
+   Object.defineProperty(shot,'firingPose',{value:{x:p.x,y:p.y,z:p.z,yaw:p.yaw||0,headYaw:p.headYaw||0,headPitch:p.headPitch||0,prone:!!p.prone,crouched:!!p.crouched,skin:p.skin,parkourKind:p.parkourKind||'',parkourAge:p.parkourAge||0,parkourDuration:p.parkourDuration||0,wallSide:p.wallSide||0,wallNX:p.wallNX||0,wallNZ:p.wallNZ||0,equippedWeapon:weapon.id}});
    this.shots.push(shot);this.send({type:'gun-shot',shot});
   }this.ensureTimer();
  }

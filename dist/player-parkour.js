@@ -1,7 +1,7 @@
 // Shared contact-based acrobatics. The client submits only ordinary movement /
 // jump controls; wall normals, impulses and action budgets are server-derived.
-export function parkourDefaults(){return {parkourKind:'',parkourAge:0,parkourDuration:0,parkourSerial:0,wallSide:0,wallNX:0,wallNZ:0,wallTime:0,climbTime:0,kickCooldown:0,flipCooldown:0,kicks:0,lastWallNX:0,lastWallNZ:0,airAction:false};}
-export function parkourHandsBusy(p){return !!p.mantling||['climb','backflip','wallkick'].includes(p.parkourKind);}
+export function parkourDefaults(){return {parkourKind:'',parkourAge:0,parkourDuration:0,parkourSerial:0,wallSide:0,wallNX:0,wallNZ:0,wallTime:0,kickCooldown:0,flipCooldown:0,kicks:0,lastWallNX:0,lastWallNZ:0,airAction:false};}
+export function parkourHandsBusy(p){return !!p.mantling||['backflip','sideflip','wallkick'].includes(p.parkourKind);}
 export function findParkourWall(world,p,shape,yaw=0){
  if(!world.nearby)return null;let best=null,bestGap=Infinity;
  for(const b of world.nearby(p)){
@@ -20,33 +20,46 @@ export function stepParkour(world,body,input,m,dt){
  if(m.parkourKind===undefined)Object.assign(m,parkourDefaults());
  m.kickCooldown=Math.max(0,m.kickCooldown-dt);m.flipCooldown=Math.max(0,m.flipCooldown-dt);m.parkourAge+=dt;
  if(m.parkourKind&&m.parkourAge>=m.parkourDuration)action(m,'',0);
- if(body.grounded){if(m.airAction)action(m,'',0);m.wallTime=m.climbTime=0;m.kicks=0;m.lastWallNX=m.lastWallNZ=0;m.airAction=false;if(m.parkourKind!=='backflip')action(m,'',0);}
+ if(body.grounded){if(m.airAction)action(m,'',0);m.wallTime=0;m.kicks=0;m.lastWallNX=m.lastWallNZ=0;m.airAction=false;if(!['backflip','sideflip'].includes(m.parkourKind))action(m,'',0);}
  if(body.mantle||m.prone||m.sliding||input.stop){action(m,'',0);return {};}
  const yaw=input.lookYaw||0,shape=input.standingShape||{width:.32,depth:.32,height:1.9},wx=input.wishX||0,wz=input.wishZ||0,amount=Math.hypot(wx,wz),forward=wx*Math.sin(yaw)+wz*Math.cos(yaw);
  // Back + jump is an explicit grounded action; require the whole jump arc's
  // headroom so a low ceiling does not initiate a spin that cannot finish.
- if(body.grounded&&input.jump&&!input.crouched&&!input.aiming&&forward<-.35&&m.flipCooldown===0&&world.canStand(body.p,{...shape,height:shape.height+1.5,yaw})){
+ if(body.grounded&&input.jump&&!input.crouched&&!input.aiming&&forward<-.35&&-forward>Math.abs(wx*-Math.cos(yaw)+wz*Math.sin(yaw))&&m.flipCooldown===0&&world.canStand(body.p,{...shape,height:shape.height+1.5,yaw})){
   m.flipCooldown=1;m.airAction=true;m.vx=-Math.sin(yaw)*4.8;m.vz=-Math.cos(yaw)*4.8;action(m,'backflip',.64);return {};
  }
+ if(body.grounded&&input.jump&&!input.crouched&&!input.aiming&&m.flipCooldown===0){
+  const side=wx*-Math.cos(yaw)+wz*Math.sin(yaw);
+  if(Math.abs(side)>.55&&Math.abs(side)>Math.abs(forward)*1.1&&world.canStand(body.p,{width:Math.max(shape.width,.72),depth:Math.max(shape.depth,.72),height:shape.height+1,yaw})){
+   m.flipCooldown=.9;m.airAction=true;m.wallSide=Math.sign(side);m.vx=wx/amount*5.8;m.vz=wz/amount*5.8;action(m,'sideflip',.66);return {};
+  }
+ }
  if(body.grounded)return {};
+ if(['backflip','sideflip'].includes(m.parkourKind))return {};
  const wall=findParkourWall(world,body.p,shape,yaw),speed=Math.hypot(m.vx,m.vz);
- if(!wall){if(['wallrun','climb'].includes(m.parkourKind))action(m,'',0);return {};}
- m.wallNX=wall.nx;m.wallNZ=wall.nz;m.wallSide=-(wall.nx*-Math.cos(yaw)+wall.nz*Math.sin(yaw))>=0?1:-1;
+ if(!wall){if(m.parkourKind==='wallrun')action(m,'',0);return {};}
+ const changedWall=m.wallNX*wall.nx+m.wallNZ*wall.nz<.8;
+ if(changedWall)m.wallTime=0;
+ m.wallNX=wall.nx;m.wallNZ=wall.nz;
+ m.wallSide=-(wall.nx*-Math.cos(yaw)+wall.nz*Math.sin(yaw))>=0?1:-1;
  const sameWall=m.kicks>0&&m.lastWallNX*wall.nx+m.lastWallNZ*wall.nz>.8;
- if(input.jump&&m.kickCooldown===0&&m.kicks<3&&!sameWall){
+ if(input.jump&&m.kickCooldown===0&&m.kicks<6&&!sameWall){
   m.kicks++;m.kickCooldown=.30;m.lastWallNX=wall.nx;m.lastWallNZ=wall.nz;m.airAction=true;m.slideAir=true;
-  const dot=wx*wall.nx+wz*wall.nz;m.vx=wall.nx*5.8+(wx-dot*wall.nx)*2.4;m.vz=wall.nz*5.8+(wz-dot*wall.nz)*2.4;body.vy=7.8;action(m,'wallkick',.42);return {consumeJump:true};
+  const dot=wx*wall.nx+wz*wall.nz;m.vx=wall.nx*6.2+(wx-dot*wall.nx)*3.5;m.vz=wall.nz*6.2+(wz-dot*wall.nz)*3.5;body.vy=7.4;action(m,'wallkick',.42);return {consumeJump:true};
  }
- if(m.kickCooldown>0||!input.sprint||input.aiming||amount<.25||m.wallTime>=1.2||m.parkourKind==='backflip'){if(['wallrun','climb'].includes(m.parkourKind))action(m,'',0);return {};}
- const toward=wx*wall.nx+wz*wall.nz;
- // A frontal dash jump climbs for a bounded burst; ledge pull-up takes over
- // in player-physics as soon as its full-body path becomes available.
- if(toward<-.65&&m.climbTime<.90){
-  m.wallTime+=dt;m.climbTime+=dt;m.airAction=true;m.vx=-wall.nx*.35;m.vz=-wall.nz*.35;body.vy=Math.max(4.4,Math.min(5.6,body.vy));action(m,'climb',.95);return {gravity:2,climbing:true};
+ if(m.kickCooldown>0||!input.sprint||input.aiming||input.crouched||amount<.25||m.wallTime>=2.4){if(m.parkourKind==='wallrun')action(m,'',0);return {};}
+ const toward=wx*wall.nx+wz*wall.nz,alongX=wx-toward*wall.nx,alongZ=wz-toward*wall.nz,along=Math.hypot(alongX,alongZ);
+ // Redirect input onto the wall plane: into the wall becomes upward travel,
+ // tangent input runs across it. Both axes can combine for a diagonal run.
+ if((speed>=3.8||body.vy>=3.8||m.parkourKind==='wallrun')&&toward<.35&&(along>.25||toward<-.35)&&body.p.y-world.floorAt(body.p,body.p.y+.01).y>.25){
+  const up=Math.max(-.25,-toward),length=Math.max(.01,Math.hypot(along,up)),run=7.2;
+  const height=shape.height,half=height/2,radius=Math.min(shape.width,shape.depth),offset={x:wall.nx*(half-radius),y:half-.36,z:wall.nz*(half-radius)};
+  const wallShape={width:half,depth:Math.max(.36,shape.width),height:.72,yaw:Math.atan2(-wall.nz,wall.nx)};
+  const occupied={x:body.p.x+offset.x,y:body.p.y+offset.y,z:body.p.z+offset.z};
+  if(world.canStand(occupied,wallShape,-.015)){
+   m.wallTime+=dt;m.airAction=true;m.slideAir=true;m.vx=alongX/length*run-wall.nx*.16;m.vz=alongZ/length*run-wall.nz*.16;body.vy=up>.1?up/length*run:Math.max(-1.2,Math.min(.5,body.vy));
+   action(m,'wallrun',2.4);return {gravity:up>.1?0:1.5,wallShape,wallOffset:offset};
+  }
  }
- const alongX=wx-toward*wall.nx,alongZ=wz-toward*wall.nz,along=Math.hypot(alongX,alongZ);
- if(speed>=4.4&&along>.55&&toward<.35&&body.p.y-world.floorAt(body.p,body.p.y+.01).y>.25){
-  m.wallTime+=dt;m.airAction=true;m.vx=alongX/along*Math.max(5.8,Math.min(7.2,speed))-wall.nx*.12;m.vz=alongZ/along*Math.max(5.8,Math.min(7.2,speed))-wall.nz*.12;body.vy=Math.max(-.8,Math.min(1.5,body.vy));action(m,'wallrun',1.2);return {gravity:4};
- }
- if(['wallrun','climb'].includes(m.parkourKind))action(m,'',0);return {};
+ if(m.parkourKind==='wallrun')action(m,'',0);return {};
 }

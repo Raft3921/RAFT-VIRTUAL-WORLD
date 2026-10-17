@@ -1,4 +1,4 @@
-import {parkourPose} from './parkour-pose.js?v=20261017-parkour126';
+import {parkourPose} from './parkour-pose.js?v=20261017-wallfloor128';
 import {createCinematicProjectile} from './cinematic-projectile.js?v=20261016-trails110';
 import {GUN_ZONE} from './gun-layout.js';
 import * as THREE from 'three';
@@ -67,7 +67,7 @@ export function createGunCinematic({scene,camera,get,audio}){
     joints.pelvis.rotation.set(pose.prone?Math.PI/2:0,0,0);joints.pelvis.position.set(0,pose.prone?.24:pose.crouched?-.48:0,0);joints.torso.rotation.set(0,0,0);
     joints.head.rotation.set((pose.headPitch||0)-(pose.prone?Math.PI/2:0),pose.headYaw||0,0);joints.head.position.z=pose.prone?.15:0;
     for(const side of ['left','right']){joints.hips[side].rotation.set(0,0,0);joints.knees[side].rotation.set(pose.prone?.10:pose.crouched?.8:0,0,0);}
-    joints.shoulders.right.rotation.x=pose.prone?-2.65:-1.20;joints.elbows.right.rotation.x=pose.prone?-.60:-.22;groundAvatarHitPose(root,joints.pelvis,meshes);const acro=parkourPose(pose);if(acro.weight){const a=acro.pitch,b=acro.roll*acro.weight;joints.pelvis.rotation.x+=a;joints.pelvis.rotation.z+=b;joints.pelvis.position.x+=acro.pivot*Math.sin(b)*Math.cos(a);joints.pelvis.position.y+=acro.pivot*(1-Math.cos(b)*Math.cos(a));joints.pelvis.position.z-=acro.pivot*Math.sin(a);}
+    joints.shoulders.right.rotation.x=pose.prone?-2.65:-1.20;joints.elbows.right.rotation.x=pose.prone?-.60:-.22;groundAvatarHitPose(root,joints.pelvis,meshes);const acro=parkourPose(pose);if(acro.weight){joints.pelvis.quaternion.premultiply(new THREE.Quaternion().fromArray(acro.quaternion));joints.pelvis.position.x+=acro.shiftX;joints.pelvis.position.y+=acro.shiftY;joints.pelvis.position.z+=acro.shiftZ;}
    }
 
    for(const flash of flashes)flash.visible=false;

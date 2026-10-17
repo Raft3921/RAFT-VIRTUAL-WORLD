@@ -1,5 +1,5 @@
-import {compatibleSync} from './sync-protocol.js?v=20261017-parkour126';
-import {BUILD_ID,RELEASE_ID} from './build-info.js?v=20261017-bodyview127';
+import {compatibleSync} from './sync-protocol.js?v=20261017-wallfloor128';
+import {BUILD_ID,RELEASE_ID} from './build-info.js?v=20261017-wallfloor128';
 export function startUpdateNotice({endpoint,version}){
  const notice=document.getElementById('updateNotice');let busy=false,clientUpdate=false,incompatible=false,explicit=false;
  const draw=()=>{notice.hidden=!(explicit||clientUpdate||incompatible);};

@@ -14,7 +14,7 @@ import {livingHome} from './living-shared.js?v=20261013-life89b';
 import {createWorldExperience} from './world-experience.js?v=20261017-armed134';
 import {inGunZone as mapContains,weaponById} from './gun-layout.js?v=20261017-settlement125';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261017-200230';
+import {startUpdateNotice} from './update-notice.js?v=20261017-201205';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261017-wallspin133';
@@ -26,7 +26,7 @@ import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261013-life89b';
 import { createHit,stepHit,hitShape,proneWeight,gunEliminationState } from './hit-reaction.js?v=20261016-cinema106';
 import { createCombatEffects } from './combat-effects.js?v=20261014-world96';
 import { createBrownProjectiles } from './brown-projectiles.js?v=20261017-bodyhit131';
-import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-200230';
+import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-201205';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261013-life89b';
 import { cleanCharacter } from './character-store.js?v=20261017-settlement125';
 // Versioned URL prevents a previously cached editor module from blocking startup.
@@ -380,7 +380,7 @@ let mouseSensitivity=Number(safeRead('vrs-mouse-sensitivity')||1);if(!Number.isF
 $('mouseSensitivity').value=String(mouseSensitivity);$('mouseSensitivityOut').textContent=mouseSensitivity.toFixed(2)+'×';$('mouseSensitivity').oninput=e=>{mouseSensitivity=Number(e.target.value);$('mouseSensitivityOut').textContent=mouseSensitivity.toFixed(2)+'×';safeSave('vrs-mouse-sensitivity',String(mouseSensitivity));};
 let mirrorTravelMode=safeRead('vrs-mirror-travel-mode')==='classic'?'classic':'seamless';
 $('mirrorTravelMode').value=mirrorTravelMode;$('mirrorTravelMode').onchange=e=>{mirrorTravelMode=e.target.value==='classic'?'classic':'seamless';safeSave('vrs-mirror-travel-mode',mirrorTravelMode);housingView?.portals.setTravelMode(mirrorTravelMode);notify(mirrorTravelMode==='classic'?'鏡をクラシック移動にしました':'鏡をシームレス移動にしました');};
-function look(dx,dy){if(!inStudio){lobbyYaw+=dx*.008;return}if(paused())return;const aimScale=experience?.scoped ? .24 : 1;if(touch){pendingTouchYaw-=dx*.004*touchSensitivity*aimScale;pendingTouchPitch-=dy*.0028*touchSensitivity*aimScale;}else{yaw-=dx*.0025*mouseSensitivity*aimScale;pitch=clamp(pitch-dy*.002*mouseSensitivity*aimScale,-1.15,1.1);}scheduleShare()}
+function look(dx,dy){if(!inStudio){lobbyYaw+=dx*.008;return}if(paused())return;const aimScale=experience?.scoped ? (!touch&&cachedCharacter().equippedWeapon==='sniper' ? .5 : .24) : 1;if(touch){pendingTouchYaw-=dx*.004*touchSensitivity*aimScale;pendingTouchPitch-=dy*.0028*touchSensitivity*aimScale;}else{yaw-=dx*.0025*mouseSensitivity*aimScale;pitch=clamp(pitch-dy*.002*mouseSensitivity*aimScale,-1.15,1.1);}scheduleShare()}
 const aimButton=$('gunCrosshair');let aimTouch=null;
 aimButton.addEventListener('pointerdown',e=>{if(aimTouch||paused())return;e.preventDefault();if(experience?.pointer(e))return;aimTouch={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,drag:false,melee:!!weaponById(cachedCharacter().equippedWeapon)?.melee};if(aimTouch.melee)experience?.press();aimButton.setPointerCapture(e.pointerId);});
 aimButton.addEventListener('pointermove',e=>{if(!aimTouch||e.pointerId!==aimTouch.id)return;e.preventDefault();const dx=e.clientX-aimTouch.x,dy=e.clientY-aimTouch.y;aimTouch.x=e.clientX;aimTouch.y=e.clientY;if(!aimTouch.drag&&Math.hypot(e.clientX-aimTouch.startX,e.clientY-aimTouch.startY)>8){aimTouch.drag=true;look(e.clientX-aimTouch.startX,e.clientY-aimTouch.startY);}else if(aimTouch.drag)look(dx,dy);});

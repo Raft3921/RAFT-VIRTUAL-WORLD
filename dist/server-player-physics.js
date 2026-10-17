@@ -1,9 +1,10 @@
+import {combatMovementEnabled} from './combat-movement.js?v=20261017-armed134';
 import {decodeMovement,MOVEMENT_BATCH,MOVEMENT_BACKLOG} from './movement-wire.js?v=20261017-authority122';
 import {inGunZone} from './gun-layout.js?v=20261017-settlement125';
 import {HOUSES,mirrorRealm} from './housing-data.js';
 import * as THREE from './vendor/three.module.js';
 import {createWorld} from './world.js?v=20261017-settlement125';
-import {stepPlayer} from './player-physics.js?v=20261017-wallspin133';
+import {stepPlayer} from './player-physics.js?v=20261017-armed134';
 import {housingColliders,mirrorAvenueColliders} from './housing-collision.js?v=20261015-physics101';
 
 // The room owns position, vertical velocity and contact state. Clients send
@@ -29,13 +30,13 @@ export class ServerPlayerPhysics{
   // before it must never restart a movement stream or overwrite its destination.
   if(state.gunTeleportSerial!==(entry.player.gunTeleportSerial||0)){entry.motion=null;this.entries.delete(entry);this.hold(entry,state);return;}
   if(entry.motion&&entry.motion.teleport!==(entry.player.gunTeleportSerial||0)){entry.motion=null;this.entries.delete(entry);}
-  if(!motion||!Number.isInteger(motion.epoch)||!Array.isArray(motion.inputs)||motion.inputs.length>MOVEMENT_BATCH){if(entry.motion)this.apply(entry.motion,state);else if(inGunZone(entry.player,this.rules.settings.gunMap))this.hold(entry,state);return;}
+  if(!motion||!Number.isInteger(motion.epoch)||!Array.isArray(motion.inputs)||motion.inputs.length>MOVEMENT_BATCH){if(entry.motion)this.apply(entry.motion,state);else if(combatMovementEnabled(entry.player,this.rules.settings.gunMap,entry.player.equippedWeapon))this.hold(entry,state);return;}
   this.syncGeometry();const p=entry.player;
   // Seated activities, portal travel, flight and knockback retain their existing
   // activity protocol. Their next walking segment starts a new prediction epoch.
-  const combatZone=inGunZone(p,this.world.gunMapId);
+  const combatZone=inGunZone(p,this.world.gunMapId),handsBusy=this.rules.living?.runs?.has(p.id)||Object.values(this.rules.cooking?.data||{}).some(record=>!!record.hands?.[p.id]),armedMovement=combatMovementEnabled(p,this.world.gunMapId,p.equippedWeapon)&&!handsBusy;
   if(combatZone){state.flight=false;state.seated=false;state.sleeping=false;}
-  if(!motion.active){if(combatZone){if(entry.motion)this.apply(entry.motion,state);else this.hold(entry,state);}entry.motion=null;this.entries.delete(entry);return;}
+  if(!motion.active){if(combatZone||armedMovement&&!state.flight&&!state.seated&&!state.sleeping&&!state.ragdoll){if(entry.motion)this.apply(entry.motion,state);else this.hold(entry,state);}entry.motion=null;this.entries.delete(entry);return;}
   if((combatZone?p.ragdoll:state.ragdoll)||state.flight||state.seated||state.sleeping){entry.motion=null;this.entries.delete(entry);return;}
   let m=entry.motion;
   if(!m||m.epoch!==motion.epoch||m.teleport!==(p.gunTeleportSerial||0)||Math.hypot(m.p.x-p.x,m.p.y-p.y,m.p.z-p.z)>1){
@@ -50,7 +51,7 @@ export class ServerPlayerPhysics{
    if(!Number.isSafeInteger(raw.seq)||raw.seq<=m.seq||raw.seq>m.seq+MOVEMENT_BACKLOG||![raw.dt,raw.vx,raw.vz].every(Number.isFinite)||raw.dt<=0||raw.dt>.05)continue;
    if(raw.dt>m.credit+.002)break;
    m.credit-=raw.dt;const shape=raw.shape||{},clamp=(v,a,b,f)=>Number.isFinite(v)?Math.max(a,Math.min(b,v)):f;
-   const input={dt:raw.dt,vx:clamp(raw.vx,-20,20,0),vz:clamp(raw.vz,-20,20,0),jump:raw.jump===true,lookYaw:clamp(raw.lookYaw,-1e6,1e6,state.yaw||0),lookPitch:clamp(raw.lookPitch,-1.3,1.3,0),prone:raw.prone===true,combat:inGunZone(m.p,this.world.gunMapId)&&!this.rules.duel?.ids?.includes(p.id),wishX:clamp(raw.wishX,-1,1,0),wishZ:clamp(raw.wishZ,-1,1,0),sprint:raw.sprint===true,aiming:raw.aiming===true,crouched:raw.crouched===true,proneIntent:raw.proneIntent===true,pump:raw.pump===true,
+   const input={dt:raw.dt,vx:clamp(raw.vx,-20,20,0),vz:clamp(raw.vz,-20,20,0),jump:raw.jump===true,lookYaw:clamp(raw.lookYaw,-1e6,1e6,state.yaw||0),lookPitch:clamp(raw.lookPitch,-1.3,1.3,0),prone:raw.prone===true,combat:combatMovementEnabled(m.p,this.world.gunMapId,p.equippedWeapon)&&!this.rules.duel?.ids?.includes(p.id)&&!handsBusy,wishX:clamp(raw.wishX,-1,1,0),wishZ:clamp(raw.wishZ,-1,1,0),sprint:raw.sprint===true,aiming:raw.aiming===true,crouched:raw.crouched===true,proneIntent:raw.proneIntent===true,pump:raw.pump===true,
     launch:state.attackProgress>0?clamp(raw.launch,0,10.4,0):0,lockedInArena:this.rules.duel?.ids?.includes(p.id),
     shape:{width:clamp(shape.width,.15,.75,.32),depth:clamp(shape.depth,.15,.9,.32),height:clamp(shape.height,.45,2.5,1.9),yaw:clamp(shape.yaw,-1e6,1e6,0),offset:clamp(shape.offset,0,.8,0)}};
    const standing=raw.standingShape||{};input.standingShape={width:clamp(standing.width,.15,.75,.32),depth:clamp(standing.depth,.15,.75,.32),height:clamp(standing.height,1,2.5,1.9),yaw:input.lookYaw};

@@ -1,12 +1,13 @@
 import {stepParkour,parkourDefaults,isParkourFlip} from './player-parkour.js?v=20261017-wallspin133';
-import {inGunZone} from './gun-layout.js?v=20261017-settlement125';
+import {inGunZone,weaponById} from './gun-layout.js?v=20261017-settlement125';
 import {proneShape} from './gun-posture.js?v=20261017-wallspin133';
+export function combatMovementEnabled(position,map,weaponId){const weapon=weaponById(weaponId);return inGunZone(position,map)||!!weapon&&!weapon.melee;}
 export const COMBAT_WALK=2.8,COMBAT_SPRINT_START=5.8,COMBAT_SPRINT_MAX=7.2,COMBAT_SPRINT_RAMP=.55;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export const slideShape=(yaw,width=.32)=>({width:Math.max(.32,width),depth:.95,height:1.16,yaw});
 export function createCombatMovement(){return {...parkourDefaults(),vx:0,vz:0,sprintTime:0,sprintCharge:0,sprinting:false,sliding:false,slideAge:0,slideBlend:0,cooldown:0,slideAir:false,prone:false,intent:false};}
 export function stepCombatMovement(world,body,input,dt){
- if(!inGunZone(body.p,world.gunMapId)||input.combat!==true){body.combat=null;return null;}
+ if(input.combat!==true){body.combat=null;return null;}
  const m=body.combat??=createCombatMovement(),shape=input.standingShape||{width:.32,depth:.32,height:1.9,yaw:input.lookYaw||0},yaw=input.lookYaw||0;
  if(isParkourFlip(m.parkourKind)&&m.parkourAge<m.parkourDuration)input={...input,proneIntent:false,crouched:false,jump:false};
  if(input.stop){m.vx=m.vz=m.sprintTime=0;m.sliding=m.slideAir=m.sprinting=false;input={...input,wishX:0,wishZ:0,sprint:false,jump:false};}

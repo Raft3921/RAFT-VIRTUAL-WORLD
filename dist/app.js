@@ -1,20 +1,20 @@
 import {GUN_MAPS,gunMap,insideGunMap} from './gun-maps.js?v=20261017-maps121';
-import {slideShape} from './combat-movement.js?v=20261017-wallspin133';
+import {slideShape,combatMovementEnabled} from './combat-movement.js?v=20261017-armed134';
 import {createSoftwareRenderer} from './software-renderer.js?v=20261017-canvas114';
 import {createCompatControls} from './compat-controls.js?v=20261017-canvas114';
 import {createGamepadControls} from './gamepad-controls.js?v=20261017-parkour126';
 import {RemoteMotion} from './remote-motion.js?v=20261017-bodyhit131';
 import {loadWorldMode,combatSpawn} from './world-mode.js?v=20261017-maps121';
 import {findMantle} from './player-mantle.js?v=20261015-mantle103';
-import {PlayerPrediction} from './player-prediction.js?v=20261017-wallspin133';
+import {PlayerPrediction} from './player-prediction.js?v=20261017-armed134';
 import {proneShape} from './gun-posture.js?v=20261017-wallspin133';
 import {createVideoSettings} from './video-settings.js?v=20261017-canvas114';
 import {furniturePose} from './housing-data.js?v=20261013-life89b';
 import {livingHome} from './living-shared.js?v=20261013-life89b';
-import {createWorldExperience} from './world-experience.js?v=20261017-wallspin133';
+import {createWorldExperience} from './world-experience.js?v=20261017-armed134';
 import {inGunZone as mapContains,weaponById} from './gun-layout.js?v=20261017-settlement125';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261017-wallspin133';
+import {startUpdateNotice} from './update-notice.js?v=20261017-armed134';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261017-wallspin133';
@@ -26,7 +26,7 @@ import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261013-life89b';
 import { createHit,stepHit,hitShape,proneWeight,gunEliminationState } from './hit-reaction.js?v=20261016-cinema106';
 import { createCombatEffects } from './combat-effects.js?v=20261014-world96';
 import { createBrownProjectiles } from './brown-projectiles.js?v=20261017-bodyhit131';
-import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-wallspin133';
+import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-armed134';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261013-life89b';
 import { cleanCharacter } from './character-store.js?v=20261017-settlement125';
 // Versioned URL prevents a previously cached editor module from blocking startup.
@@ -119,12 +119,12 @@ function toggleProne(){if(!inStudio||paused()||airWalk||cameraMode==='free'||sea
 function updateCrouch(enabled,dt){
  const actor=actors[selected],available=inStudio&&!airWalk&&!plazaPlay?.active&&!seated&&!sleeping&&!localRagdoll&&cameraMode!=='free';
  if(!available){crouchWanted=false;proneWanted=false;prone=false;}
- if(actor&&available&&!inGunZone(actor.root.position)){
+ if(actor&&available&&!combatMovementEnabled(actor.root.position,gunMapId,cachedCharacter().equippedWeapon)){
   if(proneWanted&&!prone&&world.canStand(actor.root.position,proneShape(actor.root.rotation.y)))prone=true;
   if(prone&&!proneWanted){const shape={...(actor.collisionShape||{width:.32,depth:.32,height:1.9}),yaw:actor.root.rotation.y};if(world.canStand(actor.root.position,shape))prone=false;}
  }
  if(prone)crouched=false;
- else if(available&&enabled&&(crouchWanted||!!livingHome(actor?.root.position,housingView?.rooms)&&(keys.has('ShiftLeft')||keys.has('ShiftRight'))))crouched=true;
+ else if(available&&enabled&&(crouchWanted||!!livingHome(actor?.root.position,housingView?.rooms)&&!combatMovementEnabled(actor.root.position,gunMapId,cachedCharacter().equippedWeapon)&&(keys.has('ShiftLeft')||keys.has('ShiftRight'))))crouched=true;
  else if(!available||!actor||world.canStand(actor.root.position,{...(actor.collisionShape||{width:.32,depth:.32,height:1.9}),yaw:actor.root.rotation.y}))crouched=false;
  slideViewBlend=THREE.MathUtils.damp(slideViewBlend,playerPrediction.combat?.sliding?1:0,12,dt);
  proneViewBlend=THREE.MathUtils.damp(proneViewBlend,prone?1:0,prone?7:5,dt);
@@ -206,7 +206,7 @@ function requestJump(){if(plazaPlay?.jump())return;if(living?.jump())return;if(c
   if(!grounded&&!airWalk&&!prone&&world?.nearby&&findMantle(world,actors[selected].root.position,{...actorShape(actors[selected]),yaw},yaw,pitch,duelActive)){actors[selected].root.rotation.y=yaw;jumpRequested=true;lastJumpTapAt=-Infinity;return;}
   if(duelActive){lastJumpTapAt=-Infinity;if(grounded)jumpRequested=true;return;}
   if(experience?.eliminated)return;
-  if(combatOnly||experience?.inZone){lastJumpTapAt=-Infinity;if(!prone)jumpRequested=true;return;}
+  if(combatOnly||experience?.inZone||!airWalk&&combatMovementEnabled(actors[selected].root.position,gunMapId,cachedCharacter().equippedWeapon)){lastJumpTapAt=-Infinity;if(!prone)jumpRequested=true;return;}
   if(athleticActive||world?.inAthletic(actors[selected].root.position)){lastJumpTapAt=-Infinity;if(grounded)jumpRequested=true;return;}
   const now=performance.now();
   if(now-lastJumpTapAt<360){airWalk=!airWalk;jumpRequested=false;verticalSpeed=0;grounded=false;lastJumpTapAt=-Infinity;updateJumpButton();return;}
@@ -600,7 +600,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
       direction.set(Math.sin(yaw),0,Math.cos(yaw));right.set(-Math.cos(yaw),0,Math.sin(yaw));
       movement.copy(direction).multiplyScalar(my).addScaledVector(right,mx);if(movement.length()>1)movement.normalize();
       const wishX=movement.x,wishZ=movement.z;
-      run=!prone&&!crouched&&!(experience?.scoped)&&(gamepad?.sprint||sprintWanted&&keys.has('KeyW')||(!livingHome(p.position,housingView?.rooms)&&(keys.has('ShiftLeft')||keys.has('ShiftRight')))||(touch&&Math.hypot(stick.x,stick.y)>.94));
+      run=!prone&&!crouched&&!(experience?.scoped)&&(gamepad?.sprint||sprintWanted&&keys.has('KeyW')||((!livingHome(p.position,housingView?.rooms)||combatMovementEnabled(p.position,gunMapId,cachedCharacter().equippedWeapon))&&(keys.has('ShiftLeft')||keys.has('ShiftRight')))||(touch&&Math.hypot(stick.x,stick.y)>.94));
       if(world.inAthletic(p.position)&&!athleticActive){
         athleticActive=true;courseAwaitingSave=!roomSelfId;athleticCheckpoint=world.athletic.checkpoints[cachedCharacter().checkpoint-1];airWalk=false;verticalSpeed=0;grounded=false;athleticPeak=p.position.y;updateJumpButton();
         if(athleticCheckpoint.id>1||p.position.y>athleticCheckpoint.y+5)respawnCourse();else notify('アスレチック開始 · CHECK 1 · ジャンプ力1.5倍');
@@ -633,7 +633,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
             if(localRagdoll&&localHit?.gunEliminated){physicsVelocity.set(0,0,0);grounded=true;verticalSpeed=0;standingOn=null;result={grounded:true,body:null};}
             else if(localRagdoll){localImpulse.y-=PUNCH.gravity*dt;physicsVelocity.copy(localImpulse);result=world.move(p.position,physicsVelocity,dt,{ragdoll:true,insideArena:knockbackInArena,lockedInArena:duelActive,shape:actorShape(actors[selected],localHit,p.rotation.y)});grounded=result.grounded;standingOn=result.body;verticalSpeed=physicsVelocity.y;}
             else{
-              const body={p:p.position,vy:verticalSpeed,grounded,standingOn},input={dt,vx:velocity.x,vz:velocity.z,jump:physicsJump,lookYaw:yaw,lookPitch:pitch,prone,combat:inGunZone(p.position)&&!duelActive&&!athleticActive&&!cooking?.active&&!living?.exercise,wishX,wishZ,sprint:run,aiming:!!experience?.scoped,crouched,proneIntent:proneWanted,standingShape:{...(actors[selected].collisionShape||{width:.32,depth:.32,height:1.9}),yaw},pump:keys.has('Space'),shape:actorShape(actors[selected]),lockedInArena:duelActive};
+              const body={p:p.position,vy:verticalSpeed,grounded,standingOn},input={dt,vx:velocity.x,vz:velocity.z,jump:physicsJump,lookYaw:yaw,lookPitch:pitch,prone,combat:combatMovementEnabled(p.position,gunMapId,cachedCharacter().equippedWeapon)&&!duelActive&&!cooking?.active&&!living?.exercise,wishX,wishZ,sprint:run,aiming:!!experience?.scoped,crouched,proneIntent:proneWanted,standingShape:{...(actors[selected].collisionShape||{width:.32,depth:.32,height:1.9}),yaw},pump:keys.has('Space'),shape:actorShape(actors[selected]),lockedInArena:duelActive};
               const wasSliding=!!playerPrediction.combat?.sliding;
               result=playerPrediction.step(world,body,input,roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId);
               if(body.combat){velocity.set(body.combat.vx,0,body.combat.vz);prone=body.combat.prone;if(wasSliding&&body.combat.slideAir){proneWanted=false;crouchWanted=false;}}
@@ -682,7 +682,7 @@ function tick(now,backgroundDt=0){if(!backgroundDt)requestId=requestAnimationFra
       if(camera.fov!==fov){camera.fov=fov;camera.updateProjectionMatrix()}
       if(cameraMode==='free'){camera.position.copy(freePosition);direction.set(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));target.copy(camera.position).add(direction);camera.lookAt(target)}
       else if(cameraMode==='first'){camera.position.copy(p.position);camera.position.y+=actors[selected].eyeHeight-crouchView;if(living?.bathing)camera.position.y=living.bathing.eyeY;direction.set(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));target.copy(camera.position).add(direction);camera.lookAt(target)}
-      else{target.copy(cameraMode==='orbit'?orbitTarget:p.position);if(cameraMode!=='orbit'){const prone=proneWeight(localHit);if(sleeping&&bed){target.set(bed.x,bed.y+.4,bed.z);}else target.y+=actors[selected].focusHeight-prone*.85-crouchView;target.x-=Math.sin(p.rotation.y)*prone*.7;target.z-=Math.cos(p.rotation.y)*prone*.7;}if(inGunZone(p.position)&&!localRagdoll)focus.copy(target);else focus.lerp(target,smoothing<=.001?1:1-Math.exp(-dt/(localRagdoll?Math.min(.055,smoothing):smoothing)));focus.copy(world.cameraPosition(target,focus,.12));const d=distance*(camera.aspect<.8?1.12:1);desired.set(-Math.sin(yaw)*Math.cos(pitch)*d,-Math.sin(pitch)*d,-Math.cos(yaw)*Math.cos(pitch)*d).add(focus);desired.y=Math.max(.2,desired.y);camera.position.copy(world.cameraPosition(focus,desired));camera.lookAt(focus)}
+      else{target.copy(cameraMode==='orbit'?orbitTarget:p.position);if(cameraMode!=='orbit'){const prone=proneWeight(localHit);if(sleeping&&bed){target.set(bed.x,bed.y+.4,bed.z);}else target.y+=actors[selected].focusHeight-prone*.85-crouchView;target.x-=Math.sin(p.rotation.y)*prone*.7;target.z-=Math.cos(p.rotation.y)*prone*.7;}if(combatMovementEnabled(p.position,gunMapId,cachedCharacter().equippedWeapon)&&!localRagdoll)focus.copy(target);else focus.lerp(target,smoothing<=.001?1:1-Math.exp(-dt/(localRagdoll?Math.min(.055,smoothing):smoothing)));focus.copy(world.cameraPosition(target,focus,.12));const d=distance*(camera.aspect<.8?1.12:1);desired.set(-Math.sin(yaw)*Math.cos(pitch)*d,-Math.sin(pitch)*d,-Math.cos(yaw)*Math.cos(pitch)*d).add(focus);desired.y=Math.max(.2,desired.y);camera.position.copy(world.cameraPosition(focus,desired));camera.lookAt(focus)}
     }
   }
   experience?.cameraOverride(dt);

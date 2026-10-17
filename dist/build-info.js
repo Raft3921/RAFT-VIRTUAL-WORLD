@@ -1,2 +1,2 @@
-export const BUILD_ID='vrs-wallspin133';
-export const RELEASE_ID='vrs-wallspin133';
+export const BUILD_ID='vrs-armed134';
+export const RELEASE_ID='vrs-armed134';

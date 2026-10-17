@@ -567,12 +567,15 @@ export async function createAvatar(url,{model=null}={}) {
     texture.dispose();headMaterials.forEach(m=>m.dispose());crownGeometry.dispose();gold.dispose();
   }
 
-  let firstPersonRestore=null;
-  function endFirstPerson(){if(!firstPersonRestore)return;for(const item of firstPersonRestore){if(item.material){item.material.colorWrite=item.colorWrite;item.material.depthWrite=item.depthWrite;}else item.object.visible=item.visible;}firstPersonRestore=null;}
-  function beginFirstPerson({hideArms=false,hideAll=false}={}){
+  let firstPersonRestore=null,firstPersonBodyShifted=false;const firstPersonPelvisPosition=new THREE.Vector3(),firstPersonShift=new THREE.Vector3();
+  function endFirstPerson(){if(!firstPersonRestore)return;for(const item of firstPersonRestore){if(item.material){item.material.colorWrite=item.colorWrite;item.material.depthWrite=item.depthWrite;}else item.object.visible=item.visible;}firstPersonRestore=null;if(firstPersonBodyShifted){pelvis.position.copy(firstPersonPelvisPosition);firstPersonBodyShifted=false;root.updateMatrixWorld(true);}}
+  function beginFirstPerson({hideArms=false,hideAll=false,bodyOffset=null}={}){
     endFirstPerson();firstPersonRestore=[];
     const visible=(object,value)=>{if(!object)return;firstPersonRestore.push({object,visible:object.visible});object.visible=value;};
     visible(root,!hideAll);if(hideAll)return;
+    // Move only the rendered body for the local camera. Never move the root:
+    // networking, collisions, footsteps and other views keep the physical pose.
+    if(bodyOffset&&bodyOffset.lengthSq()>1e-8){firstPersonPelvisPosition.copy(pelvis.position);firstPersonBodyShifted=true;firstPersonShift.set(0,0,0);root.localToWorld(firstPersonShift);firstPersonShift.add(bodyOffset);root.worldToLocal(firstPersonShift);pelvis.position.add(firstPersonShift);root.updateMatrixWorld(true);}
     // Mask the local head's color/depth, retaining its full-body shadow.
     for(const material of [...headMaterials,gold]){firstPersonRestore.push({material,colorWrite:material.colorWrite,depthWrite:material.depthWrite});material.colorWrite=false;material.depthWrite=false;}
     if(hideArms)for(const side of ['left','right'])visible(shoulders[side],false);

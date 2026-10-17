@@ -18,7 +18,7 @@ import {createWorldInteraction} from './world-interaction.js?v=20261013-life89b'
 import {fallbackMuzzle} from './weapon-dimensions.js?v=20261015-tactics99';
 import {coinIcon,createCoinRewards} from './raft-coin.js?v=20261013-life89b';
 import * as THREE from 'three';
-import {WEAPONS,weaponById,GUN_ZONE,inGunZone as mapContains} from './gun-layout.js?v=20261017-maps121';
+import {WEAPONS,weaponById,GUN_ZONE,inGunZone as mapContains} from './gun-layout.js?v=20261017-authority122';
 import {createGunModel,createFiringHand,triggerGunFlash,updateGunFlash,updateGunReload,updateFiringArm} from './gun-visual.js?v=20261017-sight117';
 export function createWorldExperience({scene,camera,get,send,notify,openChat,openMenu,onModal,onTeleport,onCharacter,onAim,makeFace,skinURL,names,openMap}){
  const inGunZone=p=>mapContains(p,get().world?.gunMapId);

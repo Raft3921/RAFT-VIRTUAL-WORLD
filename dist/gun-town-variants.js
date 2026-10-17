@@ -1,7 +1,7 @@
 import {gunMap,gunExitBoards} from './gun-maps.js?v=20261017-maps121';
 // Deterministic, shared render/collision recipe; visual stair treads are batched,
 // while each flight has one continuous authoritative ramp.
-export function buildGunVariant({box,board=()=>{},sign=()=>{},map='snow'}){
+export function buildGunVariant({box,board=()=>{},map='snow'}){
  const m=gunMap(map),q=m.zone,snow=m.snow,large=m.large;
  const stone=snow?'#7c8e9b':'#ad8054',wall=snow?'#bbc9cf':'#c09a69',cap=snow?'#eef4f4':'#e5c495',dark=snow?'#384c5b':'#65503d',ground=snow?'#dce7eb':'#c6a16f',accent=snow?'#637f99':'#926c50',timber=snow?'#5c686e':'#76604a';
  const detail=(x,y,z,w,h,d,c)=>box(x,y,z,w,h,d,c,false,{noShadow:true});
@@ -62,7 +62,6 @@ export function buildGunVariant({box,board=()=>{},sign=()=>{},map='snow'}){
    const count=Math.ceil(base/3.6),rise=base/count,run=d+1.4,sx=x-pw/2-1.4;
    for(let l=0;l<count;l++){const rev=l%2===1;stair(sx-(rev?2.3:0),z,rise,l*rise,rev,2.1,run);slab(sx-1.15,(l+1)*rise,z+(rev?-1:1)*(run/2+1),4.6,2.3,cap);}
    for(const end of [-1,1])slab(x-pw/2-.3,base,z+end*(run/2+1),4,2.3,cap);
-   sign(snow?'地下連絡路':'地下水路',x,2.5,z+pd/2+.3,2.8);
    for(const side of [-1,1]){detail(x+side*1.8,2.2,z,.12,.4,.16,'#d5bd83');box(x+side*1.8,.52,z-1.5,.5,.9,1.2,dark);}
   }
   tower(x,z,w,d,base,height,`block-${id}`);cells.push({x,z,base,height,w,d,row,col});
@@ -79,7 +78,6 @@ export function buildGunVariant({box,board=()=>{},sign=()=>{},map='snow'}){
   for(const end of [a,b])slab((x+end.x)/2,end.base+end.height+.16,end.z,Math.abs(x-end.x)+2,2.4,cap);
  }
  // Distinct central landmarks and navigation signs make the layouts readable.
- sign(large?(snow?'ICE CITADEL':'CANYON TOWN'):'SNOW TOWN',113,4.1,-91.8,5);sign(snow?'北街区 / 氷雪塔':'高台 / 大峡谷',q.x,3,q.minZ+4,5);
  gunExitBoards(map).forEach(p=>{slab(p.x,.12,p.z,3.5,3.5,ground);board(p.x,.12,p.z,'gun-exit');});
  board(113,.09,-92,'gun-entry');
  // Reusable entry PC, separate from the nearby shared world-menu board.

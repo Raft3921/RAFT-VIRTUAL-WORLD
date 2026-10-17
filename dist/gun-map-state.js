@@ -1,4 +1,4 @@
-import {gunCollision} from './gun-collision.js?v=20261017-maps121';
+import {gunCollision} from './gun-collision.js?v=20261017-authority122';
 export const GUN_PROP_DEFS=gunCollision('sand').props;
 export function cleanGunTraces(value,map='sand'){
  const defs=gunCollision(map).props;

@@ -1,4 +1,4 @@
-import {inGunZone} from './gun-layout.js';
+import {inGunZone} from './gun-layout.js?v=20261017-authority122';
 import {proneShape} from './gun-posture.js?v=20261017-slide120';
 export const COMBAT_WALK=2.8,COMBAT_SPRINT_MAX=7.2;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));

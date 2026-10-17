@@ -1,0 +1,13 @@
+# Authoritative movement transport and sign removal — authority122
+
+The user reports choppy dashes and backward corrections and requests a unified server movement authority. The source contained three concrete sources of divergence: repeated verbose pending-input packets could exceed the common 8192-character message cap; 150 ms without a state packet reset combat inertia and advanced server gravity without consuming a sequenced input; and the server applied the latest reported prone/crouch posture to every historical input instead of that input's posture. Actual incidence on the user's connection has not been measured.
+
+Movement inputs now use bounded compact numeric rows (18 numbers, with posture/action flags). Each batch retransmits the oldest unacknowledged inputs, up to 48 rows, and the pending-input window is 360 frames. Worker and LAN use one shared message validator, with a 64 KiB state-message limit while other message limits remain unchanged. The decoder accepts existing object inputs for compatibility. Server input order, sequence validation and a real-time simulation credit budget remain in force; the budget can retain up to 750 ms for delayed batches. No client position is encoded in a movement row.
+
+The server derives gun-zone combat eligibility from its own position, map and duel state, and owns acceleration, slide, jump, posture and collisions. An inactive or missing movement stream in the gun zone holds the authority position instead of accepting a client-reported position. Flight, sitting and sleeping flags cannot bypass gun-zone movement physics. It processes crouch/prone from each ordered input, and publishes the resulting posture and combat state. Client prediction uses the same step function and restores server state before replaying pending input. A previously bare gun-layout import is versioned to avoid cached geometry/eligibility disagreements.
+
+An input outage is now handled after 500 ms. Timeout simulation marks the motion stream suspended: old inputs in that epoch are rejected, the server continues falling/stopping, and its motion acknowledgment requests resynchronization. The client discards obsolete pending inputs, adopts the authority state and starts a new epoch. Timeout gravity and late old movement therefore cannot both advance the same segment.
+
+All decorative text signs in the combat variants have been removed, including underground-route captions, town-name signs and highland/district signs. Functional menu, entry/exit and PC boards remain.
+
+No tests, syntax checks, browser/device checks or multiplayer verification were performed, following the user's earlier instruction. Publication is not proof that the user's observed stutter is resolved.

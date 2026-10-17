@@ -1,3 +1,4 @@
+import {validRoomMessage} from '../dist/movement-wire.js';
 import {ServerPlayerPhysics} from '../dist/server-player-physics.js';
 import { createReadStream, existsSync, statSync, readFileSync, writeFileSync,renameSync,appendFileSync } from 'node:fs';
 import { cleanState, GameRules,applyPlayerState,SYNC_VERSION,SYNC_PROTOCOL } from '../dist/game-rules.js';
@@ -133,7 +134,7 @@ sockets.on('connection', (socket, request) => {
     if (!entry || raw.length > 131072) return;
     let message;
     try { message = JSON.parse(raw.toString()); } catch { return; }
-    if(!message||typeof message!=='object'||Array.isArray(message)||raw.length>8192&&!['cooking-save','kitchen-edit'].includes(message.type))return;
+    if(!validRoomMessage(message,raw.length))return;
     if(message.type!=='state'){rules.receive(entry,message);return;}
     if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;
     if(rules.worldModeChanging)return;

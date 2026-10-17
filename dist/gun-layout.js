@@ -1,6 +1,8 @@
+import {insideGunMap} from './gun-maps.js?v=20261017-maps121';
+import {buildGunVariant} from './gun-town-variants.js?v=20261017-maps121';
 // Shared geometry: the server sweeps bullets against the same town the client builds.
 export const GUN_ZONE={minX:120,maxX:244,minZ:-140,maxZ:-44,x:182,z:-92,width:124,depth:96};
-export const inGunZone=p=>!!p&&!p.mirrorRealm&&p.x>120&&p.x<244&&p.z>-140&&p.z<-44;
+export const inGunZone=(p,map='sand')=>insideGunMap(p,map);
 export const GUN_ENTRY={x:113,y:.12,z:-92,yaw:-Math.PI/2};
 export const GUN_EXIT_BOARDS=[{x:126,z:-132},{x:238,z:-132},{x:126,z:-52},{x:238,z:-52}];
 export const WEAPONS=[
@@ -12,7 +14,8 @@ export const WEAPONS=[
  {id:'katana',name:'日本刀',price:1,magazine:1,interval:560,speed:0,pellets:1,spread:0,range:2.8,damage:1,melee:true,require:0}
 ];
 export const weaponById=id=>WEAPONS.find(w=>w.id===id);
-export function buildGunTown({box:emit,board=()=>{},sign=()=>{}}){
+export function buildGunTown({box:emit,board=()=>{},sign=()=>{},map='sand'}){
+ if(map!=='sand')return buildGunVariant({box:emit,board,sign,map});
  let protectApproaches=false,stairRoof=null;const corridors=[];
  const box=(...a)=>{if(protectApproaches&&a[7]!==false&&a[4]>.03&&corridors.some(c=>Math.abs(a[0]-c.x)<a[3]/2+c.w/2+.5&&Math.abs(a[2]-c.z)<a[5]/2+c.d/2+.8))return;return emit(...a);};
  const sand='#c9a575',stone='#af8960',trim='#e4c797',dark='#65513e',paving='#b99d79',brick='#936c4f',chalk='#dbc29b',teal='#538383',rust='#c97750',blue='#626e8c';

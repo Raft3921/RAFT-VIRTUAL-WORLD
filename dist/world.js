@@ -1,9 +1,11 @@
-import {COMBAT_MENU} from './world-mode.js?v=20261016-combatonly105';
-import {createCollisionWorld} from './world-collision.js?v=20261016-combatonly105';
-import {sandTexture} from './sand-texture.js?v=20261015-tactics99';
+import {createGunWeather} from './gun-weather.js?v=20261017-maps121';
+import {gunMap as gunMapDefinition} from './gun-maps.js?v=20261017-maps121';
+import {COMBAT_MENU} from './world-mode.js?v=20261017-maps121';
+import {createCollisionWorld} from './world-collision.js?v=20261017-maps121';
+import {sandTexture} from './sand-texture.js?v=20261017-maps121';
 import {createGunMapVisual} from './gun-map-visual.js?v=20261015-round102';
 import {rampHeight} from './plaza-surfaces.js?v=20261013-life89b';
-import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261015-tactics99';
+import {buildGunTown,GUN_ZONE} from './gun-layout.js?v=20261017-maps121';
 import * as THREE from './vendor/three.module.js';
 import { ARENA, COURSE, buildCourse } from './world-layout.js?v=20261013-life89b';
 import { buildDistrict } from './district.js?v=20261013-life89b';
@@ -12,7 +14,7 @@ import {withLocalLighting,STREET_LAMPS,nightLight} from './local-lighting.js?v=2
 
 const boxGeometry=new THREE.BoxGeometry(1,1,1);
 const materials=new Map();
-function material(color){if(!materials.has(color)){const mat=withLocalLighting(new THREE.MeshStandardMaterial({color,roughness:.82}));if(['#c9a575','#af8960','#e4c797','#b99d79','#936c4f','#dbc29b'].includes(color)){const texture=sandTexture(color);mat.map=texture;mat.roughness=.94;
+function material(color){if(!materials.has(color)){const mat=withLocalLighting(new THREE.MeshStandardMaterial({color,roughness:.82}));if(['#c9a575','#af8960','#e4c797','#b99d79','#936c4f','#dbc29b','#ad8054','#c09a69','#e5c495','#c6a16f','#7c8e9b','#bbc9cf'].includes(color)){const texture=sandTexture(color);mat.map=texture;mat.roughness=.94;
  const previous=mat.onBeforeCompile;mat.onBeforeCompile=function(shader,renderer){previous?.call(this,shader,renderer);shader.vertexShader='varying vec3 vSandLocal; varying vec3 vSandNormal;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
  #ifdef USE_INSTANCING
  vSandLocal=(instanceMatrix*vec4(position,1.0)).xyz;
@@ -25,7 +27,8 @@ function material(color){if(!materials.has(color)){const mat=withLocalLighting(n
  diffuseColor*=texture2D(map,tile*.5);
  #endif`);};const cache=mat.customProgramCacheKey.bind(mat);mat.customProgramCacheKey=()=>cache()+'|sand-world-uv';}materials.set(color,mat);}return materials.get(color);}
 const WHITE='#faf8f1',TRIM='#d4d7d5',WOOD='#bd8d60',STONE='#c9c4b7';
-export function createWorld(scene,{physicsOnly=false,combatOnly=false}={}){
+export function createWorld(scene,{physicsOnly=false,combatOnly=false,gunMapId='sand'}={}){
+  const map=gunMapDefinition(gunMapId),GUN_ZONE=map.zone;gunMapId=map.id;
   const group=new THREE.Group();scene.add(group);group.name='RAFT World';
   const batches=new Map(),bodies=[],boards=[],seats=[],moving=[],hazards=[],pulsing=[],falling=[],balls=[],chunks=[],clockHands=[];
   let worldTime=0,currentHouse=null;
@@ -34,7 +37,7 @@ export function createWorld(scene,{physicsOnly=false,combatOnly=false}={}){
   const transform=new THREE.Object3D(),previous=new THREE.Vector3();
   const boardPickGeometry=new THREE.BoxGeometry(1.12,2.05,.24),boardPickMaterial=new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false});
   function box(x,y,z,w,h,d,color=WHITE,solid=true,extra={}){
-    const body={x,y,z,w,h,d,...extra,cinematicRoof:x>=120&&x<=244&&z>=-140&&z<=-44&&y>2.5&&h<.65&&w>4&&d>4};
+    const body={x,y,z,w,h,d,...extra,cinematicRoof:x>=GUN_ZONE.minX&&x<=GUN_ZONE.maxX&&z>=GUN_ZONE.minZ&&z<=GUN_ZONE.maxZ&&y>2.5&&h<.65&&w>4&&d>4};
     if(currentHouse){body.houseIndex=currentHouse.index;currentHouse.parts.push(body);}
     if(solid)bodies.push(body);
     if(extra.noRender||physicsOnly)return body;
@@ -214,15 +217,15 @@ export function createWorld(scene,{physicsOnly=false,combatOnly=false}={}){
   box(COURSE.exit.x,.08,COURSE.exit.z,10,.16,10,STONE);board(COURSE.exit.x+3,.16,COURSE.exit.z,'world');
   buildDistrict({box,board,sign,seats,clockHands});
   }
-  buildGunTown({box,board,sign});
+  buildGunTown({box,board,sign,map:gunMapId});
   board(COMBAT_MENU.x,.12,COMBAT_MENU.z,'world',null,-1);
   // Keep the white sky lining well below the solid slab to avoid depth fighting.
-  if(physicsOnly)return createCollisionWorld(bodies,{moving,falling,pulsing,combatOnly});
+  if(physicsOnly)return createCollisionWorld(bodies,{moving,falling,pulsing,combatOnly,gunMapId});
   const skyCanvas=document.createElement('canvas');skyCanvas.width=skyCanvas.height=512;const skyContext=skyCanvas.getContext('2d');skyContext.fillStyle='#f6f7f7';skyContext.fillRect(0,0,512,512);
   for(const [x,y,r]of [[90,110,200],[370,80,180],[280,360,230],[500,480,190]]){const veil=skyContext.createRadialGradient(x,y,0,x,y,r);veil.addColorStop(0,'rgba(210,218,222,.25)');veil.addColorStop(1,'rgba(210,218,222,0)');skyContext.fillStyle=veil;skyContext.fillRect(0,0,512,512);}
   const cloudTexture=new THREE.CanvasTexture(skyCanvas);cloudTexture.colorSpace=THREE.SRGBColorSpace;cloudTexture.magFilter=THREE.LinearFilter;cloudTexture.minFilter=THREE.LinearMipmapLinearFilter;
   const cloudMaterial=new THREE.MeshBasicMaterial({map:cloudTexture,toneMapped:false,side:THREE.FrontSide});
-  const cloudRoof=new THREE.Mesh(new THREE.PlaneGeometry(GUN_ZONE.width+1,GUN_ZONE.depth+1),cloudMaterial);cloudRoof.rotation.x=Math.PI/2;cloudRoof.position.set(GUN_ZONE.x,23.95,GUN_ZONE.z);cloudRoof.name='Cloud-white inside roof';group.add(cloudRoof);
+  const cloudRoof=new THREE.Mesh(new THREE.PlaneGeometry(GUN_ZONE.width+1,GUN_ZONE.depth+1),cloudMaterial);cloudRoof.rotation.x=Math.PI/2;cloudRoof.position.set(GUN_ZONE.x,map.ceiling-.75,GUN_ZONE.z);cloudRoof.name='Cloud-white inside roof';group.add(cloudRoof);
   // Flush repeated parts to one draw per material, with instance indices for moving pads.
   for(const {color,list} of batches.values()){
     const mesh=new THREE.InstancedMesh(boxGeometry,list[0].streetLamp?lampMaterial:material(color),list.length);mesh.userData.noShadow=!!list[0].noShadow;
@@ -248,8 +251,9 @@ export function createWorld(scene,{physicsOnly=false,combatOnly=false}={}){
   for(const h of hazards){h.mesh.material.emissive.set('#ff0018');h.mesh.material.emissiveIntensity=2;}
   const ballMaterial=new THREE.MeshStandardMaterial({color:'#ffd05e',emissive:'#fa6839',emissiveIntensity:.6,roughness:.6});
   const ballMesh=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0),ballMaterial,balls.length);ballMesh.frustumCulled=false;group.add(ballMesh);
-  const collision=createCollisionWorld(bodies,{moving,falling,pulsing,combatOnly});
+  const collision=createCollisionWorld(bodies,{moving,falling,pulsing,combatOnly,gunMapId});
   const {move,floorAt,canStand,nearby,setHouseBodies}=collision;
+  const weather=createGunWeather(group,map);
   function localPoint(p,b){const c=Math.cos(b.rotation||0),s=Math.sin(b.rotation||0),x=p.x-b.x,z=p.z-b.z;return {x:c*x-s*z,z:s*x+c*z,c,s};}
   function cutawayHouse(index,enabled,sideX=1,sideZ=null){
     const h=houses[index];if(!h)return;sideZ??=h.front;
@@ -298,12 +302,12 @@ export function createWorld(scene,{physicsOnly=false,combatOnly=false}={}){
   }
   function surfaceNormal(point,incoming){let best=.65,result=incoming.clone().negate();for(const b of nearby(point)){if(b.disabled)continue;const q=localPoint(point,b),coords=[q.x,point.y-b.y,q.z],half=[b.w/2,b.h/2,b.d/2];if(coords.some((v,i)=>Math.abs(v)>half[i]+.3))continue;for(let axis=0;axis<3;axis++){const distance=Math.abs(Math.abs(coords[axis])-half[axis]);if(distance>=best)continue;best=distance;const sign=Math.sign(coords[axis])||1;if(axis===0)result.set(q.c*sign,0,-q.s*sign);else if(axis===1)result.set(0,sign,0);else result.set(q.s*sign,0,q.c*sign);}}if(point.y<.25&&best>.1)result.set(0,1,0);return result;}
   function cull(view){
-    for(const mesh of chunks){const sphere=mesh.boundingSphere,d=sphere.center.distanceTo(view);const horizontal=Math.hypot(view.x-sphere.center.x,view.z-sphere.center.z);mesh.visible=cinematicOverview?horizontal<170+sphere.radius:d<160+sphere.radius;mesh.castShadow=!mesh.userData.noShadow&&mesh.visible&&(cinematicOverview?horizontal<85+sphere.radius:d<55+sphere.radius);}
+    for(const mesh of chunks){const sphere=mesh.boundingSphere,d=sphere.center.distanceTo(view);const horizontal=Math.hypot(view.x-sphere.center.x,view.z-sphere.center.z);mesh.visible=cinematicOverview?horizontal<Math.max(170,GUN_ZONE.width)+sphere.radius:d<160+sphere.radius;mesh.castShadow=!mesh.userData.noShadow&&mesh.visible&&(cinematicOverview?horizontal<85+sphere.radius:d<55+sphere.radius);}
     for(const b of boards)b.label.visible=!b.editorHidden&&Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<85;
     for(let i=0;i<balls.length;i++){const b=balls[i],visible=Math.hypot(view.x-b.x,view.y-b.y,view.z-b.z)<130;transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,worldTime,worldTime*.8);transform.scale.setScalar(visible?b.radius:0);transform.updateMatrix();ballMesh.setMatrixAt(i,transform.matrix);}ballMesh.instanceMatrix.needsUpdate=true;
   }
   function update(t,p,clockPhase=.5){
-    worldTime=t;collision.setTime(t);
+    worldTime=t;collision.setTime(t);weather.update(t,p,map.snow&&!!p&&nearby(p).some(b=>!b.disabled&&b.w>2&&b.d>2&&b.y-b.h/2>p.y+2.5&&b.y+b.h/2<map.ceiling-1&&Math.abs(p.x-b.x)<b.w/2&&Math.abs(p.z-b.z)<b.d/2));
     for(const hand of clockHands){if(!hand.mesh.visible||hand.renderedPhase===clockPhase)continue;hand.renderedPhase=clockPhase;const angle=hand.clockSide*(hand.clockHand==='hour'?Math.PI/2-clockPhase*Math.PI*4:-clockPhase*Math.PI*48);transform.position.set(hand.clockX+Math.cos(angle)*hand.clockDX-Math.sin(angle)*hand.clockDY,hand.clockY+Math.sin(angle)*hand.clockDX+Math.cos(angle)*hand.clockDY,hand.z);transform.rotation.set(0,0,angle);transform.scale.set(hand.w,hand.h,hand.d);transform.updateMatrix();hand.mesh.setMatrixAt(hand.instance,transform.matrix);hand.mesh.instanceMatrix.needsUpdate=true;}
     transform.rotation.set(0,0,0);
     if(barrierMaterial){barrierMaterial.uniforms.uPlayer.value.copy(p).y+=1;barrierMaterial.uniforms.uTime.value=t;}
@@ -315,11 +319,11 @@ export function createWorld(scene,{physicsOnly=false,combatOnly=false}={}){
     for(const b of balls){const phase=((t+b.phase)*b.speed)%8;b.z=b.originZ+b.side*(4-phase);}
   }
   let cinematicOverview=false;
-  function setCinematicOverview(enabled){if(cinematicOverview===enabled)return;cinematicOverview=enabled;cloudRoof.visible=!enabled;for(const b of bodies){if(!b.cinematicRoof||!b.mesh)continue;b.cinematicHidden=enabled;transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,b.rotation||0,0);transform.scale.set(enabled?0:b.w,enabled?0:b.h,enabled?0:b.d);transform.updateMatrix();b.mesh.setMatrixAt(b.instance,transform.matrix);b.mesh.instanceMatrix.needsUpdate=true;}}
+  function setCinematicOverview(enabled){if(cinematicOverview===enabled)return;cinematicOverview=enabled;weather.overview(enabled);cloudRoof.visible=!enabled;for(const b of bodies){if(!b.cinematicRoof||!b.mesh)continue;b.cinematicHidden=enabled;transform.position.set(b.x,b.y,b.z);transform.rotation.set(0,b.rotation||0,0);transform.scale.set(enabled?0:b.w,enabled?0:b.h,enabled?0:b.d);transform.updateMatrix();b.mesh.setMatrixAt(b.instance,transform.matrix);b.mesh.instanceMatrix.needsUpdate=true;}}
   function setBackdrop(mode){if(!chromaMaterial)return;chromaMaterial.color.set(mode==='RB'?'#ff0000':mode==='BB'?'#0000ff':'#00ff00');}
   // Keep the inexpensive pool draw registered even during the day (alpha 0)
   // so its shader is not first compiled when night begins.
   function setNight(value){const night=THREE.MathUtils.clamp(value||0,0,1);if(nightLight.value===night&&lampMaterial.emissiveIntensity===night*1.8)return;nightLight.value=night;lampMaterial.emissiveIntensity=night*1.8;}
   const gunMap=createGunMapVisual(group,bodies);
-  const api={combatOnly,setCinematicOverview,set portalPassage(fn){collision.portalPassage=fn;},get portalPassage(){return collision.portalPassage;},gunMap,cameraClear,canStand,nearby,setMovementBounds:collision.setMovementBounds,group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
+  const api={gunMapId,gunZone:GUN_ZONE,mapName:map.name,combatOnly,setCinematicOverview,set portalPassage(fn){collision.portalPassage=fn;},get portalPassage(){return collision.portalPassage;},gunMap,cameraClear,canStand,nearby,setMovementBounds:collision.setMovementBounds,group,studio,arena,athletic,boards,houses,seats,bodies,moving,hazards,pulsing,falling,balls,chunks,move,floorAt,inAthletic,seatAt,bedAt,bedById,checkpointAt,lethal,boardHit,update,cull,cameraPosition,surfaceNormal,setBackdrop,setNight,setHouseBodies,cutawayHouse};return api;
 }

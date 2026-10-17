@@ -1,33 +1,34 @@
-import {slideShape} from './combat-movement.js?v=20261017-slide120';
+import {GUN_MAPS,gunMap,insideGunMap} from './gun-maps.js?v=20261017-maps121';
+import {slideShape} from './combat-movement.js?v=20261017-maps121';
 import {createSoftwareRenderer} from './software-renderer.js?v=20261017-canvas114';
 import {createCompatControls} from './compat-controls.js?v=20261017-canvas114';
 import {createGamepadControls} from './gamepad-controls.js?v=20261017-pro119';
 import {RemoteMotion} from './remote-motion.js?v=20261017-slide120';
-import {loadWorldMode,combatSpawn} from './world-mode.js?v=20261016-combatonly105';
+import {loadWorldMode,combatSpawn} from './world-mode.js?v=20261017-maps121';
 import {findMantle} from './player-mantle.js?v=20261015-mantle103';
-import {PlayerPrediction} from './player-prediction.js?v=20261017-slide120';
+import {PlayerPrediction} from './player-prediction.js?v=20261017-maps121';
 import {proneShape} from './gun-posture.js?v=20261017-slide120';
 import {createVideoSettings} from './video-settings.js?v=20261017-canvas114';
 import {furniturePose} from './housing-data.js?v=20261013-life89b';
 import {livingHome} from './living-shared.js?v=20261013-life89b';
-import {createWorldExperience} from './world-experience.js?v=20261017-slide120';
-import {inGunZone,weaponById} from './gun-layout.js?v=20261015-tactics99';
+import {createWorldExperience} from './world-experience.js?v=20261017-maps121';
+import {inGunZone as mapContains,weaponById} from './gun-layout.js?v=20261017-maps121';
 import {createWorldChat} from './world-chat.js?v=20261013-life89b';
-import {startUpdateNotice} from './update-notice.js?v=20261017-slide120';
+import {startUpdateNotice} from './update-notice.js?v=20261017-maps121';
 import {memberColor} from './housing-data.js?v=20261013-life89b';
 import * as THREE from 'three';
 import { createAvatar } from './avatar.js?v=20261017-slide120';
-import { createEnvironment } from './environment.js?v=20261017-canvas114';
-import { createWorld } from './world.js?v=20261016-cinema106';
+import { createEnvironment } from './environment.js?v=20261017-maps121';
+import { createWorld } from './world.js?v=20261017-maps121';
 import { ARENA,insideArena } from './world-layout.js?v=20261013-life89b';
 import { SYNC_ENDPOINT } from './sync-config.js?v=20261013-life89b';
 import { ATTACKS,chargeAttack } from './combat-motion.js?v=20261013-life89b';
 import { createHit,stepHit,hitShape,proneWeight,gunEliminationState } from './hit-reaction.js?v=20261016-cinema106';
 import { createCombatEffects } from './combat-effects.js?v=20261014-world96';
 import { createBrownProjectiles } from './brown-projectiles.js?v=20261014-world96';
-import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-slide120';
+import { SYNC_VERSION,compatibleSync } from './sync-protocol.js?v=20261017-maps121';
 import {GYOZA_SKIN,GUEST_SKIN,MAX_PLAYERS,playableSkin} from './player-types.js?v=20261013-life89b';
-import { cleanCharacter } from './character-store.js?v=20261013-life89b';
+import { cleanCharacter } from './character-store.js?v=20261017-maps121';
 // Versioned URL prevents a previously cached editor module from blocking startup.
 import {DOWN_PROTECTION_SECONDS,knocksDown,protectedFromHit} from './combat-policy.js?v=20261013-life89b';
 import {cleanCycle,dayPhase,clockLabel} from './world-clock.js?v=20261013-life89b';
@@ -73,10 +74,11 @@ function requestCameraReturn(){
   setCameraMode('follow');scheduleShare();notify('5回クリックでプレイヤー操作に戻りました');
 }
 let distance=5.5,fov=55,smoothing=.14,flySpeed=4,moveSpeed=2.8,gesture='none',showCast=false;
-let combatOnly=false,modeReloading=false;
+let combatOnly=false,gunMapId='sand',modeReloading=false;
+const inGunZone=p=>mapContains(p,gunMapId);
 let studioReady=false;
-function updateWorldModeControls(){const button=$('combatOnlyToggle');button.textContent='銃撃戦のみ：'+(combatOnly?'ON':'OFF');button.disabled=selected===GUEST_SKIN;button.setAttribute('aria-pressed',String(combatOnly));for(const tab of ['battle','course'])document.querySelector('[data-world-tab="'+tab+'"]').hidden=combatOnly;$('boardGuide').hidden=combatOnly;document.querySelectorAll('[data-bg]').forEach(b=>b.hidden=combatOnly);$('mirrorTravelMode').disabled=combatOnly;$('showCast').disabled=combatOnly;document.querySelector('[data-world-tab="studio"]').textContent=combatOnly?'ワールド':'撮影';document.querySelectorAll('[data-full-world]').forEach(el=>el.hidden=combatOnly);}
-function reloadWorldMode(value){if(modeReloading)return;modeReloading=true;safeSave('raft-combat-only',String(value));try{if(inStudio)sessionStorage.setItem('raft-mode-resume','1');}catch{}clearInput();location.reload();}
+function updateWorldModeControls(){const mapSelect=$('worldGunMap');mapSelect.value=gunMapId;mapSelect.disabled=selected===GUEST_SKIN;$('worldGunMapApply').disabled=selected===GUEST_SKIN;const button=$('combatOnlyToggle');button.textContent='銃撃戦のみ：'+(combatOnly?'ON':'OFF');button.disabled=selected===GUEST_SKIN;button.setAttribute('aria-pressed',String(combatOnly));for(const tab of ['battle','course'])document.querySelector('[data-world-tab="'+tab+'"]').hidden=combatOnly;$('boardGuide').hidden=combatOnly;document.querySelectorAll('[data-bg]').forEach(b=>b.hidden=combatOnly);$('mirrorTravelMode').disabled=combatOnly;$('showCast').disabled=combatOnly;document.querySelector('[data-world-tab="studio"]').textContent=combatOnly?'ワールド':'撮影';document.querySelectorAll('[data-full-world]').forEach(el=>el.hidden=combatOnly);}
+function reloadWorldMode(value,map=gunMapId){if(modeReloading)return;modeReloading=true;safeSave('raft-combat-only',String(value));safeSave('raft-gun-map',map);try{if(inStudio)sessionStorage.setItem('raft-mode-resume','1');}catch{}clearInput();location.reload();}
 let renderer,environment,world,requestId,lastTime=0,time=0,metricsAt=0,fpsFrames=0,fps=60;
 const mapPlayers=new Map();let plazaMap=null,cooking=null,cookingCamera=null,carryCamera=null,cookingControls=null,living=null,plazaPlay=null;
 let housingView=null,housingEditor=null,houseCameraState=null,worldChat=null;const updateNotice=startUpdateNotice({endpoint:SYNC_ENDPOINT,version:SYNC_VERSION});
@@ -328,7 +330,7 @@ function experienceFrame(){const identity=selected+':'+roomSelfId+':'+remoteActo
  experienceFrameData={cinematicActors:[{id:roomSelfId,actor:actors[selected],root:actors[selected]?.root},...peers.map(([id,p])=>({id,actor:p.actor,root:p.actor.root}))],roster:[...(roomSelfId?[{id:roomSelfId,skin:selected}]:[]),...roster.values()],targets:peers.map(([,p])=>p.actor.root),remotePlayers:peers.map(([id,p])=>({id,skin:p.skin,position:p.actor.root.position,target:p.target,yaw:p.actor.root.rotation.y,headYaw:p.renderPose?.headYaw??p.headYaw,headPitch:p.renderPose?.headPitch??p.headPitch,grounded:p.renderPose?.grounded??p.grounded,verticalSpeed:p.renderPose?.verticalSpeed??p.verticalSpeed,speed:p.renderPose?.speed??p.speed,sliding:!!p.renderPose?.sliding,hitSlideBlend:p.actor.animation.slideBlend,hitProneBlend:p.actor.animation.proneBlend,hitCrouchBlend:p.renderPose?.hitCrouchBlend,prone:p.renderPose?.prone??p.prone,crouched:p.renderPose?.crouched??p.crouched,mantling:p.renderPose?.mantling??p.mantling,ragdoll:p.ragdoll,eyeHeight:(p.actor.eyeHeight||1.68)-((p.renderPose?.prone??p.prone)?(p.actor.eyeHeight||1.68)-.36:(p.renderPose?.crouched??p.crouched)?crouchDrop(p.actor):0)}))};return experienceFrameData;
 }
 experience=createWorldExperience({scene,camera,openMap:()=>plazaMap?.open(),names:skinDefs.map(s=>s[0]),skinURL,makeFace,
- get:()=>({...experienceFrame(),sliding:!!playerPrediction.combat?.sliding,sprintCharge:Math.min(1,(playerPrediction.combat?.sprintTime||0)/1.65),combatOnly,viewTimes:[...remoteActors].filter(([,r])=>r.motion.stamped&&Number.isFinite(r.renderPose?.at)).map(([id,r])=>({id,at:r.renderPose.at})),softwareRenderer:!!renderer?.isSoftwareRenderer,video:videoSettings?.settings,skin:selected,remoteTeleport:(id,position,serial)=>{const r=remoteActors.get(id);if(r){r.target.set(position.x,position.y,position.z);r.actor.root.position.copy(r.target);r.yaw=position.yaw;r.prone=r.crouched=false;r.motion.reset({...r,gunTeleportSerial:serial??0,sliding:false,hitSlideBlend:0,sprintCharge:0,hitProneBlend:0,hitCrouchBlend:0,x:position.x,y:position.y,z:position.z,vx:0,vy:0,vz:0},performance.now());}},avatar:actors[selected],houseInteraction:housingEditor?.interaction||plazaPlay?.interaction,chargeActor:(id,active)=>{(id===roomSelfId?actors[selected]:remoteActors.get(id)?.actor)?.chargeGun(active);},reloadActor:(id,message)=>{const actor=id===roomSelfId?actors[selected]:remoteActors.get(id)?.actor;actor?.reloadGun(message?{weapon:message.weapon,duration:Math.max(120,message.endAt-message.startAt),age:Math.max(0,serverNow()-message.startAt)}:null);},flashActor:id=>{if(id===roomSelfId)actors[selected]?.fireGun();else remoteActors.get(id)?.actor.fireGun();},selfId:roomSelfId,player:actors[selected]?.root,character:cooking?.handsOn||living?.active||plazaPlay?.active?{...cachedCharacter(),equippedWeapon:null}:cachedCharacter(),connected:roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,paused:paused(),living:living?.active,sleeping,ragdoll:localRagdoll,seated,seat,inStudio,world,housing:housingView,now:serverNow(),time,yaw,pitch,cameraMode,prone,crouched,mantling:!!playerPrediction.mantle,toggleProne,eyeHeight:(actors[selected]?.eyeHeight||1.68)-crouchView,speed:velocity.length(),moveX:velocity.x,moveZ:velocity.z,grounded,verticalSpeed,fov,duelPlaying:duelIds.length>0,muzzle:()=>{},impact:()=>{}}),
+ get:()=>({...experienceFrame(),gunMapId,sliding:!!playerPrediction.combat?.sliding,sprintCharge:Math.min(1,(playerPrediction.combat?.sprintTime||0)/1.65),combatOnly,viewTimes:[...remoteActors].filter(([,r])=>r.motion.stamped&&Number.isFinite(r.renderPose?.at)).map(([id,r])=>({id,at:r.renderPose.at})),softwareRenderer:!!renderer?.isSoftwareRenderer,video:videoSettings?.settings,skin:selected,remoteTeleport:(id,position,serial)=>{const r=remoteActors.get(id);if(r){r.target.set(position.x,position.y,position.z);r.actor.root.position.copy(r.target);r.yaw=position.yaw;r.prone=r.crouched=false;r.motion.reset({...r,gunTeleportSerial:serial??0,sliding:false,hitSlideBlend:0,sprintCharge:0,hitProneBlend:0,hitCrouchBlend:0,x:position.x,y:position.y,z:position.z,vx:0,vy:0,vz:0},performance.now());}},avatar:actors[selected],houseInteraction:housingEditor?.interaction||plazaPlay?.interaction,chargeActor:(id,active)=>{(id===roomSelfId?actors[selected]:remoteActors.get(id)?.actor)?.chargeGun(active);},reloadActor:(id,message)=>{const actor=id===roomSelfId?actors[selected]:remoteActors.get(id)?.actor;actor?.reloadGun(message?{weapon:message.weapon,duration:Math.max(120,message.endAt-message.startAt),age:Math.max(0,serverNow()-message.startAt)}:null);},flashActor:id=>{if(id===roomSelfId)actors[selected]?.fireGun();else remoteActors.get(id)?.actor.fireGun();},selfId:roomSelfId,player:actors[selected]?.root,character:cooking?.handsOn||living?.active||plazaPlay?.active?{...cachedCharacter(),equippedWeapon:null}:cachedCharacter(),connected:roomSocket?.readyState===WebSocket.OPEN&&!!roomSelfId,paused:paused(),living:living?.active,sleeping,ragdoll:localRagdoll,seated,seat,inStudio,world,housing:housingView,now:serverNow(),time,yaw,pitch,cameraMode,prone,crouched,mantling:!!playerPrediction.mantle,toggleProne,eyeHeight:(actors[selected]?.eyeHeight||1.68)-crouchView,speed:velocity.length(),moveX:velocity.x,moveZ:velocity.z,grounded,verticalSpeed,fov,duelPlaying:duelIds.length>0,muzzle:()=>{},impact:()=>{}}),
  send:message=>{if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify(message));else notify('サーバーに接続してください');},notify,
  openChat:()=>{closeWorldMenu();worldChat.open();if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'chat-open'}));},openMenu:openWorldMenu,
  onModal:active=>{if(active){if(housingEditor?.active)housingEditor.close();worldGuide?.close(false);closeWorldMenu();$('menu').hidden=$('master').hidden=true;unlocked();setClean(false);}clearInput();},
@@ -345,6 +347,7 @@ document.querySelectorAll('[data-bg]').forEach(button=>button.onclick=()=>{const
 $('crownToggle').onclick=()=>{cacheCharacter(selected,{...cachedCharacter(),crownEnabled:!crownEnabled});pendingCrown[selected]=crownEnabled;safeSave('raft-character-crown-pending',JSON.stringify(pendingCrown));if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'crown-toggle',enabled:crownEnabled}));};
 $('saveDuelGoal').onclick=()=>{const value=Number($('duelGoal').value);if(!Number.isInteger(value)||value<1||value>100){notify('合計ダメージは1〜100の整数にしてください');return;}if(roomSocket?.readyState!==WebSocket.OPEN||!roomSelfId){notify('設定を保存するにはサーバーに接続してください');return;}$('saveDuelGoal').disabled=true;$('duelSettingsStatus').textContent='サーバーに保存中…';roomSocket.send(JSON.stringify({type:'duel-settings',goalDamage:value}));};
 $('stopAthletic').onclick=stopCourse;
+$('worldGunMapApply').onclick=()=>{if($('worldGunMap').value===gunMapId){notify('このマップを使用中です');return;}if(roomSocket?.readyState!==WebSocket.OPEN||!roomSelfId){notify('マップを変更するにはサーバーに接続してください');return;}$('worldGunMapApply').disabled=true;roomSocket.send(JSON.stringify({type:'gun-map-settings',gunMap:$('worldGunMap').value}));};
 $('combatOnlyToggle').onclick=()=>{if(roomSocket?.readyState!==WebSocket.OPEN||!roomSelfId){notify('設定を保存するにはサーバーに接続してください');return;}$('combatOnlyToggle').disabled=true;roomSocket.send(JSON.stringify({type:'world-mode-settings',combatOnly:!combatOnly}));};
 $('cycleToggle').onclick=()=>requestCycle(!dayCycle.enabled);$('saveDayMinutes').onclick=()=>requestCycle();
 $('flashlightToggle').onclick=()=>{flashlightEnabled=!flashlightEnabled;{flashlightPending=true;safeSave('raft-flashlight-enabled',String(flashlightEnabled));safeSave('raft-flashlight-pending','true');}updateClockControls();if(roomSocket?.readyState===WebSocket.OPEN&&roomSelfId)roomSocket.send(JSON.stringify({type:'flashlight-toggle',enabled:flashlightEnabled}));};
@@ -472,7 +475,7 @@ function updateRemotePlayer(player,at){
 }
 function handleRoomMessage(socket,event){
   let message;try{message=JSON.parse(event.data)}catch{return}
-  if(['joined','world'].includes(message.type)&&typeof message.combatOnly==='boolean'&&message.combatOnly!==combatOnly){reloadWorldMode(message.combatOnly);return;}
+  if(['joined','world'].includes(message.type)&&typeof message.combatOnly==='boolean'&&(message.combatOnly!==combatOnly||gunMap(message.gunMap).id!==gunMapId)){reloadWorldMode(message.combatOnly,gunMap(message.gunMap).id);return;}
   if(message.type==='world-mode-error'){if(message.playerId===roomSelfId){updateWorldModeControls();notify(message.message);}return;}
   if(plazaPlay?.receive(message))return;if(message.type==='world'&&message.plazaPlay)plazaPlay?.hydrate(message.plazaPlay);if(living?.receive(message))return;if(cooking?.receive(message))return;if(experience?.receive(message))return;if(worldChat?.receive(message))return;
   if(message.type==='gun-eliminated'){if(message.playerId===roomSelfId){clearInput();localRagdoll=true;localImpact=null;localHit=createHit(.95);localHit.gunEliminated=true;localHit.gunAge=message.settled?1.8:0;localHit.phase=message.settled?'down':'air';localHit.elapsed=message.settled?.85:0;localHit.downTime=message.settled?.95:0;localImpulse.set(0,0,0);velocity.set(0,0,0);verticalSpeed=0;grounded=true;actors[selected].root.position.set(message.position.x,message.position.y,message.position.z);}else{const r=remoteActors.get(message.playerId);if(r){r.ragdoll=true;r.gunEliminated=true;r.hitPhase=message.settled?'down':'air';r.hitTime=message.settled?.85:0;r.hitDownTime=message.settled?.95:0;r.hitStrength=.95;r.hitRecovery=0;r.velocity.set(0,0,0);r.receivedAt=performance.now();r.motion.reset({...r,x:r.target.x,y:r.target.y,z:r.target.z,vx:0,vy:0,vz:0},performance.now());}}return;}
@@ -731,7 +734,7 @@ function applyShare(){
 }
  $('shareLink').onclick=async()=>{scheduleShare();try{const url=new URL(location.href);url.searchParams.delete('room');Object.entries(currentShare()).forEach(([key,value])=>url.searchParams.set(key,value));await navigator.clipboard.writeText(url.toString());notify(roomCode?'同じルームに参加するリンクをコピーしました':'撮影パラメーター付きリンクをコピーしました')}catch{notify('リンクをコピーできませんでした')}};
 async function start(){try{
-  const worldModePromise=loadWorldMode(SYNC_ENDPOINT,safeRead('raft-combat-only')==='true');
+  const worldModePromise=loadWorldMode(SYNC_ENDPOINT,safeRead('raft-combat-only')==='true',safeRead('raft-gun-map'));
   const preferredSkinLoad=ensureSkin(selected);preferredSkinLoad.catch(()=>{});
   const graphicsMode=new URL(location.href).searchParams.get('graphics');let graphicsContext=null;
   if(graphicsMode!=='canvas')for(const name of ['webgl2','webgl','experimental-webgl']){
@@ -750,15 +753,15 @@ async function start(){try{
   }else if(!renderer.capabilities.isWebGL2){activeQuality=qualityChoice='low';$('quality').value='low';notify('WebGL1の軽量画質で起動します',5000);}
   document.body.dataset.renderer=renderer.isSoftwareRenderer?'canvas':'webgl';
   renderer.localClippingEnabled=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.shadowMap.enabled=!renderer.isSoftwareRenderer;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  combatOnly=await worldModePromise;safeSave('raft-combat-only',String(combatOnly));document.body.dataset.combatOnly=String(combatOnly);updateWorldModeControls();
-  environment=createEnvironment(scene,renderer,{mobile:touch,combatOnly});document.fonts.load('16px DotGothic16').catch(()=>{});await new Promise(resolve=>setTimeout(resolve,0));world=createWorld(scene,{combatOnly});environment.setSettings({wind:.45,grassDensity:.8,sunHeight:50,exposure:1});quality(activeQuality);
+  const worldSettings=await worldModePromise;combatOnly=worldSettings.combatOnly;gunMapId=worldSettings.gunMap;safeSave('raft-gun-map',gunMapId);safeSave('raft-combat-only',String(combatOnly));document.body.dataset.combatOnly=String(combatOnly);updateWorldModeControls();
+  environment=createEnvironment(scene,renderer,{mobile:touch,combatOnly,gunMapId});document.fonts.load('16px DotGothic16').catch(()=>{});await new Promise(resolve=>setTimeout(resolve,0));world=createWorld(scene,{combatOnly,gunMapId});environment.setSettings({wind:.45,grassDensity:.8,sunHeight:50,exposure:1});quality(activeQuality);
   if(!combatOnly){
   const [{createPlazaPlay},{createLiving},{createCookingControls},{createCooking},{createPlazaMap},{createHousingRenderer},{createHouseEditor},{createWorldGuide}]=await Promise.all([
     import('./plaza-play.js?v=20261015-tactics99'),
     import('./living.js?v=20261017-canvas114'),
     import('./cooking-controls.js?v=20261013-life89b'),
     import('./cooking.js?v=20261014-kitchen94'),
-    import('./plaza-map.js?v=20261013-life89b'),
+    import('./plaza-map.js?v=20261017-maps121'),
     import('./housing-renderer.js?v=20261015-physics101'),
     import('./house-editor.js?v=20261014-kitchen94'),
     import('./world-guide.js?v=20261014-optics95')

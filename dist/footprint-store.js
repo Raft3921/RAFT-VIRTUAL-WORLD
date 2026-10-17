@@ -1,3 +1,4 @@
+import {insideGunMap} from './gun-maps.js?v=20261017-maps121';
 // Minecraft and the supplied JEM both have 4x4 px soles. JEM legs have
 // a shorter stride; imprint dimensions always describe the actual model.
 export const FOOTPRINT_LIFETIME=60000,FOOTPRINT_LIMIT=4096;
@@ -6,7 +7,7 @@ export class FootprintStore{
  constructor(rules){this.rules=rules;this.marks=[];this.tracks=new Map();this.sequence=0;}
  snapshot(now=Date.now()){this.marks=this.marks.filter(m=>now-m.born<FOOTPRINT_LIFETIME);return this.marks;}
  remove(id){this.tracks.delete(id);}
- clearArena(){const removed=this.marks.filter(m=>!m.realm&&m.x>120&&m.x<244&&m.z>-140&&m.z<-44).map(m=>m.id);if(!removed.length)return;const ids=new Set(removed);this.marks=this.marks.filter(m=>!ids.has(m.id));this.tracks.clear();this.rules.broadcast({type:'footprints-clear',ids:removed});}
+ clearArena(){const removed=this.marks.filter(m=>!m.realm&&insideGunMap(m,this.rules.settings.gunMap)).map(m=>m.id);if(!removed.length)return;const ids=new Set(removed);this.marks=this.marks.filter(m=>!ids.has(m.id));this.tracks.clear();this.rules.broadcast({type:'footprints-clear',ids:removed});}
  step(p,now=Date.now()){
   const previous=this.tracks.get(p.id),track={x:p.x,y:p.y,z:p.z,realm:p.mirrorRealm||null,teleport:p.gunTeleportSerial,at:now,distance:previous?.distance||0,side:previous?.side||0,last:previous?.last||0};this.tracks.set(p.id,track);
   const canWalk=p.grounded!==false&&!p.flight&&!p.ragdoll&&!p.seated&&!p.sleeping&&!p.prone&&!p.sliding&&!p.mantling&&!p.gunEliminated;

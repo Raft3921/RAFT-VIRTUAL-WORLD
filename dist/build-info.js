@@ -1,2 +1,2 @@
-export const BUILD_ID='vrs-slide120';
-export const RELEASE_ID='vrs-slide120';
+export const BUILD_ID='vrs-maps121';
+export const RELEASE_ID='vrs-maps121';

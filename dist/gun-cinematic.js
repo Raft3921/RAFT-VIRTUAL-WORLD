@@ -29,7 +29,7 @@ export function createGunCinematic({scene,camera,get,audio}){
   const origin=v(data.shot.origin),flight=THREE.MathUtils.clamp((elapsed-fireAt)/(impactAt-fireAt),0,1);
   if(projectile){projectile.root.visible=cut===0&&elapsed>=fireAt&&elapsed<impactAt;projectile.root.position.copy(origin).lerp(hit,flight);projectile.root.quaternion.setFromUnitVectors(forward,direction);projectile.update(elapsed/1000);}
   if(cut===2){
-   const xs=data.players.map(p=>p.x),zs=data.players.map(p=>p.z),minX=Math.min(GUN_ZONE.minX,...xs),maxX=Math.max(GUN_ZONE.maxX,...xs),minZ=Math.min(GUN_ZONE.minZ,...zs),maxZ=Math.max(GUN_ZONE.maxZ,...zs),span=Math.max(24,maxZ-minZ+18,(maxX-minX+18)/Math.max(.45,camera.aspect));
+   const GUN_ZONE=s.world?.gunZone||{minX:120,maxX:244,minZ:-140,maxZ:-44},xs=data.players.map(p=>p.x),zs=data.players.map(p=>p.z),minX=Math.min(GUN_ZONE.minX,...xs),maxX=Math.max(GUN_ZONE.maxX,...xs),minZ=Math.min(GUN_ZONE.minZ,...zs),maxZ=Math.max(GUN_ZONE.maxZ,...zs),span=Math.max(24,maxZ-minZ+18,(maxX-minX+18)/Math.max(.45,camera.aspect));
    focus.set((minX+maxX)/2,.8,(minZ+maxZ)/2);const height=Math.max(29,span*.5/Math.tan(THREE.MathUtils.degToRad(29))+7),pull=1+smooth(local)*.065;
    camera.position.set(focus.x+span*.055,height*pull,focus.z+span*.08);camera.lookAt(focus);camera.fov=58;
    const member=data.players.find(p=>p.id===s.selfId),winner=data.winner===undefined?data.players.find(p=>p.id===data.owner)?.team:data.winner,node=result();

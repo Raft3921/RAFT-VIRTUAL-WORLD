@@ -5,7 +5,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export const slideShape=(yaw,width=.32)=>({width:Math.max(.32,width),depth:.95,height:1.16,yaw});
 export function createCombatMovement(){return {vx:0,vz:0,sprintTime:0,sliding:false,slideAge:0,slideBlend:0,cooldown:0,slideAir:false,prone:false,intent:false};}
 export function stepCombatMovement(world,body,input,dt){
- if(!inGunZone(body.p)||input.combat!==true){body.combat=null;return null;}
+ if(!inGunZone(body.p,world.gunMapId)||input.combat!==true){body.combat=null;return null;}
  const m=body.combat??=createCombatMovement(),shape=input.standingShape||{width:.32,depth:.32,height:1.9,yaw:input.lookYaw||0},yaw=input.lookYaw||0;
  if(input.stop){m.vx=m.vz=m.sprintTime=0;m.sliding=m.slideAir=false;input={...input,wishX:0,wishZ:0,sprint:false,jump:false};}
  const intent=input.proneIntent===true,pressed=intent&&!m.intent;m.intent=intent;m.cooldown=Math.max(0,m.cooldown-dt);

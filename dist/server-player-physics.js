@@ -1,16 +1,16 @@
 import {HOUSES,mirrorRealm} from './housing-data.js';
 import * as THREE from './vendor/three.module.js';
-import {createWorld} from './world.js?v=20261016-cinema106';
-import {stepPlayer} from './player-physics.js?v=20261017-slide120';
+import {createWorld} from './world.js?v=20261017-maps121';
+import {stepPlayer} from './player-physics.js?v=20261017-maps121';
 import {housingColliders,mirrorAvenueColliders} from './housing-collision.js?v=20261015-physics101';
 
 // The room owns position, vertical velocity and contact state. Clients send
 // ordered movement inputs and replay unacknowledged inputs after each reply.
 export class ServerPlayerPhysics{
- constructor(rules){this.rules=rules;this.world=createWorld(new THREE.Scene(),{physicsOnly:true,combatOnly:(rules.settings?.combatOnly===true)});rules.movementWorld=this.world;this.combatOnly=(rules.settings?.combatOnly===true);rules.onWorldModeChange=()=>this.resetWorld();this.layouts=new Map();this.entries=new Set();this.realms=new Set();this.timer=null;}
- resetWorld(){if(this.timer)clearInterval(this.timer);this.timer=null;for(const entry of this.entries)entry.motion=null;this.entries.clear();this.layouts.clear();this.realms.clear();this.combatOnly=(this.rules.settings?.combatOnly===true);this.world=createWorld(new THREE.Scene(),{physicsOnly:true,combatOnly:this.combatOnly});this.rules.movementWorld=this.world;}
+ constructor(rules){this.rules=rules;this.world=createWorld(new THREE.Scene(),{physicsOnly:true,combatOnly:(rules.settings?.combatOnly===true),gunMapId:rules.settings?.gunMap});rules.movementWorld=this.world;this.combatOnly=(rules.settings?.combatOnly===true);rules.onWorldModeChange=()=>this.resetWorld();this.layouts=new Map();this.entries=new Set();this.realms=new Set();this.timer=null;}
+ resetWorld(){if(this.timer)clearInterval(this.timer);this.timer=null;for(const entry of this.entries)entry.motion=null;this.entries.clear();this.layouts.clear();this.realms.clear();this.combatOnly=(this.rules.settings?.combatOnly===true);this.world=createWorld(new THREE.Scene(),{physicsOnly:true,combatOnly:this.combatOnly,gunMapId:this.rules.settings?.gunMap});this.rules.movementWorld=this.world;}
  syncGeometry(){
-  if(this.combatOnly!==(this.rules.settings?.combatOnly===true))this.resetWorld();
+  if(this.combatOnly!==(this.rules.settings?.combatOnly===true)||this.world.gunMapId!==this.rules.settings?.gunMap)this.resetWorld();
   if(this.combatOnly){for(const b of this.world.bodies)if(b.gunPropId)b.disabled=this.rules.guns.traces.has(b.gunPropId);return;}
   for(const key of this.rules.houses.realms?.keys()||[]){if(this.realms.has(key))continue;const realm=mirrorRealm(key,this.rules.houses.realms);if(!realm)continue;this.realms.add(key);
    this.world.setHouseBodies('mirror-avenue:'+key,mirrorAvenueColliders(this.world.bodies,realm,HOUSES));

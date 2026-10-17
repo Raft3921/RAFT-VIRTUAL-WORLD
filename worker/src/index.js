@@ -41,7 +41,7 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
 
   async fetch(request) {
     await this.ready;
-    if(new URL(request.url).pathname==='/world-mode')return new Response(JSON.stringify({combatOnly:this.rules.settings.combatOnly}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
+    if(new URL(request.url).pathname==='/world-mode')return new Response(JSON.stringify({combatOnly:this.rules.settings.combatOnly,gunMap:this.rules.settings.gunMap}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
     this.rules.disconnectPlayer=id=>{const match=[...this.players].find(([,e])=>e.player.id===id);if(!match)return;const [socket]=match;try{socket.send(json({type:'room-removed',reason:'メニューボードから退出しました'}));}catch{}this.remove(socket);try{socket.close(1000,'removed from menu board');}catch{}};
     if (this.players.size >= MAX_PLAYERS) return new Response('Room is full', { status: 409 });
 
@@ -86,6 +86,7 @@ this.rules=new GameRules(this.players,m=>this.broadcast(m),this.scores,s=>ctx.st
     if(message.type!=='state'){const pending=this.rules.receive(entry,message);if(pending?.then)this.roomContext.waitUntil(pending);return;}
     if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;
 
+    if(this.rules.worldModeChanging)return;
     const requestedSkin = Number(message.state?.skin);
     const skin = playableSkin(requestedSkin,entry.player.skin);
     const state = cleanState(message.state, skin, (this.rules.settings.combatOnly?undefined:this.rules.houses.realms));

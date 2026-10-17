@@ -66,7 +66,7 @@ const server = createServer((request, response) => {
     response.writeHead(400).end('Bad request');
     return;
   }
-  if(pathname==='/world-mode'){response.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}).end(JSON.stringify({combatOnly:rules.settings.combatOnly}));return;}
+  if(pathname==='/world-mode'){response.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}).end(JSON.stringify({combatOnly:rules.settings.combatOnly,gunMap:rules.settings.gunMap}));return;}
   if(pathname==='/version'){response.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}).end(JSON.stringify({version:SYNC_VERSION,protocol:SYNC_PROTOCOL,buildId:serverBuildId}));return;}
   if (pathname === '/health') {
     response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }).end('ok');
@@ -136,6 +136,7 @@ sockets.on('connection', (socket, request) => {
     if(!message||typeof message!=='object'||Array.isArray(message)||raw.length>8192&&!['cooking-save','kitchen-edit'].includes(message.type))return;
     if(message.type!=='state'){rules.receive(entry,message);return;}
     if (message.type !== 'state' || Date.now() - entry.lastStateAt < 25) return;
+    if(rules.worldModeChanging)return;
     const requestedSkin = Number(message.state?.skin);
     const state = cleanState(message.state, requestedSkin, (rules.settings.combatOnly?undefined:rules.houses.realms));
     if (!state) return;

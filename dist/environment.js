@@ -1,4 +1,5 @@
-import {GUN_ZONE} from './gun-layout.js?v=20261015-tactics99';
+import {gunMap} from './gun-maps.js?v=20261017-maps121';
+import {GUN_ZONE} from './gun-layout.js?v=20261017-maps121';
 import * as THREE from 'three';
 
 // All vegetation and terrain are geometry/shaders: no image textures or downloads.
@@ -75,7 +76,7 @@ function makeSky() {
   return sky;
 }
 
-function makeGround(simple=false) {
+function makeGround(simple=false,GUN_ZONE=gunMap('sand').zone,snow=false) {
   const geometry = new THREE.PlaneGeometry(2800, 2800, simple?1:160, simple?1:160);
   geometry.rotateX(-Math.PI / 2);
   const positions = geometry.attributes.position;
@@ -110,10 +111,10 @@ function makeGround(simple=false) {
       vec2 outside=max(max(townMin-vGroundPosition.xz,vGroundPosition.xz-townMax),vec2(0.));
       float desert=1.-smoothstep(0.,5.,length(outside));
       float approach=(1.-smoothstep(4.8,6.5,abs(vGroundPosition.z+92.)))*step(47.,vGroundPosition.x)*(1.-step(124.,vGroundPosition.x));
-      diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.60,.43,.25)*mix(.9,1.1,groundPatch),max(desert,approach));
+      diffuseColor.rgb=mix(diffuseColor.rgb,${snow?'vec3(.77,.84,.89)':'vec3(.60,.43,.25)'}*mix(.9,1.1,groundPatch),max(desert,approach));
     `);
   };
-  material.customProgramCacheKey = () => 'studio-meadow-ground-sandtown-v2';
+  material.customProgramCacheKey = () => 'studio-meadow-ground-'+GUN_ZONE.width+'-'+snow;
   const ground = new THREE.Mesh(geometry, material);
   ground.name = 'Flat meadow and distant rolling hills';
   ground.receiveShadow = true;
@@ -161,7 +162,7 @@ function grassClumpGeometry(segments) {
   return geometry;
 }
 
-function makeGrass(tier, uniforms) {
+function makeGrass(tier, uniforms,GUN_ZONE=gunMap('sand').zone) {
   const geometry = grassClumpGeometry(tier.segments);
   const material = new THREE.MeshLambertMaterial({
     color: '#5f8b3e', emissive: '#000000', emissiveIntensity: 0, side: THREE.DoubleSide,
@@ -270,14 +271,15 @@ function makeGrass(tier, uniforms) {
  * Settings: wind 0..2, grassDensity 0..1, sunHeight 8..82 degrees,
  * exposure .65..1.6, quality 'low' | 'medium' | 'high'.
  */
-export function createEnvironment(scene, renderer, { mobile = false, combatOnly = false } = {}) {
+export function createEnvironment(scene, renderer, { mobile = false, combatOnly = false,gunMapId='sand' } = {}) {
+  const map=gunMap(gunMapId),GUN_ZONE=map.zone;
   const settings = {
     quality: mobile ? 'low' : 'high', wind: .75,
     grassDensity: 1, sunHeight: 48, exposure: 1.05,
   };
   const group = new THREE.Group();
   group.name = 'Meadow environment';
-  const sky = makeSky(), ground = makeGround(renderer.isSoftwareRenderer);
+  const sky = makeSky(), ground = makeGround(renderer.isSoftwareRenderer,GUN_ZONE,map.snow);
   const ambient = new THREE.HemisphereLight('#e3f1ff', '#728153', 1.6);
   const sun = new THREE.DirectionalLight('#fff7e3', 2.5);
   sun.castShadow = true;
@@ -299,7 +301,7 @@ export function createEnvironment(scene, renderer, { mobile = false, combatOnly 
     uSpan: { value: TIERS[settings.quality].span },
     uFocus: { value: new THREE.Vector2() },
   };
-  let grass = combatOnly||renderer.isSoftwareRenderer?null:makeGrass(TIERS[settings.quality], uniforms);
+  let grass = combatOnly||renderer.isSoftwareRenderer?null:makeGrass(TIERS[settings.quality], uniforms,GUN_ZONE);
   group.add(sky, ground, ambient, sun, sun.target);if(grass)group.add(grass);
   scene.add(group);
   const meadowFog=new THREE.Fog('#abd5f2',120,1400),meadowBackground=scene.background,voidBackground=new THREE.Color('#000000');scene.fog=meadowFog;let mirrorView=false,grassVisible=true;
@@ -322,7 +324,7 @@ export function createEnvironment(scene, renderer, { mobile = false, combatOnly 
   }
 
   let cinematicOverview=false;
-  function setCinematicOverview(enabled){if(cinematicOverview===enabled)return;cinematicOverview=enabled;const span=enabled?76:19;sun.shadow.camera.left=sun.shadow.camera.bottom=-span;sun.shadow.camera.right=sun.shadow.camera.top=span;sun.shadow.camera.updateProjectionMatrix();sun.shadow.needsUpdate=true;}
+  function setCinematicOverview(enabled){if(cinematicOverview===enabled)return;cinematicOverview=enabled;const span=enabled?Math.max(76,GUN_ZONE.width*.56):19;sun.shadow.camera.left=sun.shadow.camera.bottom=-span;sun.shadow.camera.right=sun.shadow.camera.top=span;sun.shadow.camera.updateProjectionMatrix();sun.shadow.needsUpdate=true;}
   function applyLighting() {
     const elevation = THREE.MathUtils.degToRad(settings.sunHeight);
     sunOffset.set(-Math.cos(elevation) * .8, Math.sin(elevation), -Math.cos(elevation) * .6).multiplyScalar(70);
@@ -340,7 +342,7 @@ export function createEnvironment(scene, renderer, { mobile = false, combatOnly 
       if(grass){group.remove(grass);
       grass.geometry.dispose();
       grass.material.dispose();
-      grass = makeGrass(TIERS[settings.quality], uniforms);
+      grass = makeGrass(TIERS[settings.quality], uniforms,GUN_ZONE);
       group.add(grass);}
       applyQuality();
     }
